@@ -1,0 +1,135 @@
+export type WalletType = 'cash' | 'bank' | 'ewallet' | 'savings';
+export type TransactionType = 'expense' | 'income' | 'transfer';
+export type CategoryType = 'expense' | 'income';
+
+export interface User {
+  id: string;
+  name: string;
+  email: string;
+  family_name: string;
+  avatar_url?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Wallet {
+  id: string;
+  user_id: string;
+  name: string;
+  type: WalletType;
+  balance: number;
+  icon: string;
+  color: string;
+  is_default: boolean;
+  sort_order: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Category {
+  id: string;
+  user_id: string;
+  name: string;
+  type: CategoryType;
+  icon: string;
+  color: string;
+  is_default: boolean;
+  sort_order: number;
+}
+
+export interface Transaction {
+  id: string;
+  user_id: string;
+  type: TransactionType;
+  amount: number;
+  admin_fee: number;
+  category_id?: string | null;
+  category_name?: string | null;
+  category_icon?: string | null;
+  category_color?: string | null;
+  wallet_id: string;
+  wallet_name?: string | null;
+  wallet_icon?: string | null;
+  to_wallet_id?: string | null;
+  to_wallet_name?: string | null;
+  description?: string | null;
+  date: string; // YYYY-MM-DD
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Budget {
+  id: string;
+  user_id: string;
+  category_id: string;
+  category_name?: string | null;
+  category_icon?: string | null;
+  category_color?: string | null;
+  monthly_limit: number;
+  spent: number;
+  remaining: number;
+  percentage: number;
+  month: number;
+  year: number;
+  created_at: string;
+}
+
+export interface RecurringBill {
+  id: string;
+  user_id: string;
+  title: string;
+  amount: number;
+  due_day: number;
+  category_id?: string | null;
+  category_name?: string | null;
+  wallet_id?: string | null;
+  wallet_name?: string | null;
+  is_active: boolean;
+  is_paid?: boolean;
+  paid_date?: string | null;
+  days_until_due?: number;
+  status?: 'paid' | 'due_today' | 'overdue' | 'due_soon' | 'upcoming';
+  created_at: string;
+}
+
+export interface BillPayment {
+  id: string;
+  user_id: string;
+  bill_id: string;
+  paid_date: string;
+  amount: number;
+  month: number;
+  year: number;
+  created_at: string;
+}
+
+export interface AppSettings {
+  id: string;
+  user_id: string;
+  family_name: string;
+  currency: string;
+  updated_at: string;
+}
+
+export interface MonthlySummary {
+  month: number;
+  year: number;
+  total_balance: number;
+  total_income: number;
+  total_expense: number;
+  net_cash_flow: number;
+  total_transfer: number;
+  bill_pending_count: number;
+  budget_over_count: number;
+}
+
+export interface ApiResponse<T = unknown> {
+  success: boolean;
+  data?: T;
+  error?: string;
+  meta?: {
+    total?: number;
+    page?: number;
+    limit?: number;
+  };
+}

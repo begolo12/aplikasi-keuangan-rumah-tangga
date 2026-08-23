@@ -1,0 +1,96 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Warm neutrals — nuansa kas rumah tangga bersih & ramah */
+    --color-bg: 40 20% 98%;          /* #FAF8F5 */
+    --color-surface: 40 15% 94%;     /* #F3EFEA */
+    --color-surface-2: 40 12% 89%;   /* #E6E0D8 */
+    --color-surface-3: 40 10% 82%;   /* #D3CCC2 */
+    --color-border: 40 10% 88%;      /* #E3DED7 */
+    --color-text: 220 25% 12%;       /* #171E27 */
+    --color-text-muted: 220 10% 48%; /* #6F7682 */
+
+    /* Aksen utama — hijau teal finansial */
+    --color-primary: 162 65% 36%;       /* #20986C */
+    --color-primary-fg: 0 0% 100%;      /* #FFFFFF */
+    --color-primary-hover: 162 65% 30%; /* #1A7B57 */
+    --color-primary-subtle: 162 50% 93%;/* #E6F5EF */
+
+    /* Semantik keuangan */
+    --color-income: 145 60% 38%;        /* #279B48 */
+    --color-income-subtle: 145 60% 93%; /* #E7F7EC */
+    --color-expense: 0 70% 50%;         /* #D92B2B */
+    --color-expense-subtle: 0 70% 94%;  /* #FCECEC */
+    --color-transfer: 215 75% 48%;      /* #1E6BE5 */
+    --color-transfer-subtle: 215 75% 94%;/* #EAF1FC */
+    --color-warning: 38 92% 48%;        /* #E98B0B */
+    --color-warning-subtle: 38 92% 93%; /* #FDF2E2 */
+  }
+
+  .dark {
+    --color-bg: 220 20% 10%;           /* #14171E */
+    --color-surface: 220 18% 14%;      /* #1C212B */
+    --color-surface-2: 220 16% 19%;    /* #282F3D */
+    --color-surface-3: 220 14% 25%;    /* #374052 */
+    --color-border: 220 16% 22%;       /* #2F3747 */
+    --color-text: 220 20% 95%;         /* #EFF1F5 */
+    --color-text-muted: 220 10% 60%;   /* #9098A7 */
+
+    --color-primary: 162 60% 45%;       /* #2EC28C */
+    --color-primary-fg: 220 20% 10%;   /* #14171E */
+    --color-primary-hover: 162 60% 52%; /* #41CF9B */
+    --color-primary-subtle: 162 40% 18%;/* #1B352B */
+
+    --color-income: 145 55% 48%;        /* #38B85C */
+    --color-income-subtle: 145 40% 18%; /* #1C3523 */
+    --color-expense: 0 65% 58%;         /* #E54B4B */
+    --color-expense-subtle: 0 40% 18%;  /* #3A1C1C */
+    --color-transfer: 215 75% 58%;      /* #4686EE */
+    --color-transfer-subtle: 215 40% 20%;/* #1C2B3F */
+    --color-warning: 38 85% 55%;        /* #EFA02A */
+    --color-warning-subtle: 38 40% 18%; /* #3A2B17 */
+  }
+
+  * {
+    border-color: hsl(var(--color-border));
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  body {
+    background-color: hsl(var(--color-bg));
+    color: hsl(var(--color-text));
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+}
+
+/* Custom smooth scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: hsl(var(--color-surface-3));
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--color-text-muted));
+}
+
+/* Hide scrollbar utility */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
