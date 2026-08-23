@@ -64,6 +64,12 @@ export async function POST(req: NextRequest) {
     if (error.name === 'ZodError') {
       return NextResponse.json({ success: false, error: error.errors[0].message }, { status: 400 });
     }
+    if (error.code === '23505') {
+      return NextResponse.json(
+        { success: false, error: 'Email sudah terdaftar. Silakan gunakan email lain atau login.' },
+        { status: 400 }
+      );
+    }
     console.error('Register error:', error);
     const clientMessage = process.env.NODE_ENV === 'production' ? 'Terjadi kesalahan pada server saat registrasi' : (error.message || 'Registrasi gagal');
     return NextResponse.json({ success: false, error: clientMessage }, { status: 500 });
