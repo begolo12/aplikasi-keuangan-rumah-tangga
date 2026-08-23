@@ -50,8 +50,9 @@ Aplikasi pencatatan dan manajemen keuangan keluarga modern berstandar **PWA (*Pr
 3. **Konfigurasi Environment Variables**:
    Buat file `.env.local`:
    ```env
-   DATABASE_URL=postgresql://neondb_owner:password@ep-wild-glade-az8mlt0u-pooler.c-3.ap-southeast-1.aws.neon.tech/neondb?sslmode=require
-   JWT_SECRET=super_secret_jwt_key_keuangan_keluarga_2026
+   DATABASE_URL=postgresql://<USERNAME>:<PASSWORD>@<HOST_NEON>/<DATABASE_NAME>?sslmode=require
+   JWT_SECRET=buat_kunci_rahasia_acak_panjang_disini
+   NEXT_PUBLIC_APP_NAME="KasKeluarga"
    ```
 
 4. **Inisialisasi Database Neon Postgres**:

@@ -60,6 +60,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: error.errors[0].message }, { status: 400 });
     }
     console.error('Login error:', error);
-    return NextResponse.json({ success: false, error: error.message || 'Login gagal' }, { status: 500 });
+    const clientMessage = process.env.NODE_ENV === 'production' ? 'Terjadi kesalahan pada server saat login' : (error.message || 'Login gagal');
+    return NextResponse.json({ success: false, error: clientMessage }, { status: 500 });
   }
 }
