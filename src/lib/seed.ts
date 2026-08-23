@@ -1,10 +1,10 @@
 import { query, withTransaction } from './db';
 
 export const DEFAULT_WALLETS = [
-  { name: 'Dompet Tunai', type: 'cash', icon: 'money', color: 'emerald', balance: 500000, is_default: true, sort_order: 1 },
-  { name: 'Rekening Bank BCA', type: 'bank', icon: 'bank', color: 'blue', balance: 3500000, is_default: false, sort_order: 2 },
-  { name: 'E-Wallet GoPay / OVO', type: 'ewallet', icon: 'device-mobile', color: 'teal', balance: 350000, is_default: false, sort_order: 3 },
-  { name: 'Dana Darurat & Tabungan', type: 'savings', icon: 'vault', color: 'amber', balance: 5000000, is_default: false, sort_order: 4 },
+  { name: 'Dompet Tunai', type: 'cash', icon: 'money', color: 'emerald', balance: 0, is_default: true, sort_order: 1 },
+  { name: 'Rekening Bank BCA', type: 'bank', icon: 'bank', color: 'blue', balance: 0, is_default: false, sort_order: 2 },
+  { name: 'E-Wallet GoPay / OVO', type: 'ewallet', icon: 'device-mobile', color: 'teal', balance: 0, is_default: false, sort_order: 3 },
+  { name: 'Dana Darurat & Tabungan', type: 'savings', icon: 'vault', color: 'amber', balance: 0, is_default: false, sort_order: 4 },
 ];
 
 export const DEFAULT_CATEGORIES = [
