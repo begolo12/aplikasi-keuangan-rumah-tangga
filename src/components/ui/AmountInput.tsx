@@ -44,7 +44,6 @@ export function AmountInput({ value, onChange, label = 'Nominal (Rp)', error, di
         <input
           type="text"
           inputMode="numeric"
-          pattern="[0-9]*"
           disabled={disabled}
           value={formatDisplay(value)}
           onChange={handleInputChange}
