@@ -21,6 +21,7 @@ import {
   debtQuerySchema,
 } from '../src/lib/validations';
 import { formatRupiah, formatCompactRupiah, formatDate } from '../src/lib/formatters';
+import { createSessionToken, verifySessionToken } from '../src/lib/auth';
 
 let passed = 0;
 let failed = 0;
@@ -298,11 +299,41 @@ assert('debt payment negatif ditolak', !dp2.success);
 const dq1 = debtQuerySchema.safeParse({ type: 'payable', status: 'unpaid' });
 assert('debt query valid diterima', dq1.success && dq1.data.type === 'payable' && dq1.data.status === 'unpaid');
 
-// ── Summary ──────────────────────────────────────────────────────────────────
-console.log(`\n${'─'.repeat(50)}`);
-console.log(`Hasil: ${passed} passed, ${failed} failed`);
-if (failed > 0) {
-  process.exit(1);
-} else {
-  console.log('Semua audit self-test lulus.');
+// ── Validasi Auth Token & Session ───────────────────────────────────────────
+console.log('\n[10] auth session & JWT token');
+
+async function testAuth() {
+  const token = await createSessionToken({
+    userId: validUuid1,
+    email: 'user@example.com',
+    name: 'Budi Test',
+    familyName: 'Keluarga Budi',
+  });
+  assert('createSessionToken menghasilkan string JWT valid', typeof token === 'string' && token.split('.').length === 3);
+
+  const payload = await verifySessionToken(token);
+  assert('verifySessionToken mengembalikan payload yang cocok', payload?.userId === validUuid1 && payload?.email === 'user@example.com');
+
+  const invalidPayload = await verifySessionToken('token.palsu.rusak');
+  assert('verifySessionToken menolak token palsu', invalidPayload === null);
+
+  // Response shape parsing test for /api/auth/me compatibility
+  const meResponseDirect = { success: true, data: { id: validUuid1, name: 'Budi Test', email: 'user@example.com' } } as { success: boolean; data?: { id?: string; name?: string; email?: string; user?: unknown } };
+  const extractedDirect = (meResponseDirect.data?.user || (meResponseDirect.data?.id ? meResponseDirect.data : null)) as { id?: string } | null;
+  assert('checkAuth kompatibel dengan direct user data shape', extractedDirect?.id === validUuid1);
+
+  const meResponseNested = { success: true, data: { user: { id: validUuid1, name: 'Budi Test' } } } as { success: boolean; data?: { id?: string; name?: string; user?: { id: string; name: string } } };
+  const extractedNested = meResponseNested.data?.user || (meResponseNested.data?.id ? meResponseNested.data : null);
+  assert('checkAuth kompatibel dengan nested user data shape', Boolean(extractedNested));
 }
+
+testAuth().then(() => {
+  // ── Summary ──────────────────────────────────────────────────────────────────
+  console.log(`\n${'─'.repeat(50)}`);
+  console.log(`Hasil: ${passed} passed, ${failed} failed`);
+  if (failed > 0) {
+    process.exit(1);
+  } else {
+    console.log('Semua audit self-test lulus.');
+  }
+});

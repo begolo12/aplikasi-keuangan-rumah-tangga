@@ -129,8 +129,9 @@ export default function MainPage() {
           return;
         }
         const data = await res.json();
-        if (data.success && data.data?.user) {
-          setUser(data.data.user);
+        const userObj = data?.data?.user || (data?.data?.id ? data.data : null);
+        if (data.success && userObj) {
+          setUser(userObj);
         } else {
           router.replace('/login');
         }

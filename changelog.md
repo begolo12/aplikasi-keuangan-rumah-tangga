@@ -3,6 +3,15 @@
 Log eksekusi plan. Entri baru ditambahkan di bagian paling atas.
 Format entri lihat `AGENTS.md` bagian "Langkah 3 — Catat ke Changelog".
 
+## [2026-08-24] Perbaikan Parsing Sesi Auth & Redirect Login
+
+**Plan**: `docs/plans/2026-08-24-perbaikan-auth-session-login-redirect.md`
+
+### Berubah
+- **Perbaikan Ekstraksi Sesi Auth**: Menyelaraskan bentuk respons objek user pada [route.ts](file:///f:/APLIKASI-KEUANGAN-GANANG/src/app/api/auth/me/route.ts) dan ekstraksi `userObj` di [page.tsx](file:///f:/APLIKASI-KEUANGAN-GANANG/src/app/page.tsx) (`data.data?.user || data.data`), mengatasi kendala pengguna kembali terlempar ke halaman login sesaat setelah berhasil masuk.
+- **Transisi Navigasi Auth**: Memastikan [LoginPage](file:///f:/APLIKASI-KEUANGAN-GANANG/src/app/(auth)/login/page.tsx) dan [RegisterPage](file:///f:/APLIKASI-KEUANGAN-GANANG/src/app/(auth)/register/page.tsx) memicu `router.push('/')` dan `router.refresh()` secara sinkron dengan cookie httpOnly.
+- **Unit Test Coverage**: Menambahkan 5 assertion baru di [audit-self-test.ts](file:///f:/APLIKASI-KEUANGAN-GANANG/scripts/audit-self-test.ts) untuk memvalidasi JWT token roundtrip dan kompatibilitas parsing sesi (total 62 passed).
+
 ## [2026-08-24] Fitur Hutang-Piutang, Navigasi Back Mobile, dan Laporan Cashflow Komprehensif
 
 **Plan**: `docs/plans/2026-08-24-fitur-hutang-piutang-navigasi-back-laporan-cashflow.md`

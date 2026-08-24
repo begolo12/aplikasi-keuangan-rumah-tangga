@@ -32,7 +32,6 @@ export default function RegisterPage() {
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Terjadi kesalahan sistem.');
-    } finally {
       setIsLoading(false);
     }
   };

@@ -23,12 +23,10 @@ export default function LoginPage() {
 
     try {
       await apiFetch(endpoints.authLogin, { method: 'POST', json: { email, password } });
-
       router.push('/');
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Terjadi kesalahan sistem.');
-    } finally {
       setIsLoading(false);
     }
   };
