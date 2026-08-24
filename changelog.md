@@ -3,6 +3,25 @@
 Log eksekusi plan. Entri baru ditambahkan di bagian paling atas.
 Format entri lihat `AGENTS.md` bagian "Langkah 3 — Catat ke Changelog".
 
+## [2026-08-24] Peningkatan Visual UI/UX Modern & Modul Evaluasi Keuangan Lengkap
+
+**Plan**: `docs/plans/2026-08-24-optimasi-visual-ui-ux-dan-modul-evaluasi-keuangan.md`
+
+### Berubah
+- **Perbaikan State & Estetika Visual Sidebar**:
+  - Mengisolasi tab `evaluation` sebagai ID unik pada [SidebarNav.tsx](file:///f:/APLIKASI-KEUANGAN-GANANG/src/components/layout/SidebarNav.tsx) untuk mengatasi *bug double active state* pada menu Laporan & Evaluasi.
+  - Memperbarui gaya indikator aktif dengan pill solid modern (`bg-primary text-white shadow-2xs font-bold`) dan transisi hover yang bersih, rapi, serta presisi.
+- **Modul Baru Evaluasi Keuangan (`EvaluationView.tsx`)**:
+  - **Skor Kesehatan Finansial (0 - 100)**: Kalkulasi kesehatan keuangan komprehensif berdasarkan surplus kas, rasio dana darurat, rasio tabungan, dan beban hutang.
+  - **4 Rasio Finansial Esensial**:
+    1. *Ketahanan Kas / Dana Darurat*: Estimasi durasi bulan hidup yang dapat ditopang kas saat ini.
+    2. *Rasio Tabungan (Savings Rate %)*: Persentase surplus bersih dari total pendapatan bulanan.
+    3. *Beban Hutang (Debt-to-Income / DTI %)*: Rasio sisa hutang terhadap kapasitas pendapatan.
+    4. *Nilai Buku Portofolio Aset*: Nilai pasar dan akumulasi penyusutan seluruh barang berharga.
+  - **Estimasi Kekayaan Bersih (Net Worth)**: Agregasi real-time dari Total Kas + Nilai Buku Aset + Piutang - Hutang.
+  - **Analisis & Rekomendasi Taktis**: Kotak saran cerdas otomatis untuk memandu perbaikan rasio keuangan pengguna.
+- **Penyambungan Navigasi**: Tab `evaluation` terhubung penuh di [page.tsx](file:///f:/APLIKASI-KEUANGAN-GANANG/src/app/page.tsx), [SidebarNav.tsx](file:///f:/APLIKASI-KEUANGAN-GANANG/src/components/layout/SidebarNav.tsx), dan [BottomNav.tsx](file:///f:/APLIKASI-KEUANGAN-GANANG/src/components/layout/BottomNav.tsx).
+
 ## [2026-08-24] Sidebar Kompak Bertingkat dengan Section Head dan Sub-Menu
 
 **Plan**: `docs/plans/2026-08-24-sidebar-kompak-bertingkat-head-submenu.md`

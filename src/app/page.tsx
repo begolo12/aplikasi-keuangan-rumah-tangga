@@ -58,6 +58,10 @@ const AssetsView = dynamic(
   () => import('@/components/assets/AssetsView').then((m) => m.AssetsView),
   { ssr: false, loading: () => <DashboardSkeleton /> }
 );
+const EvaluationView = dynamic(
+  () => import('@/components/evaluation/EvaluationView').then((m) => m.EvaluationView),
+  { ssr: false, loading: () => <DashboardSkeleton /> }
+);
 
 type BootstrapData = {
   wallets?: Wallet[];
@@ -416,6 +420,14 @@ export default function MainPage() {
           summary={summary}
           currentMonth={currentMonth}
           currentYear={currentYear}
+        />
+      ) : activeTab === 'evaluation' ? (
+        <EvaluationView
+          summary={summary}
+          currentMonth={currentMonth}
+          currentYear={currentYear}
+          wallets={wallets}
+          debts={debts}
         />
       ) : activeTab === 'assets' ? (
         <AssetsView
