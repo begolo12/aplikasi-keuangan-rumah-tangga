@@ -31,6 +31,41 @@ export function handleRouteError(error: unknown, context: string): NextResponse 
     return NextResponse.json({ success: false, error: error.message }, { status: error.status });
   }
 
+  // Handle Postgres known error codes gracefully with clear user messages
+  const pgError = error as { code?: string; constraint?: string; message?: string };
+  if (pgError && typeof pgError.code === 'string') {
+    if (pgError.code === '23514') {
+      if (pgError.constraint?.includes('wallets_balance') || pgError.message?.includes('wallets_balance_nonnegative')) {
+        return NextResponse.json(
+          { success: false, error: 'Saldo dompet tidak mencukupi untuk transaksi ini.' },
+          { status: 400 }
+        );
+      }
+      return NextResponse.json(
+        { success: false, error: 'Nilai data tidak memenuhi batasan validasi sistem.' },
+        { status: 400 }
+      );
+    }
+    if (pgError.code === '23505') {
+      return NextResponse.json(
+        { success: false, error: 'Data yang sama sudah tercatat di sistem (duplikat).' },
+        { status: 409 }
+      );
+    }
+    if (pgError.code === '23503') {
+      return NextResponse.json(
+        { success: false, error: 'Data referensi (dompet atau kategori) tidak ditemukan.' },
+        { status: 404 }
+      );
+    }
+    if (pgError.code === '22P02') {
+      return NextResponse.json(
+        { success: false, error: 'Format data input (ID atau angka) tidak valid.' },
+        { status: 400 }
+      );
+    }
+  }
+
   console.error(`[api:${context}]`, error);
   const isProduction = process.env.NODE_ENV === 'production';
   const fallback = 'Terjadi kesalahan pada server.';

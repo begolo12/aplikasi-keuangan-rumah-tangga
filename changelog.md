@@ -3,6 +3,15 @@
 Log eksekusi plan. Entri baru ditambahkan di bagian paling atas.
 Format entri lihat `AGENTS.md` bagian "Langkah 3 — Catat ke Changelog".
 
+## [2026-08-24] Perbaikan Kolom Idempotency Key & Error Mapping Pencatatan Transaksi
+
+**Plan**: `docs/plans/2026-08-24-perbaikan-idempotency-key-dan-pencatatan-transaksi.md`
+
+### Berubah
+- **Migrasi Kolom Idempotency Key**: Mengeksekusi penambahan kolom `idempotency_key` (UUID) dan unique partial index `idx_trx_idempotency` pada tabel `transactions` di live database Neon Postgres.
+- **Pemetaan Error Database Ramah Pengguna**: Memperbarui [apiHelpers.ts](file:///f:/APLIKASI-KEUANGAN-GANANG/src/lib/apiHelpers.ts) dengan pemetaan kode error PostgreSQL (`23514`, `23505`, `23503`, `22P02`) menjadi pesan error bisnis yang jelas (contoh: notifikasi saldo dompet tidak mencukupi alih-alih pesan server generik).
+- **Verifikasi Transaksi Riil**: Memvalidasi alur simpan transaksi pengeluaran, pemasukan, dan transfer langsung terhadap database live (100% PASS).
+
 ## [2026-08-24] Pengujian End-to-End (E2E) Menyeluruh Semua Fungsi
 
 **Plan**: `docs/plans/2026-08-24-e2e-pengujian-menyeluruh-semua-fungsi.md`
