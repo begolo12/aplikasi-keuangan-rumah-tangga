@@ -136,7 +136,7 @@ export function SettingsView({ user, settings, onRefresh, onLogout }: SettingsVi
           </div>
 
           <div className="space-y-1">
-            <label className="block text-xs font-semibold text-text-muted">Nama Keluarga / Rumah Tangga</label>
+            <label className="block text-xs font-semibold text-text-muted">Nama Kas / Akun Pribadi</label>
             <div className="relative flex items-center">
               <UsersThree size={20} className="absolute left-3 text-text-muted" />
               <input
@@ -144,7 +144,7 @@ export function SettingsView({ user, settings, onRefresh, onLogout }: SettingsVi
                 required
                 value={familyName}
                 onChange={(e) => setFamilyName(e.target.value)}
-                placeholder="Contoh: Keluarga Ganang"
+                placeholder="Contoh: Kas Irvan atau Keluarga Ganang"
                 className="w-full h-11 pl-10 pr-4 bg-background border border-border rounded-xl text-sm font-medium focus:ring-2 focus:ring-primary focus:outline-none"
               />
             </div>

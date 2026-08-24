@@ -112,3 +112,23 @@ export const debtQuerySchema = z.object({
   type: z.enum(['payable', 'receivable']).optional(),
   status: z.enum(['unpaid', 'partial', 'paid']).optional(),
 });
+
+export const assetSchema = z.object({
+  name: z.string().min(1, 'Nama aset wajib diisi').max(100, 'Nama aset maksimal 100 karakter'),
+  category: z.enum(['kendaraan', 'elektronik', 'properti', 'perhiasan_emas', 'alat_usaha', 'lainnya'], {
+    errorMap: () => ({ message: 'Kategori aset tidak valid' }),
+  }),
+  purchase_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Format tanggal perolehan harus YYYY-MM-DD'),
+  purchase_price: z.number().positive('Harga perolehan harus lebih besar dari 0'),
+  current_value: z.number().nonnegative('Nilai pasar saat ini tidak boleh negatif').optional().nullable(),
+  depreciation_method: z.enum(['straight_line', 'declining_balance', 'none']).default('straight_line'),
+  useful_life_years: z.number().int().min(1, 'Umur ekonomis minimal 1 tahun').max(100, 'Umur ekonomis maksimal 100 tahun').default(5),
+  salvage_value: z.number().nonnegative('Nilai sisa/residu tidak boleh negatif').default(0),
+  notes: z.string().max(500).optional().nullable(),
+});
+
+export const assetQuerySchema = z.object({
+  category: z.enum(['kendaraan', 'elektronik', 'properti', 'perhiasan_emas', 'alat_usaha', 'lainnya']).optional(),
+  search: z.string().max(100).optional(),
+});
+

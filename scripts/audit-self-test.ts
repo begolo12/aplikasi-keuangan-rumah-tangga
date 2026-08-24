@@ -19,9 +19,12 @@ import {
   debtSchema,
   debtPaymentSchema,
   debtQuerySchema,
+  assetSchema,
+  assetQuerySchema,
 } from '../src/lib/validations';
 import { formatRupiah, formatCompactRupiah, formatDate } from '../src/lib/formatters';
 import { createSessionToken, verifySessionToken } from '../src/lib/auth';
+import { calculateAssetDepreciation } from '../src/app/api/assets/route';
 
 let passed = 0;
 let failed = 0;
@@ -299,8 +302,62 @@ assert('debt payment negatif ditolak', !dp2.success);
 const dq1 = debtQuerySchema.safeParse({ type: 'payable', status: 'unpaid' });
 assert('debt query valid diterima', dq1.success && dq1.data.type === 'payable' && dq1.data.status === 'unpaid');
 
+// ── Validasi assetSchema & Depresiasi ──────────────────────────────────────
+console.log('\n[10] assetSchema & calculateAssetDepreciation');
+
+const as1 = assetSchema.safeParse({
+  name: 'Motor Honda Vario 160',
+  category: 'kendaraan',
+  purchase_date: '2024-01-15',
+  purchase_price: 25000000,
+  depreciation_method: 'straight_line',
+  useful_life_years: 5,
+  salvage_value: 5000000,
+});
+assert('asset kendaraan valid diterima', as1.success);
+
+const as2 = assetSchema.safeParse({
+  name: '',
+  category: 'kendaraan',
+  purchase_date: '2024-01-15',
+  purchase_price: 25000000,
+});
+assert('asset nama kosong ditolak', !as2.success);
+
+const as3 = assetSchema.safeParse({
+  name: 'Laptop Mac',
+  category: 'elektronik',
+  purchase_date: '2024-01-15',
+  purchase_price: -5000,
+});
+assert('asset harga perolehan negatif ditolak', !as3.success);
+
+const as4 = assetSchema.safeParse({
+  name: 'Tanah Kavling',
+  category: 'properti',
+  purchase_date: '2023-05-10',
+  purchase_price: 150000000,
+  depreciation_method: 'none',
+});
+assert('asset properti tanpa depresiasi diterima', as4.success && as4.data.depreciation_method === 'none');
+
+const asq1 = assetQuerySchema.safeParse({ category: 'kendaraan', search: 'Vario' });
+assert('asset query valid diterima', asq1.success && asq1.data.category === 'kendaraan');
+
+// Test kalkulasi depresiasi garis lurus
+const deprCalc = calculateAssetDepreciation({
+  purchase_date: new Date(Date.now() - 1000 * 60 * 60 * 24 * 365).toISOString().split('T')[0], // 1 tahun lalu
+  purchase_price: 24000000,
+  depreciation_method: 'straight_line',
+  useful_life_years: 4,
+  salvage_value: 0,
+});
+assert('straight-line annual depr dihitung benar (Rp 6.000.000 / thn)', deprCalc.annual_depreciation === 6000000);
+assert('straight-line monthly depr dihitung benar (Rp 500.000 / bln)', deprCalc.monthly_depreciation === 500000);
+assert('nilai buku terhitung berkurang dari harga perolehan', deprCalc.book_value < 24000000 && deprCalc.book_value > 0);
+
 // ── Validasi Auth Token & Session ───────────────────────────────────────────
-console.log('\n[10] auth session & JWT token');
+console.log('\n[11] auth session & JWT token');
 
 async function testAuth() {
   const token = await createSessionToken({

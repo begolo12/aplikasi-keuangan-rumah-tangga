@@ -22,11 +22,13 @@ export async function POST(req: NextRequest) {
       const salt = await bcrypt.genSalt(10);
       const passwordHash = await bcrypt.hash(validated.password, salt);
 
+      const defaultKasName = validated.family_name?.trim() || `Kas ${validated.name.trim()}`;
+
       const users = await client.query<{ id: string; name: string; email: string; family_name: string }>(
         `INSERT INTO users (name, email, password_hash, family_name)
          VALUES ($1, $2, $3, $4)
          RETURNING id, name, email, family_name`,
-        [validated.name, email, passwordHash, validated.family_name || 'Keluarga Bahagia']
+        [validated.name, email, passwordHash, defaultKasName]
       );
 
       const created = users.rows[0];

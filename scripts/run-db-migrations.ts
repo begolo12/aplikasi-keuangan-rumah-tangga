@@ -80,8 +80,30 @@ async function main() {
       CREATE INDEX IF NOT EXISTS idx_debt_payments_user ON debt_payments(user_id);
     `);
 
-    // 4. Index optimizations
-    console.log('4. Adding auxiliary indexes...');
+    // 4. Ensure assets table for Asset Management & Depreciation
+    console.log('4. Ensuring assets table and indexes...');
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS assets (
+        id                   UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_id              UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        name                 VARCHAR(100) NOT NULL,
+        category             VARCHAR(50) NOT NULL CHECK (category IN ('kendaraan','elektronik','properti','perhiasan_emas','alat_usaha','lainnya')),
+        purchase_date        DATE NOT NULL,
+        purchase_price       NUMERIC(15,2) NOT NULL CHECK (purchase_price > 0),
+        current_value        NUMERIC(15,2) NOT NULL DEFAULT 0 CHECK (current_value >= 0),
+        depreciation_method  VARCHAR(30) NOT NULL DEFAULT 'straight_line' CHECK (depreciation_method IN ('straight_line','declining_balance','none')),
+        useful_life_years    SMALLINT NOT NULL DEFAULT 5 CHECK (useful_life_years > 0),
+        salvage_value        NUMERIC(15,2) NOT NULL DEFAULT 0 CHECK (salvage_value >= 0),
+        notes                TEXT,
+        created_at           TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at           TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+      CREATE INDEX IF NOT EXISTS idx_assets_user ON assets(user_id);
+      CREATE INDEX IF NOT EXISTS idx_assets_user_category ON assets(user_id, category);
+    `);
+
+    // 5. Index optimizations
+    console.log('5. Adding auxiliary indexes...');
     await client.query(`CREATE INDEX IF NOT EXISTS idx_bills_user_active ON recurring_bills(user_id, is_active);`);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_bill_payments_user_month ON bill_payments(user_id, year, month);`);
   });

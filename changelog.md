@@ -3,6 +3,21 @@
 Log eksekusi plan. Entri baru ditambahkan di bagian paling atas.
 Format entri lihat `AGENTS.md` bagian "Langkah 3 — Catat ke Changelog".
 
+## [2026-08-24] Rebranding KasPribadi & Fitur Manajemen Aset dan Depresiasi
+
+**Plan**: `docs/plans/2026-08-24-fitur-kaspribadi-dan-manajemen-aset-depresiasi.md`
+
+### Berubah
+- **Rebranding KasPribadi**: Memperbarui nama aplikasi, logo, dan identitas visual menjadi **KasPribadi**.
+- **Nama Kas Otomatis & Fleksibel**: Saat registrasi user baru di [register/route.ts](file:///f:/APLIKASI-KEUANGAN-GANANG/src/app/api/auth/register/route.ts), nama kas otomatis diset sesuai nama pengguna (misal: "Kas <Nama>") dan dapat diubah sewaktu-waktu melalui form Edit Profil & Nama Kas di Pengaturan.
+- **Tabel & Migrasi Database Aset**: Membuat tabel `assets` di Neon Postgres dengan kolom umur ekonomis, metode penyusutan (*Straight-Line*, *Declining Balance*, *None*), nilai perolehan, nilai residu, dan catatan.
+- **Modul Backend `/api/assets` & `/api/assets/[id]`**: Menyediakan API CRUD lengkap dengan kalkulasi otomatis usia aset, estimasi nilai buku berjalan (*net book value*), akumulasi depresiasi, serta beban penyusutan bulanan/tahunan.
+- **Komponen Antarmuka Manajemen Aset**:
+  - [AssetsView.tsx](file:///f:/APLIKASI-KEUANGAN-GANANG/src/components/assets/AssetsView.tsx): 4 kartu ringkasan metrik (Total Perolehan, Nilai Buku Sekarang, Akumulasi Susut, Beban Susut/Bulan), tab filter kategori, search bar, list kartu aset berprogres penyusutan.
+  - [AssetModal.tsx](file:///f:/APLIKASI-KEUANGAN-GANANG/src/components/assets/AssetModal.tsx): Modal formulir catat/ubah aset dengan simulator perhitungan nilai buku instan.
+- **Integrasi Navigasi**: Menambahkan tab menu **Aset & Depresiasi** pada [SidebarNav.tsx](file:///f:/APLIKASI-KEUANGAN-GANANG/src/components/layout/SidebarNav.tsx), [QuickActions.tsx](file:///f:/APLIKASI-KEUANGAN-GANANG/src/components/dashboard/QuickActions.tsx), [BottomNav.tsx](file:///f:/APLIKASI-KEUANGAN-GANANG/src/components/layout/BottomNav.tsx), dan [page.tsx](file:///f:/APLIKASI-KEUANGAN-GANANG/src/app/page.tsx).
+- **Pengujian Lengkap**: Menambahkan pengujian skema & formula depresiasi di `scripts/audit-self-test.ts` (70/70 passed) dan pengujian integrasi E2E CRUD aset di `scripts/e2e-full-suite.ts` (28/28 passed).
+
 ## [2026-08-24] Fitur Dropdown Menu Catat Transaksi di Sidebar
 
 **Plan**: `docs/plans/2026-08-24-fitur-dropdown-catat-transaksi-sidebar.md`

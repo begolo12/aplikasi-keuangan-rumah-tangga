@@ -10,6 +10,7 @@ import {
   HandCoins,
   Wallet,
   ChartPieSlice,
+  Package,
 } from '@phosphor-icons/react';
 import { NavTab } from '../layout/BottomNav';
 import { TransactionType } from '@/lib/types';
@@ -74,6 +75,12 @@ export function QuickActions({
       icon: Wallet,
       color: 'bg-teal-500/10 text-teal-600 dark:text-teal-400 border-teal-500/20',
       action: () => onNavigate('wallets'),
+    },
+    {
+      label: 'Aset',
+      icon: Package,
+      color: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20',
+      action: () => onNavigate('assets'),
     },
     {
       label: 'Laporan',

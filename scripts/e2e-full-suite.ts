@@ -384,11 +384,42 @@ async function runE2ESuite() {
     const updatedSettings = await query<{ family_name: string }>('SELECT family_name FROM app_settings WHERE user_id = $1', [userId]);
     assert('Pembaruan pengaturan keluarga berhasil disimpan', updatedSettings[0].family_name === 'Keluarga Budi Bahagia Jaya');
 
-    // ── 11. CLEANUP TEST USER DATA ──────────────────────────────────────────────
-    console.log('\n[11] Pembersihan Data Pengujian (Teardown)');
+    // ── 11. MANAJEMEN ASET & DEPRESIASI ─────────────────────────────────────────
+    console.log('\n[11] Modul Manajemen Aset & Perhitungan Depresiasi');
+    const assetRes = await query<{ id: string }>(
+      `INSERT INTO assets (
+        user_id, name, category, purchase_date, purchase_price,
+        current_value, depreciation_method, useful_life_years, salvage_value, notes
+      ) VALUES ($1, 'Motor Honda Vario 160', 'kendaraan', $2, 24000000, 24000000, 'straight_line', 4, 0, 'Plat B 1234 CD')
+      RETURNING id`,
+      [userId, todayStr]
+    );
+    const assetId = assetRes[0]?.id;
+    assert('Pencatatan aset baru berhasil disimpan di database', Boolean(assetId));
+
+    const assetList = await query<{ name: string; purchase_price: string; depreciation_method: string }>(
+      `SELECT name, purchase_price, depreciation_method FROM assets WHERE user_id = $1`,
+      [userId]
+    );
+    assert('Query daftar aset terisolasi sesuai user id', assetList.length === 1 && assetList[0].name === 'Motor Honda Vario 160');
+
+    // Update asset
+    await query(
+      `UPDATE assets SET current_value = 23000000, notes = 'BPKB lengkap di laci' WHERE id = $1 AND user_id = $2`,
+      [assetId, userId]
+    );
+    const updatedAsset = await query<{ current_value: string; notes: string }>(
+      `SELECT current_value, notes FROM assets WHERE id = $1`,
+      [assetId]
+    );
+    assert('Pembaruan data aset berhasil', parseFloat(updatedAsset[0].current_value) === 23000000 && updatedAsset[0].notes === 'BPKB lengkap di laci');
+
+    // ── 12. CLEANUP TEST USER DATA ──────────────────────────────────────────────
+    console.log('\n[12] Pembersihan Data Pengujian (Teardown)');
     await query('DELETE FROM users WHERE id = $1', [userId]);
     const checkDeleted = await query('SELECT id FROM users WHERE id = $1', [userId]);
-    assert('Cascade deletion membersihkan seluruh data user uji tanpa meninggalkan orphan records', checkDeleted.length === 0);
+    const checkAssetDeleted = await query('SELECT id FROM assets WHERE user_id = $1', [userId]);
+    assert('Cascade deletion membersihkan seluruh data user uji dan aset tanpa orphan records', checkDeleted.length === 0 && checkAssetDeleted.length === 0);
 
   } catch (err) {
     console.error('\n❌ E2E Execution Error:', err);

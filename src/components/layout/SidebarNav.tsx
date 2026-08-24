@@ -15,6 +15,7 @@ import {
   ArrowDownRight,
   ArrowUpRight,
   ArrowsLeftRight,
+  Package,
 } from '@phosphor-icons/react';
 import { NavTab } from './BottomNav';
 import { TransactionType } from '@/lib/types';
@@ -35,7 +36,7 @@ export function SidebarNav({
   onOpenAddModal,
   onOpenTypedModal,
   userName = 'Pengguna',
-  familyName = 'Keluarga Bahagia',
+  familyName = 'Kas Pribadi',
   onLogout,
 }: SidebarNavProps) {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -76,6 +77,7 @@ export function SidebarNav({
     { id: 'budget', label: 'Anggaran Bulanan', icon: Vault },
     { id: 'bills', label: 'Tagihan Rutin', icon: Receipt },
     { id: 'debts', label: 'Hutang & Piutang', icon: HandCoins },
+    { id: 'assets', label: 'Aset & Depresiasi', icon: Package },
     { id: 'wallets', label: 'Pos Kas & Dompet', icon: Wallet },
     { id: 'reports', label: 'Laporan & Ekspor', icon: ChartPieSlice },
     { id: 'settings', label: 'Pengaturan & Backup', icon: Gear },
@@ -84,14 +86,14 @@ export function SidebarNav({
   return (
     <aside className="hidden md:flex flex-col w-64 shrink-0 bg-surface border-r border-border min-h-screen p-5 sticky top-0 h-screen justify-between transition-all">
       {/* Top Brand Logo */}
-      <div className="space-y-6">
+      <div className="space-y-5">
         <div className="flex items-center gap-3 px-2">
           <div className="w-10 h-10 bg-primary text-primary-fg rounded-2xl flex items-center justify-center shadow-md shadow-primary/20 shrink-0">
             <Wallet size={24} weight="duotone" />
           </div>
           <div>
-            <h2 className="text-base font-extrabold text-text leading-tight">KasKeluarga</h2>
-            <p className="text-[11px] text-text-muted font-medium">{familyName}</p>
+            <h2 className="text-base font-extrabold text-text leading-tight">KasPribadi</h2>
+            <p className="text-[11px] text-text-muted font-medium truncate max-w-[130px]">{familyName}</p>
           </div>
         </div>
 

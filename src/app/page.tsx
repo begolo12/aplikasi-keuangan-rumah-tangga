@@ -54,6 +54,10 @@ const ReportsView = dynamic(
   () => import('@/components/reports/ReportsView').then((m) => m.ReportsView),
   { ssr: false, loading: () => <DashboardSkeleton /> }
 );
+const AssetsView = dynamic(
+  () => import('@/components/assets/AssetsView').then((m) => m.AssetsView),
+  { ssr: false, loading: () => <DashboardSkeleton /> }
+);
 
 type BootstrapData = {
   wallets?: Wallet[];
@@ -412,6 +416,10 @@ export default function MainPage() {
           summary={summary}
           currentMonth={currentMonth}
           currentYear={currentYear}
+        />
+      ) : activeTab === 'assets' ? (
+        <AssetsView
+          onRefreshParent={refetch}
         />
       ) : activeTab === 'settings' ? (
         <SettingsView

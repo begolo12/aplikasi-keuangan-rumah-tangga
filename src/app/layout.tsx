@@ -10,13 +10,13 @@ const manrope = Manrope({
 });
 
 export const metadata: Metadata = {
-  title: 'KasKeluarga — Catatan Keuangan Rumah Tangga',
-  description: 'Aplikasi manajemen keuangan keluarga modern, ringan, cepat, dan siap offline.',
+  title: 'KasPribadi — Catatan Keuangan & Manajemen Aset',
+  description: 'Aplikasi manajemen keuangan pribadi & keluarga modern, ringan, cepat, dan siap offline.',
   manifest: '/manifest.json',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'black-translucent',
-    title: 'KasKeluarga',
+    title: 'KasPribadi',
   },
   icons: {
     icon: '/icons/icon-192.png',

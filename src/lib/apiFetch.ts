@@ -44,6 +44,8 @@ export const endpoints = {
   debts: '/api/debts',
   debt: (id: string) => `/api/debts/${id}`,
   payDebt: (id: string) => `/api/debts/${id}/pay`,
+  assets: '/api/assets',
+  asset: (id: string) => `/api/assets/${id}`,
   reportsMonthly: (month: number, year: number) => `/api/reports/monthly?month=${month}&year=${year}`,
   reportsCategory: (month: number, year: number) => `/api/reports/category?month=${month}&year=${year}`,
   settings: '/api/settings',

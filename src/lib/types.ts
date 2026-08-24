@@ -143,6 +143,37 @@ export interface DebtPayment {
   created_at: string;
 }
 
+export type AssetCategory =
+  | 'kendaraan'
+  | 'elektronik'
+  | 'properti'
+  | 'perhiasan_emas'
+  | 'alat_usaha'
+  | 'lainnya';
+
+export type DepreciationMethod = 'straight_line' | 'declining_balance' | 'none';
+
+export interface Asset {
+  id: string;
+  user_id: string;
+  name: string;
+  category: AssetCategory;
+  purchase_date: string; // YYYY-MM-DD
+  purchase_price: number;
+  current_value: number; // calculated or user-adjusted current market value
+  depreciation_method: DepreciationMethod;
+  useful_life_years: number;
+  salvage_value: number;
+  notes?: string | null;
+  accumulated_depreciation?: number;
+  book_value?: number;
+  monthly_depreciation?: number;
+  annual_depreciation?: number;
+  age_months?: number;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface MonthlySummary {
   month: number;
   year: number;
