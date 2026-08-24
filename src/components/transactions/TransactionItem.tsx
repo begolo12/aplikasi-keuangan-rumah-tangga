@@ -70,7 +70,7 @@ export function TransactionItem({ transaction, onDelete }: TransactionItemProps)
       {/* Amount & Delete Action */}
       <div className="flex items-center gap-1.5 sm:gap-2 md:gap-3 shrink-0">
         <span
-          className={`text-xs sm:text-sm md:text-base font-extrabold text-right whitespace-nowrap ${
+          className={`text-xs sm:text-sm md:text-base font-extrabold text-right whitespace-nowrap tabular-nums ${
             isIncome ? 'text-income' : isExpense ? 'text-expense' : 'text-transfer'
           }`}
         >

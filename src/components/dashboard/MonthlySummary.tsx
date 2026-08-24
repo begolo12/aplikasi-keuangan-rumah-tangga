@@ -38,7 +38,7 @@ export function MonthlySummary({ summary }: MonthlySummaryProps) {
         <div className="p-3.5 sm:p-4 md:p-5 bg-surface border border-border rounded-2xl flex items-center justify-between shadow-xs min-w-0">
           <div className="space-y-0.5 sm:space-y-1 min-w-0 pr-2">
             <p className="text-xs font-semibold text-text-muted truncate">Total Pemasukan</p>
-            <p className="text-base sm:text-lg md:text-xl font-extrabold text-income truncate">
+            <p className="text-base sm:text-lg md:text-xl font-extrabold text-income whitespace-nowrap tabular-nums">
               +{formatRupiah(summary.total_income)}
             </p>
           </div>
@@ -51,7 +51,7 @@ export function MonthlySummary({ summary }: MonthlySummaryProps) {
         <div className="p-3.5 sm:p-4 md:p-5 bg-surface border border-border rounded-2xl flex items-center justify-between shadow-xs min-w-0">
           <div className="space-y-0.5 sm:space-y-1 min-w-0 pr-2">
             <p className="text-xs font-semibold text-text-muted truncate">Total Pengeluaran</p>
-            <p className="text-base sm:text-lg md:text-xl font-extrabold text-expense truncate">
+            <p className="text-base sm:text-lg md:text-xl font-extrabold text-expense whitespace-nowrap tabular-nums">
               -{formatRupiah(summary.total_expense)}
             </p>
           </div>
@@ -64,7 +64,7 @@ export function MonthlySummary({ summary }: MonthlySummaryProps) {
         <div className="p-3.5 sm:p-4 md:p-5 bg-surface border border-border rounded-2xl flex items-center justify-between shadow-xs min-w-0">
           <div className="space-y-0.5 sm:space-y-1 min-w-0 pr-2">
             <p className="text-xs font-semibold text-text-muted truncate">Arus Kas Bersih (Selisih)</p>
-            <p className={`text-base sm:text-lg md:text-xl font-extrabold truncate ${isSurplus ? 'text-primary' : 'text-expense'}`}>
+            <p className={`text-base sm:text-lg md:text-xl font-extrabold whitespace-nowrap tabular-nums ${isSurplus ? 'text-primary' : 'text-expense'}`}>
               {isSurplus ? '+' : ''}{formatRupiah(summary.net_cash_flow)}
             </p>
           </div>

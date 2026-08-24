@@ -39,9 +39,9 @@ export function BudgetProgressBar({ budget, onEdit, onDelete }: BudgetProgressBa
           <div className="min-w-0 flex-1">
             <h4 className="text-xs sm:text-sm font-bold text-text leading-tight truncate">{budget.category_name}</h4>
             <p className="text-[11px] sm:text-xs text-text-muted mt-0.5 flex flex-wrap items-center gap-1">
-              <span>Terpakai: <span className="font-bold text-text">{formatRupiah(budget.spent)}</span></span>
+              <span>Terpakai: <span className="font-bold text-text whitespace-nowrap tabular-nums">{formatRupiah(budget.spent)}</span></span>
               <span>/</span>
-              <span>{formatRupiah(budget.monthly_limit)}</span>
+              <span className="whitespace-nowrap tabular-nums">{formatRupiah(budget.monthly_limit)}</span>
             </p>
           </div>
         </div>
@@ -73,15 +73,15 @@ export function BudgetProgressBar({ budget, onEdit, onDelete }: BudgetProgressBa
           />
         </div>
 
-        <div className="flex items-center justify-between text-xs font-semibold">
-          <span className="text-text-muted">
+        <div className="flex items-center justify-between text-xs font-semibold gap-2">
+          <span className="text-text-muted truncate">
             {isOver ? (
               <span className="text-expense font-bold flex items-center gap-1">
-                <Warning size={14} weight="fill" />
-                <span>Overbudget +{formatRupiah(Math.abs(budget.remaining))}</span>
+                <Warning size={14} weight="fill" className="shrink-0" />
+                <span className="whitespace-nowrap tabular-nums">Overbudget +{formatRupiah(Math.abs(budget.remaining))}</span>
               </span>
             ) : (
-              <span>Sisa: {formatRupiah(budget.remaining)}</span>
+              <span>Sisa: <span className="whitespace-nowrap tabular-nums">{formatRupiah(budget.remaining)}</span></span>
             )}
           </span>
           <span className={`font-extrabold ${isOver ? 'text-expense' : 'text-text'}`}>

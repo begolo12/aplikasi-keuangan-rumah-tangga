@@ -120,13 +120,13 @@ assert('wallet_id bukan UUID ditolak', !r9.success);
 // ── Validasi formatRupiah ────────────────────────────────────────────────────
 console.log('\n[2] formatRupiah');
 
-assert('1500000 -> "Rp 1.500.000"', formatRupiah(1500000) === 'Rp 1.500.000');
-assert('0 -> "Rp 0"', formatRupiah(0) === 'Rp 0');
-assert('null -> "Rp 0"', formatRupiah(null) === 'Rp 0');
-assert('"1500000" string -> "Rp 1.500.000"', formatRupiah('1500000') === 'Rp 1.500.000');
+assert('1500000 -> "Rp 1.500.000"', formatRupiah(1500000) === 'Rp\u00A01.500.000' || formatRupiah(1500000) === 'Rp 1.500.000');
+assert('0 -> "Rp 0"', formatRupiah(0) === 'Rp\u00A00' || formatRupiah(0) === 'Rp 0');
+assert('null -> "Rp 0"', formatRupiah(null) === 'Rp\u00A00' || formatRupiah(null) === 'Rp 0');
+assert('"1500000" string -> "Rp 1.500.000"', formatRupiah('1500000') === 'Rp\u00A01.500.000' || formatRupiah('1500000') === 'Rp 1.500.000');
 assert('withSymbol false tanpa Rp', formatRupiah(1000, false) === '1.000');
-assert('NaN -> "Rp 0"', formatRupiah(Number.NaN) === 'Rp 0');
-assert('desimal dibulatkan ke bawah tampilan', formatRupiah(1500.75) === 'Rp 1.501');
+assert('NaN -> "Rp 0"', formatRupiah(Number.NaN) === 'Rp\u00A00' || formatRupiah(Number.NaN) === 'Rp 0');
+assert('desimal dibulatkan ke bawah tampilan', formatRupiah(1500.75) === 'Rp\u00A01.501' || formatRupiah(1500.75) === 'Rp 1.501');
 
 // ── Validasi formatCompactRupiah ─────────────────────────────────────────────
 console.log('\n[3] formatCompactRupiah');

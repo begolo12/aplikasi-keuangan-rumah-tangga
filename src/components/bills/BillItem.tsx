@@ -79,7 +79,7 @@ export function BillItem({ bill, onPay, onDelete }: BillItemProps) {
             {getStatusBadge()}
           </div>
           <p className="text-xs text-text-muted">
-            Nominal: <span className="font-extrabold text-text">{formatRupiah(bill.amount)}</span>
+            Nominal: <span className="font-extrabold text-text whitespace-nowrap tabular-nums">{formatRupiah(bill.amount)}</span>
             {bill.category_name && ` • ${bill.category_name}`}
           </p>
         </div>

@@ -232,21 +232,21 @@ export function DebtsView({ debts, wallets, onRefresh }: DebtsViewProps) {
           <p className="text-[11px] sm:text-xs text-text-muted font-semibold">
             {activeType === 'payable' ? 'Total Sisa Hutang' : 'Total Sisa Piutang'}
           </p>
-          <p className={`text-lg sm:text-xl font-extrabold ${activeType === 'payable' ? 'text-expense' : 'text-primary'}`}>
+          <p className={`text-lg sm:text-xl font-extrabold whitespace-nowrap tabular-nums ${activeType === 'payable' ? 'text-expense' : 'text-primary'}`}>
             {formatRupiah(totalRemaining)}
           </p>
         </div>
 
         <div className="p-3.5 sm:p-4 bg-surface border border-border rounded-2xl shadow-xs space-y-1">
           <p className="text-[11px] sm:text-xs text-text-muted font-semibold">Sudah Terbayar / Diterima</p>
-          <p className="text-lg sm:text-xl font-extrabold text-income">
+          <p className="text-lg sm:text-xl font-extrabold text-income whitespace-nowrap tabular-nums">
             {formatRupiah(totalPaid)}
           </p>
         </div>
 
         <div className="p-3.5 sm:p-4 bg-surface border border-border rounded-2xl shadow-xs space-y-1">
           <p className="text-[11px] sm:text-xs text-text-muted font-semibold">Total Pokok Awal</p>
-          <p className="text-lg sm:text-xl font-extrabold text-text">
+          <p className="text-lg sm:text-xl font-extrabold text-text whitespace-nowrap tabular-nums">
             {formatRupiah(totalPrincipal)}
           </p>
         </div>

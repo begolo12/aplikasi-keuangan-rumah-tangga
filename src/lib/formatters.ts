@@ -4,14 +4,14 @@
  */
 export function formatRupiah(amount: number | string | null | undefined, withSymbol: boolean = true): string {
   const num = typeof amount === 'string' ? parseFloat(amount) : (amount || 0);
-  if (isNaN(num)) return withSymbol ? 'Rp 0' : '0';
+  if (isNaN(num)) return withSymbol ? 'Rp\u00A00' : '0';
   
   const formatted = new Intl.NumberFormat('id-ID', {
     maximumFractionDigits: 0,
     minimumFractionDigits: 0,
   }).format(num);
 
-  return withSymbol ? `Rp ${formatted}` : formatted;
+  return withSymbol ? `Rp\u00A0${formatted}` : formatted;
 }
 
 /**

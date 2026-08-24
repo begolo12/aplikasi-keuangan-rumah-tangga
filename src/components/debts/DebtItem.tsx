@@ -133,14 +133,14 @@ export function DebtItem({ debt, onPay, onDelete }: DebtItemProps) {
 
       {/* Amounts & Progress Bar */}
       <div className="space-y-1.5">
-        <div className="flex items-center justify-between text-xs font-semibold">
-          <span className="text-text-muted">
+        <div className="flex items-center justify-between text-xs font-semibold gap-2">
+          <span className="text-text-muted truncate">
             {isPayable ? 'Sisa Hutang: ' : 'Sisa Piutang: '}
-            <span className={`font-extrabold ${isPaid ? 'text-income' : isPayable ? 'text-expense' : 'text-primary'}`}>
+            <span className={`font-extrabold whitespace-nowrap tabular-nums ${isPaid ? 'text-income' : isPayable ? 'text-expense' : 'text-primary'}`}>
               {formatRupiah(debt.remaining_amount)}
             </span>
           </span>
-          <span className="text-text-muted text-[11px]">
+          <span className="text-text-muted text-[11px] whitespace-nowrap tabular-nums shrink-0">
             Total: {formatRupiah(debt.total_amount)}
           </span>
         </div>
@@ -155,7 +155,7 @@ export function DebtItem({ debt, onPay, onDelete }: DebtItemProps) {
         </div>
 
         <div className="flex items-center justify-between text-[11px] text-text-muted">
-          <span>Sudah Dibayar: <span className="font-semibold text-text">{formatRupiah(debt.paid_amount)}</span></span>
+          <span>Sudah Dibayar: <span className="font-semibold text-text whitespace-nowrap tabular-nums">{formatRupiah(debt.paid_amount)}</span></span>
           <span className="font-bold">{percentage}%</span>
         </div>
       </div>
@@ -165,7 +165,7 @@ export function DebtItem({ debt, onPay, onDelete }: DebtItemProps) {
         <div className="pt-1 flex items-center justify-end">
           <button
             onClick={() => onPay(debt)}
-            className={`min-h-[40px] px-4 py-2 text-xs font-bold rounded-xl active:scale-95 transition-all shadow-xs flex items-center gap-1.5 ${
+            className={`w-full sm:w-auto min-h-[42px] px-4 py-2 text-xs font-bold rounded-xl active:scale-95 transition-all shadow-xs flex items-center justify-center gap-1.5 ${
               isPayable
                 ? 'bg-expense text-white hover:bg-expense/90'
                 : 'bg-primary text-white hover:bg-primary-hover'

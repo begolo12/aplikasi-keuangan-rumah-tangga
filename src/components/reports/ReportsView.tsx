@@ -171,54 +171,64 @@ export function ReportsView({ summary: initialSummary, currentMonth, currentYear
           </span>
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <div className="p-3 bg-surface-2 rounded-2xl space-y-0.5">
-            <div className="flex items-center gap-1.5 text-text-muted text-[11px] font-semibold">
-              <ShieldCheck size={14} className="text-primary" />
-              <span>Total Saldo Kas Riil</span>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          <div className="p-3.5 bg-surface-2 rounded-2xl flex flex-col justify-between gap-1.5 border border-border/50">
+            <div className="flex items-center gap-1.5 text-text-muted text-xs font-semibold">
+              <ShieldCheck size={16} className="text-primary shrink-0" weight="duotone" />
+              <span className="truncate">Total Saldo Kas Riil</span>
             </div>
-            <p className="text-sm sm:text-base font-extrabold text-text">{formatRupiah(totalBal)}</p>
+            <p className="text-base sm:text-lg font-extrabold text-text whitespace-nowrap tabular-nums tracking-tight">
+              {formatRupiah(totalBal)}
+            </p>
           </div>
 
-          <div className="p-3 bg-surface-2 rounded-2xl space-y-0.5">
-            <div className="flex items-center gap-1.5 text-text-muted text-[11px] font-semibold">
-              <Receipt size={14} className="text-purple-500" />
-              <span>Tagihan Belum Bayar</span>
+          <div className="p-3.5 bg-surface-2 rounded-2xl flex flex-col justify-between gap-1.5 border border-border/50">
+            <div className="flex items-center gap-1.5 text-text-muted text-xs font-semibold">
+              <Receipt size={16} className="text-purple-500 shrink-0" weight="duotone" />
+              <span className="truncate">Tagihan Belum Bayar</span>
             </div>
-            <p className="text-sm sm:text-base font-extrabold text-purple-600 dark:text-purple-400">
+            <p className="text-base sm:text-lg font-extrabold text-purple-600 dark:text-purple-400 whitespace-nowrap tabular-nums tracking-tight">
               {formatRupiah(pendingBills)}
             </p>
           </div>
 
-          <div className="p-3 bg-surface-2 rounded-2xl space-y-0.5">
-            <div className="flex items-center gap-1.5 text-text-muted text-[11px] font-semibold">
-              <HandCoins size={14} className="text-expense" />
-              <span>Sisa Hutang Berjalan</span>
+          <div className="p-3.5 bg-surface-2 rounded-2xl flex flex-col justify-between gap-1.5 border border-border/50">
+            <div className="flex items-center gap-1.5 text-text-muted text-xs font-semibold">
+              <HandCoins size={16} className="text-expense shrink-0" weight="duotone" />
+              <span className="truncate">Sisa Hutang Berjalan</span>
             </div>
-            <p className="text-sm sm:text-base font-extrabold text-expense">{formatRupiah(payableDue)}</p>
+            <p className="text-base sm:text-lg font-extrabold text-expense whitespace-nowrap tabular-nums tracking-tight">
+              {formatRupiah(payableDue)}
+            </p>
           </div>
 
-          <div className="p-3 bg-primary/10 border border-primary/20 rounded-2xl space-y-0.5">
-            <div className="flex items-center gap-1.5 text-primary text-[11px] font-bold">
-              <Sparkle size={14} weight="fill" />
-              <span>Dana Bebas (Safe-to-Spend)</span>
+          <div className="p-3.5 bg-primary/10 border border-primary/20 rounded-2xl flex flex-col justify-between gap-1.5">
+            <div className="flex items-center gap-1.5 text-primary text-xs font-bold">
+              <Sparkle size={16} weight="fill" className="shrink-0" />
+              <span className="truncate">Dana Bebas (Safe-to-Spend)</span>
             </div>
-            <p className="text-sm sm:text-base font-extrabold text-primary">{formatRupiah(safeSpend)}</p>
+            <p className="text-base sm:text-lg font-extrabold text-primary whitespace-nowrap tabular-nums tracking-tight">
+              {formatRupiah(safeSpend)}
+            </p>
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-3 pt-1 text-xs">
-          <div className="flex items-center justify-between p-2.5 bg-background rounded-xl border border-border">
-            <span className="text-text-muted flex items-center gap-1">
-              <TrendUp size={14} className="text-income" /> Pemasukan Bulan Ini
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+          <div className="flex items-center justify-between gap-3 p-3.5 bg-background rounded-2xl border border-border shadow-2xs">
+            <span className="text-xs font-medium text-text-muted flex items-center gap-1.5 shrink-0">
+              <TrendUp size={16} className="text-income shrink-0" weight="bold" /> Pemasukan Bulan Ini
             </span>
-            <span className="font-bold text-income">{formatRupiah(reportSummary?.total_income || 0)}</span>
+            <span className="text-sm sm:text-base font-bold text-income whitespace-nowrap tabular-nums text-right">
+              {formatRupiah(reportSummary?.total_income || 0)}
+            </span>
           </div>
-          <div className="flex items-center justify-between p-2.5 bg-background rounded-xl border border-border">
-            <span className="text-text-muted flex items-center gap-1">
-              <TrendDown size={14} className="text-expense" /> Pengeluaran Bulan Ini
+          <div className="flex items-center justify-between gap-3 p-3.5 bg-background rounded-2xl border border-border shadow-2xs">
+            <span className="text-xs font-medium text-text-muted flex items-center gap-1.5 shrink-0">
+              <TrendDown size={16} className="text-expense shrink-0" weight="bold" /> Pengeluaran Bulan Ini
             </span>
-            <span className="font-bold text-expense">{formatRupiah(reportSummary?.total_expense || 0)}</span>
+            <span className="text-sm sm:text-base font-bold text-expense whitespace-nowrap tabular-nums text-right">
+              {formatRupiah(reportSummary?.total_expense || 0)}
+            </span>
           </div>
         </div>
       </div>

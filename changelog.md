@@ -3,6 +3,15 @@
 Log eksekusi plan. Entri baru ditambahkan di bagian paling atas.
 Format entri lihat `AGENTS.md` bagian "Langkah 3 — Catat ke Changelog".
 
+## [2026-08-24] Optimasi Visual Mobile & Tipografi Anti-Wrapping Angka Rupiah
+
+**Plan**: `docs/plans/2026-08-24-optimasi-visual-mobile-anti-wrapping.md`
+
+### Berubah
+- **Pencegahan Teks Rupiah Terpisah (Anti-Wrapping)**: Memperbarui [formatters.ts](file:///f:/APLIKASI-KEUANGAN-GANANG/src/lib/formatters.ts) dengan menyisipkan spasi tak terputus (*non-breaking space* `\u00A0`), mengunci simbol "Rp" dan digit angka agar tidak terpisah atau turun baris sendirian di browser ponsel manapun.
+- **Restrukturisasi Kartu Laporan & Arus Kas**: Memperbarui [ReportsView.tsx](file:///f:/APLIKASI-KEUANGAN-GANANG/src/components/reports/ReportsView.tsx) dengan struktur layout responsif (`grid-cols-1 sm:grid-cols-2 lg:grid-cols-4` dan `grid-cols-1 sm:grid-cols-2`) serta `whitespace-nowrap tabular-nums` untuk melenyapkan tampilan teks berhimpitan dan tumpang tindih.
+- **Standarisasi Tipografi Angka**: Menerapkan kelas `whitespace-nowrap tabular-nums` secara konsisten pada [MonthlySummary.tsx](file:///f:/APLIKASI-KEUANGAN-GANANG/src/components/dashboard/MonthlySummary.tsx), [BalanceHeader.tsx](file:///f:/APLIKASI-KEUANGAN-GANANG/src/components/dashboard/BalanceHeader.tsx), [DebtItem.tsx](file:///f:/APLIKASI-KEUANGAN-GANANG/src/components/debts/DebtItem.tsx), [DebtsView.tsx](file:///f:/APLIKASI-KEUANGAN-GANANG/src/components/debts/DebtsView.tsx), [BillItem.tsx](file:///f:/APLIKASI-KEUANGAN-GANANG/src/components/bills/BillItem.tsx), [BudgetProgressBar.tsx](file:///f:/APLIKASI-KEUANGAN-GANANG/src/components/budget/BudgetProgressBar.tsx), dan [TransactionItem.tsx](file:///f:/APLIKASI-KEUANGAN-GANANG/src/components/transactions/TransactionItem.tsx).
+
 ## [2026-08-24] Perbaikan Kolom Idempotency Key & Error Mapping Pencatatan Transaksi
 
 **Plan**: `docs/plans/2026-08-24-perbaikan-idempotency-key-dan-pencatatan-transaksi.md`
