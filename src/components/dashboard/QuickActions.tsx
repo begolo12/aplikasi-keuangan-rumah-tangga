@@ -113,8 +113,8 @@ export function QuickActions({
         </button>
       </div>
 
-      {/* Bottom: 6 Symmetrical Module Shortcuts */}
-      <div className="grid grid-cols-6 gap-1 sm:gap-2 pt-1 border-t border-border/60">
+      {/* Bottom: 6 Symmetrical Module Shortcuts — Desktop only */}
+      <div className="hidden md:grid grid-cols-6 gap-1 sm:gap-2 pt-1 border-t border-border/60">
         {MODULE_SHORTCUTS.map((item, idx) => {
           const Icon = item.icon;
           return (

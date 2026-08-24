@@ -60,8 +60,8 @@ export function BalanceHeader({
             </p>
           </div>
 
-          {/* Quick Action Navigation Links */}
-          <div className="flex items-center gap-2 flex-wrap">
+          {/* Quick Action Navigation Links — Desktop only */}
+          <div className="hidden sm:flex items-center gap-2 flex-wrap">
             {onNavigateToDebts && (
               <button
                 onClick={onNavigateToDebts}
@@ -85,32 +85,35 @@ export function BalanceHeader({
         </div>
 
         {/* Safe-to-Spend Liquidity Sub-card */}
-        <div className="p-3 bg-black/20 backdrop-blur-md rounded-2xl border border-white/15 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-          <div className="flex items-center gap-2.5 min-w-0">
-            <div className="w-7 h-7 rounded-xl bg-white/15 flex items-center justify-center shrink-0">
-              <Sparkle size={15} weight="fill" className="text-amber-300" />
+        <div className="p-2.5 sm:p-3 bg-black/20 backdrop-blur-md rounded-2xl border border-white/15 flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2 min-w-0">
+            <div className="w-6 h-6 rounded-xl bg-white/15 flex items-center justify-center shrink-0">
+              <Sparkle size={13} weight="fill" className="text-amber-300" />
             </div>
             <div className="min-w-0">
-              <p className="text-[10px] text-white/75 font-semibold leading-tight">
+              <p className="text-[10px] text-white/75 font-semibold leading-tight hidden sm:block">
                 Sisa Dana Bebas Belanja (Safe-to-Spend):
               </p>
+              <p className="text-[10px] text-white/75 font-semibold leading-tight sm:hidden">
+                Dana Bebas Belanja:
+              </p>
               <p className="text-xs sm:text-sm font-extrabold text-white truncate">
-                {showBalance ? formatRupiah(effectiveSafeToSpend) : '••••••••••••'}
-                <span className="text-[10px] font-normal text-white/70 ml-1.5">
-                  (setelah dikurangi kewajiban {formatRupiah(pendingBillsAmount + payableDueAmount)})
+                {showBalance ? formatRupiah(effectiveSafeToSpend) : '••••••'}
+                <span className="text-[9px] font-normal text-white/60 ml-1 hidden sm:inline">
+                  (dikurangi kewajiban {formatRupiah(pendingBillsAmount + payableDueAmount)})
                 </span>
               </p>
             </div>
           </div>
 
           <span
-            className={`self-start sm:self-center text-[10px] font-bold px-2.5 py-1 rounded-xl border shrink-0 ${
+            className={`text-[10px] font-bold px-2 py-0.5 rounded-xl border shrink-0 ${
               isHealthy
                 ? 'bg-emerald-400/20 text-emerald-100 border-emerald-400/30'
                 : 'bg-red-400/20 text-red-100 border-red-400/30'
             }`}
           >
-            {isHealthy ? 'Likuiditas Aman' : 'Kewajiban Melebihi Kas'}
+            {isHealthy ? 'Aman' : 'Melebihi Kas'}
           </span>
         </div>
       </div>

@@ -108,6 +108,7 @@ export function AppShell({
         activeTab={activeTab}
         onTabChange={onTabChange}
         onOpenAddModal={onOpenAddModal}
+        onOpenTypedModal={onOpenTypedModal}
       />
 
       {/* iOS Safari Home Screen Banner */}
