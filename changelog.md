@@ -3,6 +3,17 @@
 Log eksekusi plan. Entri baru ditambahkan di bagian paling atas.
 Format entri lihat `AGENTS.md` bagian "Langkah 3 — Catat ke Changelog".
 
+## [2026-08-25] Mobile UX Overhaul — Tampilan HP Simple & Premium
+
+**Plan**: `docs/plans/2026-08-25-mobile-ux-overhaul-tampilan-hp-simple-premium.md`
+
+### Berubah
+- **BottomNav**: Redesain ke 5 tab — Beranda, Transaksi, [FAB Catat], Dompet, Lainnya. Tab "Lainnya" membuka bottom sheet dengan 7 modul + 3 quick action typed.
+- **MonthlySummary**: Strip 1 baris compact di mobile; 3 kartu penuh di desktop.
+- **QuickActions**: 6 module shortcuts disembunyikan di mobile (`hidden md:grid`).
+- **BalanceHeader**: Safe-to-spend compact di mobile; navigation links disembunyikan di mobile.
+- **Fix**: Circular import `NavTab` di BottomNav.tsx — kini didefinisikan lokal.
+
 ## [2026-08-24] Redesain Total Hierarki Visual & Layout Dashboard Beranda
 
 **Plan**: `docs/plans/2026-08-24-redesain-hierarki-visual-dashboard-beranda.md`
