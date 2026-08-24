@@ -184,10 +184,10 @@ export function ReportsView({ summary: initialSummary, currentMonth, currentYear
 
           <div className="p-2 sm:p-2.5 bg-surface-2 rounded-xl flex flex-col justify-between gap-1 border border-border/40">
             <div className="flex items-center gap-1 text-text-muted text-[10px] sm:text-[11px] font-semibold">
-              <Receipt size={14} className="text-purple-500 shrink-0" weight="duotone" />
+              <Receipt size={14} className="text-primary shrink-0" weight="duotone" />
               <span className="truncate">Sisa Tagihan</span>
             </div>
-            <p className="text-xs sm:text-sm md:text-base font-extrabold text-purple-600 dark:text-purple-400 whitespace-nowrap tabular-nums tracking-tight">
+            <p className="text-xs sm:text-sm md:text-base font-extrabold text-primary whitespace-nowrap tabular-nums tracking-tight">
               {formatRupiah(pendingBills)}
             </p>
           </div>

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback, useSyncExternalStore } from 'react';
-import { WifiSlash, ArrowClockwise, CheckCircle } from '@phosphor-icons/react';
+import { WifiSlash, ArrowClockwise, CheckCircle, WarningCircle } from '@phosphor-icons/react';
 import { drainOfflineQueue, getOfflineMutations } from '@/lib/offlineQueue';
 
 interface OfflineBannerProps {
@@ -31,6 +31,7 @@ export function OfflineBanner({ userId, onSynced }: OfflineBannerProps) {
   const [pendingCount, setPendingCount] = useState(0);
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncSuccess, setSyncSuccess] = useState(false);
+  const [deadCount, setDeadCount] = useState(0);
 
   const checkQueue = useCallback(async () => {
     if (!userId) return;
@@ -46,8 +47,9 @@ export function OfflineBanner({ userId, onSynced }: OfflineBannerProps) {
     if (!isOnline || isSyncing || !userId) return;
     setIsSyncing(true);
     try {
-      const { synced } = await drainOfflineQueue(userId, onSynced);
+      const { synced, dead } = await drainOfflineQueue(userId, onSynced);
       await checkQueue();
+      if (dead > 0) setDeadCount((prev) => prev + dead);
       if (synced > 0) {
         setSyncSuccess(true);
         setTimeout(() => setSyncSuccess(false), 3000);
@@ -71,7 +73,8 @@ export function OfflineBanner({ userId, onSynced }: OfflineBannerProps) {
 
       if (isOnline) {
         try {
-          const { synced } = await drainOfflineQueue(userId, onSynced);
+          const { synced, dead } = await drainOfflineQueue(userId, onSynced);
+          if (active && dead > 0) setDeadCount((prev) => prev + dead);
           if (active && synced > 0) {
             setSyncSuccess(true);
             setTimeout(() => setSyncSuccess(false), 3000);
@@ -89,14 +92,33 @@ export function OfflineBanner({ userId, onSynced }: OfflineBannerProps) {
     };
   }, [userId, isOnline, onSynced]);
 
-  if (isOnline && pendingCount === 0 && !syncSuccess) {
+  if (isOnline && pendingCount === 0 && !syncSuccess && deadCount === 0) {
     return null;
   }
 
   return (
-    <div className="w-full bg-amber-500 text-white px-4 py-2 text-xs font-semibold flex items-center justify-between shadow-sm z-40">
+    <div
+      role="status"
+      className={`w-full px-4 py-2 text-xs font-semibold flex flex-wrap items-center justify-between gap-2 shadow-sm z-40 ${
+        deadCount > 0 ? 'bg-expense' : 'bg-amber-500'
+      } text-white`}
+    >
       <div className="flex items-center gap-2">
-        {!isOnline ? (
+        {deadCount > 0 ? (
+          <>
+            <WarningCircle size={16} weight="fill" />
+            <span>
+              {deadCount} catatan offline gagal tersinkron setelah beberapa percobaan dan sudah dihapus dari antrean perangkat.
+            </span>
+            <button
+              onClick={() => setDeadCount(0)}
+              aria-label="Tutup peringatan"
+              className="underline underline-offset-2 font-bold hover:opacity-80 shrink-0"
+            >
+              Tutup
+            </button>
+          </>
+        ) : !isOnline ? (
           <>
             <WifiSlash size={16} weight="bold" />
             <span>Mode Offline — Transaksi disimpan di perangkat dan disinkronkan saat online.</span>

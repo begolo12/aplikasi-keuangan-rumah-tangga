@@ -9,7 +9,7 @@ export class ApiError extends Error {
   }
 }
 
-export async function apiFetch<T>(path: string, init?: RequestInit & { json?: unknown }): Promise<T> {
+async function request<T>(path: string, init?: RequestInit & { json?: unknown }): Promise<ApiResponse<T>> {
   const { json, ...rest } = init ?? {};
   const res = await fetch(path, {
     ...rest,
@@ -21,7 +21,22 @@ export async function apiFetch<T>(path: string, init?: RequestInit & { json?: un
   if (!res.ok || !body?.success) {
     throw new ApiError(body?.error || 'Terjadi kesalahan jaringan.', res.status);
   }
+  return body;
+}
+
+export async function apiFetch<T>(path: string, init?: RequestInit & { json?: unknown }): Promise<T> {
+  const body = await request<T>(path, init);
   return body.data as T;
+}
+
+/** Seperti apiFetch, tetapi juga mengembalikan metadata tambahan (mis. total untuk paginasi). */
+export async function apiFetchMeta<T>(
+  path: string,
+  init?: RequestInit & { json?: unknown }
+): Promise<{ data: T; total?: number }> {
+  const body = await request<T>(path, init);
+  const meta = body as ApiResponse<T> & { total?: number };
+  return { data: body.data as T, total: meta.total };
 }
 
 export const endpoints = {
@@ -32,6 +47,26 @@ export const endpoints = {
   bootstrap: (month: number, year: number) => `/api/dashboard/bootstrap?month=${month}&year=${year}`,
   transactions: '/api/transactions',
   transaction: (id: string) => `/api/transactions/${id}`,
+  transactionsQuery: (params: {
+    month?: number;
+    year?: number;
+    type?: string;
+    wallet_id?: string;
+    search?: string;
+    limit?: number;
+    offset?: number;
+  }) => {
+    const sp = new URLSearchParams();
+    if (params.month !== undefined) sp.set('month', String(params.month));
+    if (params.year !== undefined) sp.set('year', String(params.year));
+    if (params.type && params.type !== 'all') sp.set('type', params.type);
+    if (params.wallet_id) sp.set('wallet_id', params.wallet_id);
+    if (params.search?.trim()) sp.set('search', params.search.trim());
+    if (params.limit !== undefined) sp.set('limit', String(params.limit));
+    if (params.offset !== undefined) sp.set('offset', String(params.offset));
+    const qs = sp.toString();
+    return `/api/transactions${qs ? `?${qs}` : ''}`;
+  },
   wallets: '/api/wallets',
   wallet: (id: string) => `/api/wallets/${id}`,
   categories: '/api/categories',

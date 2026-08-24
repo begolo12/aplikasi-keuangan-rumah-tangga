@@ -391,11 +391,12 @@ export default function MainPage() {
             </div>
           )}
           <TransactionList
-            transactions={transactions}
+            month={currentMonth}
+            year={currentYear}
+            refreshKey={reloadKey}
             onDeleteTransaction={handleDeleteTransaction}
             onEditTransaction={handleEditTransaction}
             onOpenAddModal={handleOpenAddModal}
-            isLoading={isDataLoading}
           />
         </>
       ) : activeTab === 'debts' ? (
@@ -436,7 +437,6 @@ export default function MainPage() {
           summary={summary}
           currentMonth={currentMonth}
           currentYear={currentYear}
-          wallets={wallets}
           debts={debts}
         />
       ) : activeTab === 'assets' ? (

@@ -44,6 +44,7 @@ if (fs.existsSync(envPath)) {
 import { query, withTransaction } from '../src/lib/db';
 import { seedUserData } from '../src/lib/seed';
 import { createSessionToken, verifySessionToken } from '../src/lib/auth';
+import { NextRequest } from 'next/server';
 
 let passed = 0;
 let failed = 0;
@@ -209,6 +210,109 @@ async function runE2ESuite() {
     // secondaryWallet: 0 + 2.000.000 + 500.000 = 2.500.000
     assert('Kalkulasi saldo dompet sumber setelah transaksi valid', parseFloat(bal1[0].balance) === 4347500);
     assert('Kalkulasi saldo dompet tujuan transfer valid', parseFloat(bal2[0].balance) === 2500000);
+
+    // 4d. UPDATE Transaksi via handler PUT asli (edit expense: nominal & deskripsi)
+    console.log('\n[4d] Update Transaksi via Handler PUT (Sesi JWT + Koreksi Saldo)');
+    {
+      const trxToEdit = await query<{ id: string }>(
+        `SELECT id FROM transactions WHERE user_id = $1 AND description = 'Makan Siang Restoran' LIMIT 1`,
+        [userId]
+      );
+      assert('Transaksi awal untuk pengujian PUT ditemukan', trxToEdit.length > 0);
+      const trxId = trxToEdit[0].id;
+
+      // Nama cookie disamakan dengan COOKIE_NAME di src/lib/auth.ts (tidak diekspor).
+      const token = await createSessionToken({ userId, email: testEmail, name: testName, familyName: testFamily });
+      const putReq = new NextRequest(`http://localhost/api/transactions/${trxId}`, {
+        method: 'PUT',
+        headers: {
+          'content-type': 'application/json',
+          cookie: `kas_session_token=${token}`,
+        },
+        body: JSON.stringify({
+          type: 'expense',
+          amount: 175000,
+          admin_fee: 0,
+          category_id: expenseCat.id,
+          wallet_id: mainWallet.id,
+          description: 'Makan Siang Restoran (Diedit)',
+          date: todayStr,
+        }),
+      });
+
+      const { PUT } = await import('../src/app/api/transactions/[id]/route');
+      const putRes = await PUT(putReq, { params: Promise.resolve({ id: trxId }) });
+      assert('Handler PUT merespons sukses (200)', putRes.status === 200);
+
+      const putJson = await putRes.json();
+      assert(
+        'Nominal transaksi terbarui menjadi 175000',
+        putJson?.data && parseFloat(putJson.data.amount) === 175000
+      );
+
+      // mainWallet: 4.347.500 + 150.000 (balik lama) - 175.000 (terapkan baru) = 4.322.500
+      const balAfterPut = await query<{ balance: string }>('SELECT balance FROM wallets WHERE id = $1', [
+        mainWallet.id,
+      ]);
+      assert(
+        'Saldo dompet terkoreksi tepat setelah edit transaksi',
+        parseFloat(balAfterPut[0].balance) === 4322500
+      );
+
+      // Isolasi data: PUT dengan user lain harus ditolak (404).
+      const otherToken = await createSessionToken({
+        userId: '11111111-1111-1111-1111-111111111111',
+        email: 'intruder@test.com',
+        name: 'Intruder',
+        familyName: 'Asing',
+      });
+      const foreignReq = new NextRequest(`http://localhost/api/transactions/${trxId}`, {
+        method: 'PUT',
+        headers: {
+          'content-type': 'application/json',
+          cookie: `kas_session_token=${otherToken}`,
+        },
+        body: JSON.stringify({
+          type: 'expense',
+          amount: 1000,
+          admin_fee: 0,
+          category_id: expenseCat.id,
+          wallet_id: mainWallet.id,
+          description: 'Coba ubah milik orang lain',
+          date: todayStr,
+        }),
+      });
+      const foreignRes = await PUT(foreignReq, { params: Promise.resolve({ id: trxId }) });
+      assert('PUT lintas-user ditolak (404 / bukan miliknya)', foreignRes.status === 404);
+
+      // Pemulihan nominal agar skenario [5] (anggaran) tetap konsisten;
+      // sekaligus menguji pembaruan kedua pada baris yang sama.
+      const restoreReq = new NextRequest(`http://localhost/api/transactions/${trxId}`, {
+        method: 'PUT',
+        headers: {
+          'content-type': 'application/json',
+          cookie: `kas_session_token=${token}`,
+        },
+        body: JSON.stringify({
+          type: 'expense',
+          amount: 150000,
+          admin_fee: 0,
+          category_id: expenseCat.id,
+          wallet_id: mainWallet.id,
+          description: 'Makan Siang Restoran',
+          date: todayStr,
+        }),
+      });
+      const restoreRes = await PUT(restoreReq, { params: Promise.resolve({ id: trxId }) });
+      assert('Handler PUT kedua (pemulihan nominal) merespons sukses', restoreRes.status === 200);
+      const balRestored = await query<{ balance: string }>('SELECT balance FROM wallets WHERE id = $1', [
+        mainWallet.id,
+      ]);
+      assert(
+        'Saldo dompet kembali ke nilai awal setelah pemulihan nominal',
+        parseFloat(balRestored[0].balance) === 4347500
+      );
+    }
 
     // ── 5. BUDGETS & REAL-TIME SPENT TRACKING ────────────────────────────────────
     console.log('\n[5] Anggaran Bulanan & Deteksi Overbudget');

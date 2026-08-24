@@ -32,7 +32,8 @@ export async function GET(req: NextRequest) {
         c.name as category_name, c.icon as category_icon, c.color as category_color,
         t.wallet_id, w.name as wallet_name, w.icon as wallet_icon,
         t.to_wallet_id, tw.name as to_wallet_name,
-        t.description, t.date, t.created_at, t.updated_at
+        t.description, t.date, t.created_at, t.updated_at,
+        COUNT(*) OVER() AS total_count
       FROM transactions t
       LEFT JOIN categories c ON t.category_id = c.id AND c.user_id = t.user_id
       LEFT JOIN wallets w ON t.wallet_id = w.id AND w.user_id = t.user_id
@@ -80,9 +81,15 @@ export async function GET(req: NextRequest) {
     sql += ` ORDER BY t.date DESC, t.created_at DESC LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
     params.push(q.limit, q.offset);
 
-    const transactions = await query<Transaction>(sql, params);
+    const rows = await query<Transaction & { total_count?: number | string }>(sql, params);
+    const total = rows.length > 0 ? Number(rows[0].total_count ?? rows.length) : 0;
+    const data = rows.map((row) => {
+      const { total_count: _totalCount, ...trx } = row;
+      void _totalCount;
+      return trx as Transaction;
+    });
 
-    return NextResponse.json({ success: true, data: transactions });
+    return NextResponse.json({ success: true, data, total });
   } catch (error) {
     return handleRouteError(error, 'transactions:list');
   }

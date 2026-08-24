@@ -15,6 +15,12 @@ Format entri lihat `AGENTS.md` bagian "Langkah 3 — Catat ke Changelog".
 - **Context-Aware Header**: Menyembunyikan pemilih periode tanggal pada tab yang non-period (Aset, Hutang, Pengaturan) agar tidak membingungkan pengguna.
 - **Kepadatan Tampilan Hutang-Piutang (DebtsView)**: Mengubah 3 summary cards vertikal menjadi strip 3-kolom responsif untuk mengurangi jarak scroll di perangkat mobile.
 
+### Hasil Audit Pasca-Eksekusi
+- **Fix build**: [not-found.tsx](file:///f:/APLIKASI-KEUANGAN-GANANG/src/app/not-found.tsx) kini client component (`'use client'`) karena `@phosphor-icons/react` memanggil `createContext` saat evaluasi modul.
+- **Fix lint**: setState sinkron di efek [TransactionList.tsx](file:///f:/APLIKASI-KEUANGAN-GANANG/src/components/transactions/TransactionList.tsx) dipindah ke microtask agar tidak memicu render berantai (`set-state-in-effect`).
+- **Test E2E diperluas**: skenario [4d] kini mencakup PUT pemulihan nominal (uji pembaruan kedua + saldo kembali 4.347.500), menjaga konsistensi asersi anggaran [5].
+- **Verifikasi penuh lulus**: build 0 error, lint bersih, audit self-test 70/70, E2E 35/35.
+
 ## [2026-08-25] Mobile UX Overhaul — Tampilan HP Simple & Premium
 
 **Plan**: `docs/plans/2026-08-25-mobile-ux-overhaul-tampilan-hp-simple-premium.md`

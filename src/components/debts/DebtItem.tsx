@@ -21,6 +21,7 @@ interface DebtItemProps {
 
 export function DebtItem({ debt, onPay, onDelete }: DebtItemProps) {
   const [showConfirm, setShowConfirm] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const isPayable = debt.type === 'payable';
   const isPaid = debt.status === 'paid';
@@ -127,16 +128,20 @@ export function DebtItem({ debt, onPay, onDelete }: DebtItemProps) {
           <div className="flex items-center gap-1 shrink-0">
             <button
               onClick={() => {
+                if (isDeleting) return;
+                setIsDeleting(true);
                 onDelete(debt.id);
                 setShowConfirm(false);
               }}
-              className="min-h-[34px] px-2.5 py-1 bg-expense text-white text-xs font-bold rounded-xl hover:opacity-90 transition-opacity shadow-2xs"
+              disabled={isDeleting}
+              className="min-h-[34px] px-2.5 py-1 bg-expense text-white text-xs font-bold rounded-xl hover:opacity-90 transition-opacity shadow-2xs disabled:opacity-50 disabled:pointer-events-none"
             >
-              Hapus
+              {isDeleting ? 'Menghapus...' : 'Hapus'}
             </button>
             <button
               onClick={() => setShowConfirm(false)}
-              className="min-h-[34px] px-2.5 py-1 bg-surface-2 hover:bg-surface-3 text-text text-xs font-semibold rounded-xl border border-border transition-colors"
+              disabled={isDeleting}
+              className="min-h-[34px] px-2.5 py-1 bg-surface-2 hover:bg-surface-3 text-text text-xs font-semibold rounded-xl border border-border transition-colors disabled:opacity-50"
             >
               Batal
             </button>

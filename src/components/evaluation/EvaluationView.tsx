@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { MonthlySummary as MonthlySummaryType, Wallet, Debt, Asset } from '@/lib/types';
+import { MonthlySummary as MonthlySummaryType, Debt, Asset } from '@/lib/types';
 import { apiFetch, endpoints } from '@/lib/apiFetch';
 import { formatRupiah, INDONESIAN_MONTHS } from '@/lib/formatters';
 import { DashboardSkeleton } from '../ui/LoadingSkeleton';
@@ -22,19 +22,24 @@ interface EvaluationViewProps {
   summary: MonthlySummaryType | null;
   currentMonth: number;
   currentYear: number;
-  wallets?: Wallet[];
   debts?: Debt[];
+}
+
+interface PrevSummary {
+  total_income: number;
+  total_expense: number;
+  net_cash_flow: number;
 }
 
 export function EvaluationView({
   summary,
   currentMonth,
   currentYear,
-  wallets: _wallets = [],
   debts = [],
 }: EvaluationViewProps) {
   const [assets, setAssets] = useState<Asset[]>([]);
   const [isLoadingAssets, setIsLoadingAssets] = useState(true);
+  const [prev, setPrev] = useState<PrevSummary | null>(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -51,15 +56,42 @@ export function EvaluationView({
     };
   }, []);
 
+  useEffect(() => {
+    let isMounted = true;
+    const pm = currentMonth === 1 ? 12 : currentMonth - 1;
+    const py = currentMonth === 1 ? currentYear - 1 : currentYear;
+    apiFetch<MonthlySummaryType>(endpoints.reportsMonthly(pm, py))
+      .then((res) => {
+        if (isMounted)
+          setPrev({
+            total_income: res.total_income || 0,
+            total_expense: res.total_expense || 0,
+            net_cash_flow: res.net_cash_flow || 0,
+          });
+      })
+      .catch(() => {});
+    return () => {
+      isMounted = false;
+    };
+  }, [currentMonth, currentYear]);
+
   if (!summary || isLoadingAssets) {
     return <DashboardSkeleton />;
   }
+
+  // Delta vs bulan sebelumnya: null = tidak ada data pembanding
+  const pctChange = (now: number, before: number | undefined): number | null =>
+    prev && before !== undefined && before !== 0 ? Math.round(((now - before) / Math.abs(before)) * 100) : null;
 
   // 1. Data calculations
   const totalCash = summary.total_balance || 0;
   const monthlyIncome = summary.total_income || 0;
   const monthlyExpense = summary.total_expense || 0;
   const netCashFlow = summary.net_cash_flow || 0;
+
+  const incomeDelta = pctChange(monthlyIncome, prev?.total_income);
+  const expenseDelta = pctChange(monthlyExpense, prev?.total_expense);
+  const flowDelta = pctChange(netCashFlow, prev?.net_cash_flow);
 
   // Assets
   const totalAssetBookValue = assets.reduce((sum, a) => sum + (a.book_value ?? a.purchase_price ?? 0), 0);
@@ -123,8 +155,8 @@ export function EvaluationView({
 
   // Rating and color
   let scoreTitle = 'Kondisi Cukup Sehat (Stabil)';
-  let scoreBadgeColor = 'bg-amber-500/10 text-amber-600 border-amber-500/20';
-  let scoreBarColor = 'bg-amber-500';
+  let scoreBadgeColor = 'bg-income/10 text-income border-income/20';
+  let scoreBarColor = 'bg-income';
 
   if (score >= 80) {
     scoreTitle = 'Kondisi Sangat Sehat (Optimal)';
@@ -243,6 +275,36 @@ export function EvaluationView({
             <span>100 (Optimal)</span>
           </div>
         </div>
+
+        {/* Tren vs bulan sebelumnya */}
+        {prev && (
+          <div className="flex flex-wrap gap-1.5 pt-1">
+            {[
+              { label: 'Pemasukan', delta: incomeDelta },
+              { label: 'Pengeluaran', delta: expenseDelta },
+              { label: 'Arus Kas', delta: flowDelta },
+            ].map(({ label, delta }) =>
+              delta === null ? (
+                <span
+                  key={label}
+                  className="px-2 py-0.5 rounded-lg bg-surface-2 border border-border/60 text-[10px] font-semibold text-text-muted"
+                >
+                  {label}: —
+                </span>
+              ) : (
+                <span
+                  key={label}
+                  title={`Bulan lalu: ${delta >= 0 ? '+' : ''}${delta}%`}
+                  className={`inline-flex items-center gap-0.5 px-2 py-0.5 rounded-lg border text-[10px] font-bold tabular-nums ${
+                    delta >= 0 ? 'bg-income/10 text-income border-income/20' : 'bg-expense/10 text-expense border-expense/20'
+                  }`}
+                >
+                  {delta >= 0 ? '▲' : '▼'} {label} {Math.abs(delta)}%
+                </span>
+              )
+            )}
+          </div>
+        )}
       </div>
 
       {/* 4 Financial Ratios Grid */}
@@ -250,7 +312,7 @@ export function EvaluationView({
         {/* Ratio 1: Dana Darurat */}
         <div className="p-3 bg-surface border border-border rounded-2xl space-y-1 shadow-2xs">
           <div className="flex items-center gap-1.5 text-text-muted text-xs font-semibold">
-            <Vault size={16} className="text-blue-500 shrink-0" weight="duotone" />
+            <Vault size={16} className="text-income shrink-0" weight="duotone" />
             <span className="truncate">Ketahanan Kas</span>
           </div>
           <p className="text-sm sm:text-base font-extrabold text-text tabular-nums">
@@ -262,10 +324,10 @@ export function EvaluationView({
         {/* Ratio 2: Savings Rate */}
         <div className="p-3 bg-surface border border-border rounded-2xl space-y-1 shadow-2xs">
           <div className="flex items-center gap-1.5 text-text-muted text-xs font-semibold">
-            <TrendUp size={16} className="text-emerald-500 shrink-0" weight="bold" />
+            <TrendUp size={16} className="text-income shrink-0" weight="bold" />
             <span className="truncate">Rasio Tabungan</span>
           </div>
-          <p className="text-sm sm:text-base font-extrabold text-emerald-600 dark:text-emerald-400 tabular-nums">
+          <p className="text-sm sm:text-base font-extrabold text-income tabular-nums">
             {savingsRate}%
           </p>
           <p className="text-[10px] text-text-muted">Ideal: &gt;= 20% dari Pemasukan</p>
@@ -274,7 +336,7 @@ export function EvaluationView({
         {/* Ratio 3: Debt to Income */}
         <div className="p-3 bg-surface border border-border rounded-2xl space-y-1 shadow-2xs">
           <div className="flex items-center gap-1.5 text-text-muted text-xs font-semibold">
-            <Receipt size={16} className="text-rose-500 shrink-0" weight="duotone" />
+            <Receipt size={16} className="text-expense shrink-0" weight="duotone" />
             <span className="truncate">Beban Hutang</span>
           </div>
           <p className="text-sm sm:text-base font-extrabold text-text tabular-nums">
@@ -286,7 +348,7 @@ export function EvaluationView({
         {/* Ratio 4: Nilai Buku Aset */}
         <div className="p-3 bg-surface border border-border rounded-2xl space-y-1 shadow-2xs">
           <div className="flex items-center gap-1.5 text-text-muted text-xs font-semibold">
-            <Package size={16} className="text-purple-500 shrink-0" weight="duotone" />
+            <Package size={16} className="text-primary shrink-0" weight="duotone" />
             <span className="truncate">Nilai Buku Aset</span>
           </div>
           <p className="text-sm sm:text-base font-extrabold text-text whitespace-nowrap tabular-nums">
@@ -299,7 +361,7 @@ export function EvaluationView({
       {/* Actionable Recommendations Section */}
       <div className="p-4 bg-surface border border-border rounded-3xl space-y-3 shadow-2xs">
         <div className="flex items-center gap-2 text-text font-bold text-xs sm:text-sm">
-          <Lightbulb size={18} className="text-amber-500" weight="duotone" />
+          <Lightbulb size={18} className="text-income" weight="duotone" />
           <span>Analisis & Rekomendasi Keuangan Anda</span>
         </div>
 
@@ -320,7 +382,7 @@ export function EvaluationView({
               ) : item.type === 'success' ? (
                 <CheckCircle size={18} className="text-primary shrink-0 mt-0.5" weight="fill" />
               ) : (
-                <ShieldCheck size={18} className="text-blue-500 shrink-0 mt-0.5" weight="fill" />
+                <ShieldCheck size={18} className="text-primary shrink-0 mt-0.5" weight="fill" />
               )}
               <div className="space-y-0.5 min-w-0">
                 <p className="font-bold text-xs leading-tight">{item.title}</p>
