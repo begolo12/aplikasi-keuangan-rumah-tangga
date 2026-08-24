@@ -22,8 +22,8 @@ export async function GET(req: NextRequest) {
 
     const [wRes, cRes, tRes, bRes, billRes, totBalRes, summaryRes, pendingRes, overRes, setRes, debtsRes] =
       await Promise.all([
-        query(`SELECT * FROM wallets WHERE user_id = $1 ORDER BY sort_order ASC, name ASC`, [uid]),
-        query(`SELECT * FROM categories WHERE user_id = $1 ORDER BY sort_order ASC, name ASC`, [uid]),
+        query(`SELECT * FROM wallets WHERE user_id = $1 ORDER BY sort_order ASC, name ASC`, [uid]).catch(() => []),
+        query(`SELECT * FROM categories WHERE user_id = $1 ORDER BY sort_order ASC, name ASC`, [uid]).catch(() => []),
         query(
           `SELECT
              t.id, t.user_id, t.type, t.amount, t.admin_fee,
@@ -41,7 +41,7 @@ export async function GET(req: NextRequest) {
              AND EXTRACT(YEAR FROM t.date) = $3
            ORDER BY t.date DESC, t.created_at DESC`,
           [uid, month, year]
-        ),
+        ).catch(() => []),
         query(
           `SELECT
              b.id, b.user_id, b.category_id, b.monthly_limit, b.month, b.year, b.created_at,
@@ -62,7 +62,7 @@ export async function GET(req: NextRequest) {
                     c.name, c.icon, c.color
            ORDER BY percentage DESC, b.monthly_limit DESC`,
           [uid, month, year]
-        ),
+        ).catch(() => []),
         query(
           `SELECT
              b.id, b.user_id, b.title, b.amount, b.due_day, b.category_id,
@@ -79,8 +79,8 @@ export async function GET(req: NextRequest) {
            WHERE b.user_id = $1 AND b.is_active = TRUE
            ORDER BY is_paid ASC, b.due_day ASC`,
           [uid, month, year]
-        ),
-        query(`SELECT COALESCE(SUM(balance), 0) as total FROM wallets WHERE user_id = $1`, [uid]),
+        ).catch(() => []),
+        query(`SELECT COALESCE(SUM(balance), 0) as total FROM wallets WHERE user_id = $1`, [uid]).catch(() => [{ total: '0' }]),
         query(
           `SELECT
              COALESCE(SUM(CASE WHEN type='income' THEN amount ELSE 0 END), 0) as income,
@@ -92,7 +92,7 @@ export async function GET(req: NextRequest) {
              AND EXTRACT(MONTH FROM date) = $2
              AND EXTRACT(YEAR FROM date) = $3`,
           [uid, month, year]
-        ),
+        ).catch(() => [{ income: '0', expense: '0', transfer: '0', admin_total: '0' }]),
         query(
           `SELECT 
              COUNT(*)::text as count,
@@ -102,7 +102,7 @@ export async function GET(req: NextRequest) {
              ON bp.bill_id = b.id AND bp.month = $2 AND bp.year = $3 AND bp.user_id = b.user_id
            WHERE b.user_id = $1 AND b.is_active = TRUE AND bp.id IS NULL`,
           [uid, month, year]
-        ),
+        ).catch(() => [{ count: '0', total_pending_amount: '0' }]),
         query(
           `SELECT COUNT(*)::text as count
            FROM (
@@ -118,8 +118,8 @@ export async function GET(req: NextRequest) {
              HAVING COALESCE(SUM(t.amount), 0) > b.monthly_limit
            ) over_budgets`,
           [uid, month, year]
-        ),
-        query(`SELECT * FROM app_settings WHERE user_id = $1`, [uid]),
+        ).catch(() => [{ count: '0' }]),
+        query(`SELECT * FROM app_settings WHERE user_id = $1`, [uid]).catch(() => []),
         query(
           `SELECT 
              id, user_id, type, person_name,
@@ -140,7 +140,7 @@ export async function GET(req: NextRequest) {
            WHERE user_id = $1
            ORDER BY status ASC, due_date ASC NULLS LAST, created_at DESC`,
           [uid]
-        ),
+        ).catch(() => []),
       ]);
 
     const totalBalance = parseFloat((totBalRes[0]?.total as string) || '0');

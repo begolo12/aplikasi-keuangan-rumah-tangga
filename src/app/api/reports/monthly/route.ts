@@ -33,14 +33,14 @@ export async function GET(req: NextRequest) {
       query<{ total: string }>(
         'SELECT COALESCE(SUM(balance), 0) as total FROM wallets WHERE user_id = $1',
         [uid]
-      ),
+      ).catch(() => [{ total: '0' }]),
       query<{ total: string }>(
         `SELECT COALESCE(SUM(amount), 0) as total
          FROM transactions
          WHERE user_id = $1 AND type = 'income'
            AND EXTRACT(MONTH FROM date) = $2 AND EXTRACT(YEAR FROM date) = $3`,
         [uid, month, year]
-      ),
+      ).catch(() => [{ total: '0' }]),
       query<{ total: string; admin_total: string }>(
         `SELECT
           COALESCE(SUM(CASE WHEN type = 'expense' THEN amount ELSE 0 END), 0) as total,
@@ -49,14 +49,14 @@ export async function GET(req: NextRequest) {
          WHERE user_id = $1
            AND EXTRACT(MONTH FROM date) = $2 AND EXTRACT(YEAR FROM date) = $3`,
         [uid, month, year]
-      ),
+      ).catch(() => [{ total: '0', admin_total: '0' }]),
       query<{ total: string }>(
         `SELECT COALESCE(SUM(amount), 0) as total
          FROM transactions
          WHERE user_id = $1 AND type = 'transfer'
            AND EXTRACT(MONTH FROM date) = $2 AND EXTRACT(YEAR FROM date) = $3`,
         [uid, month, year]
-      ),
+      ).catch(() => [{ total: '0' }]),
       query<{ count: string; total_pending_amount: string }>(
         `SELECT 
            COUNT(*)::text as count,
@@ -65,7 +65,7 @@ export async function GET(req: NextRequest) {
          LEFT JOIN bill_payments bp ON bp.bill_id = b.id AND bp.month = $2 AND bp.year = $3 AND bp.user_id = b.user_id
          WHERE b.user_id = $1 AND b.is_active = TRUE AND bp.id IS NULL`,
         [uid, month, year]
-      ),
+      ).catch(() => [{ count: '0', total_pending_amount: '0' }]),
       query<{ count: string }>(
         `SELECT COUNT(*)::text as count
          FROM (
@@ -81,7 +81,7 @@ export async function GET(req: NextRequest) {
            HAVING COALESCE(SUM(t.amount), 0) > b.monthly_limit
          ) over_budgets`,
         [uid, month, year]
-      ),
+      ).catch(() => [{ count: '0' }]),
       query<{ day: number; income: string; expense: string }>(
         `SELECT
           EXTRACT(DAY FROM date)::INTEGER as day,
@@ -93,13 +93,13 @@ export async function GET(req: NextRequest) {
          GROUP BY EXTRACT(DAY FROM date)
          ORDER BY day ASC`,
         [uid, month, year]
-      ),
+      ).catch(() => []),
       query<{ type: string; remaining_amount: string; status: string }>(
         `SELECT type, (total_amount - paid_amount)::text as remaining_amount, status
          FROM debts
          WHERE user_id = $1 AND status != 'paid'`,
         [uid]
-      ),
+      ).catch(() => []),
     ]);
 
     const totalBalance = parseFloat(walletBalanceRows[0]?.total || '0');
