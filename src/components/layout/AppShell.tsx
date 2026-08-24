@@ -87,6 +87,7 @@ export function AppShell({
 
         {/* Period & User Top Header */}
         <TopHeader
+          activeTab={activeTab}
           currentMonth={currentMonth}
           currentYear={currentYear}
           onPeriodChange={onPeriodChange}

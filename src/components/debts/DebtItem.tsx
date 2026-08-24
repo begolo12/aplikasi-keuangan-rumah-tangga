@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Debt } from '@/lib/types';
 import { formatRupiah, formatDate } from '@/lib/formatters';
 import {
@@ -20,6 +20,8 @@ interface DebtItemProps {
 }
 
 export function DebtItem({ debt, onPay, onDelete }: DebtItemProps) {
+  const [showConfirm, setShowConfirm] = useState(false);
+
   const isPayable = debt.type === 'payable';
   const isPaid = debt.status === 'paid';
   const percentage = Math.min(
@@ -121,14 +123,34 @@ export function DebtItem({ debt, onPay, onDelete }: DebtItemProps) {
           </div>
         </div>
 
-        <button
-          onClick={() => onDelete(debt.id)}
-          title="Hapus Data"
-          aria-label={`Hapus ${debt.person_name}`}
-          className="min-w-[36px] min-h-[36px] flex items-center justify-center text-text-muted hover:text-expense hover:bg-expense/10 rounded-xl transition-colors shrink-0"
-        >
-          <Trash size={17} />
-        </button>
+        {showConfirm ? (
+          <div className="flex items-center gap-1 shrink-0">
+            <button
+              onClick={() => {
+                onDelete(debt.id);
+                setShowConfirm(false);
+              }}
+              className="min-h-[34px] px-2.5 py-1 bg-expense text-white text-xs font-bold rounded-xl hover:opacity-90 transition-opacity shadow-2xs"
+            >
+              Hapus
+            </button>
+            <button
+              onClick={() => setShowConfirm(false)}
+              className="min-h-[34px] px-2.5 py-1 bg-surface-2 hover:bg-surface-3 text-text text-xs font-semibold rounded-xl border border-border transition-colors"
+            >
+              Batal
+            </button>
+          </div>
+        ) : (
+          <button
+            onClick={() => setShowConfirm(true)}
+            title="Hapus Data"
+            aria-label={`Hapus ${debt.person_name}`}
+            className="min-w-[36px] min-h-[36px] flex items-center justify-center text-text-muted hover:text-expense hover:bg-expense/10 rounded-xl transition-colors shrink-0"
+          >
+            <Trash size={17} />
+          </button>
+        )}
       </div>
 
       {/* Amounts & Progress Bar */}

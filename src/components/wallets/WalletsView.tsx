@@ -58,14 +58,20 @@ export function WalletsView({ wallets, onRefresh, onOpenTransfer, onAddWallet }:
   const handleFirstWallet = onAddWallet ?? openAddModal;
 
 
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+
   const handleDelete = async (id: string) => {
-    if (!confirm('Apakah Anda yakin ingin menghapus pos dompet ini?')) return;
+    setIsDeleting(true);
     try {
       await apiFetch(endpoints.wallet(id), { method: 'DELETE' });
       setListError(null);
+      setConfirmDeleteId(null);
       onRefresh();
     } catch (err) {
       setListError(err instanceof ApiError ? err.message : 'Gagal menghapus dompet.');
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -165,26 +171,46 @@ export function WalletsView({ wallets, onRefresh, onOpenTransfer, onAddWallet }:
                 </div>
               </div>
 
-              <div className="flex items-center gap-1">
-                <button
-                  type="button"
-                  onClick={() => openEditModal(wallet)}
-                  aria-label={`Ubah pos ${wallet.name}`}
-                  title="Ubah Pos"
-                  className="min-w-[44px] min-h-[44px] flex items-center justify-center text-text-muted hover:text-text hover:bg-surface-2 rounded-xl transition-colors"
-                >
-                  <PencilSimple size={16} />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleDelete(wallet.id)}
-                  aria-label={`Hapus pos ${wallet.name}`}
-                  title="Hapus Pos"
-                  className="min-w-[44px] min-h-[44px] flex items-center justify-center text-text-muted hover:text-expense hover:bg-expense/10 rounded-xl transition-colors"
-                >
-                  <Trash size={16} />
-                </button>
-              </div>
+              {confirmDeleteId === wallet.id ? (
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    disabled={isDeleting}
+                    onClick={() => handleDelete(wallet.id)}
+                    className="min-h-[36px] px-3 py-1.5 bg-expense text-white text-xs font-bold rounded-xl hover:opacity-90 transition-opacity shadow-2xs"
+                  >
+                    {isDeleting ? '...' : 'Hapus'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setConfirmDeleteId(null)}
+                    className="min-h-[36px] px-3 py-1.5 bg-surface-2 hover:bg-surface-3 text-text text-xs font-semibold rounded-xl border border-border transition-colors"
+                  >
+                    Batal
+                  </button>
+                </div>
+              ) : (
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => openEditModal(wallet)}
+                    aria-label={`Ubah pos ${wallet.name}`}
+                    title="Ubah Pos"
+                    className="min-w-[40px] min-h-[40px] flex items-center justify-center text-text-muted hover:text-text hover:bg-surface-2 rounded-xl transition-colors"
+                  >
+                    <PencilSimple size={16} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setConfirmDeleteId(wallet.id)}
+                    aria-label={`Hapus pos ${wallet.name}`}
+                    title="Hapus Pos"
+                    className="min-w-[40px] min-h-[40px] flex items-center justify-center text-text-muted hover:text-expense hover:bg-expense/10 rounded-xl transition-colors"
+                  >
+                    <Trash size={16} />
+                  </button>
+                </div>
+              )}
             </div>
 
             <div className="pt-2 border-t border-border/60 flex items-center justify-between">

@@ -10,6 +10,7 @@ import { MagnifyingGlass, Receipt } from '@phosphor-icons/react';
 interface TransactionListProps {
   transactions: Transaction[];
   onDeleteTransaction: (id: string) => Promise<void>;
+  onEditTransaction?: (transaction: Transaction) => void;
   onOpenAddModal: (type?: TransactionType) => void;
   isLoading?: boolean;
 }
@@ -17,6 +18,7 @@ interface TransactionListProps {
 export function TransactionList({
   transactions,
   onDeleteTransaction,
+  onEditTransaction,
   onOpenAddModal,
   isLoading = false,
 }: TransactionListProps) {
@@ -101,7 +103,12 @@ export function TransactionList({
           </>
         ) : filteredTransactions.length > 0 ? (
           filteredTransactions.map((trx) => (
-            <TransactionItem key={trx.id} transaction={trx} onDelete={onDeleteTransaction} />
+            <TransactionItem
+              key={trx.id}
+              transaction={trx}
+              onDelete={onDeleteTransaction}
+              onEdit={onEditTransaction}
+            />
           ))
         ) : (
           <EmptyState

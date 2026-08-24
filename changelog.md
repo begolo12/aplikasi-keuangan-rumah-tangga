@@ -3,6 +3,18 @@
 Log eksekusi plan. Entri baru ditambahkan di bagian paling atas.
 Format entri lihat `AGENTS.md` bagian "Langkah 3 — Catat ke Changelog".
 
+## [2026-08-25] Upgrade UX, Alur Transaksi, Edit Transaksi & Perbaikan Visual
+
+**Plan**: `docs/plans/2026-08-25-upgrade-ux-dan-perbaikan-keseluruhan.md`
+
+### Berubah
+- **Fitur Edit Transaksi**: Menambahkan endpoint `PUT /api/transactions/[id]` dengan pembalikan saldo atomik, proteksi *strict-zero*, dan tombol aksi edit di `TransactionItem`.
+- **Form Catat/Edit Transaksi**: Menata ulang alur urutan form secara logis (Kategori/Dompet → Nominal → Tanggal → Catatan), menyematkan pratinjau sisa saldo dompet, dan mengganti native alert offline dengan status banner.
+- **Konfirmasi Hapus Aman**: Mengganti native `confirm()` dan penghapusan 1-klik tanpa konfirmasi pada `BillItem`, `DebtItem`, dan `WalletsView` dengan tombol inline konfirmasi `[Hapus] [Batal]`.
+- **Pengaturan & Profil Pengguna**: Mengaktifkan pengeditan nama pengguna (`users.name`), mengganti raw `fetch` dengan `apiFetch`, dan menghapus seluruh browser `alert()` / `confirm()`.
+- **Context-Aware Header**: Menyembunyikan pemilih periode tanggal pada tab yang non-period (Aset, Hutang, Pengaturan) agar tidak membingungkan pengguna.
+- **Kepadatan Tampilan Hutang-Piutang (DebtsView)**: Mengubah 3 summary cards vertikal menjadi strip 3-kolom responsif untuk mengurangi jarak scroll di perangkat mobile.
+
 ## [2026-08-25] Mobile UX Overhaul — Tampilan HP Simple & Premium
 
 **Plan**: `docs/plans/2026-08-25-mobile-ux-overhaul-tampilan-hp-simple-premium.md`

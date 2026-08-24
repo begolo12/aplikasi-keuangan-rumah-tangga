@@ -48,10 +48,18 @@ export async function PUT(req: NextRequest) {
          RETURNING *`,
         [session.userId, validated.family_name, validated.currency]
       );
-      await client.query('UPDATE users SET family_name = $1 WHERE id = $2', [
-        validated.family_name,
-        session.userId,
-      ]);
+      if (validated.name) {
+        await client.query('UPDATE users SET name = $1, family_name = $2 WHERE id = $3', [
+          validated.name,
+          validated.family_name,
+          session.userId,
+        ]);
+      } else {
+        await client.query('UPDATE users SET family_name = $1 WHERE id = $2', [
+          validated.family_name,
+          session.userId,
+        ]);
+      }
       return rows.rows[0];
     });
 

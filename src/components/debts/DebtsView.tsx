@@ -226,27 +226,29 @@ export function DebtsView({ debts, wallets, onRefresh }: DebtsViewProps) {
         </button>
       </div>
 
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <div className="p-3.5 sm:p-4 bg-surface border border-border rounded-2xl shadow-xs space-y-1">
-          <p className="text-[11px] sm:text-xs text-text-muted font-semibold">
-            {activeType === 'payable' ? 'Total Sisa Hutang' : 'Total Sisa Piutang'}
+      {/* Summary Strip (Compact 3-column responsive) */}
+      <div className="grid grid-cols-3 gap-2 sm:gap-3">
+        <div className="p-2.5 sm:p-4 bg-surface border border-border rounded-2xl shadow-xs space-y-0.5 sm:space-y-1 min-w-0">
+          <p className="text-[10px] sm:text-xs text-text-muted font-semibold truncate">
+            {activeType === 'payable' ? 'Sisa Hutang' : 'Sisa Piutang'}
           </p>
-          <p className={`text-lg sm:text-xl font-extrabold whitespace-nowrap tabular-nums ${activeType === 'payable' ? 'text-expense' : 'text-primary'}`}>
+          <p className={`text-sm sm:text-lg md:text-xl font-extrabold whitespace-nowrap tabular-nums truncate ${activeType === 'payable' ? 'text-expense' : 'text-primary'}`}>
             {formatRupiah(totalRemaining)}
           </p>
         </div>
 
-        <div className="p-3.5 sm:p-4 bg-surface border border-border rounded-2xl shadow-xs space-y-1">
-          <p className="text-[11px] sm:text-xs text-text-muted font-semibold">Sudah Terbayar / Diterima</p>
-          <p className="text-lg sm:text-xl font-extrabold text-income whitespace-nowrap tabular-nums">
+        <div className="p-2.5 sm:p-4 bg-surface border border-border rounded-2xl shadow-xs space-y-0.5 sm:space-y-1 min-w-0">
+          <p className="text-[10px] sm:text-xs text-text-muted font-semibold truncate">
+            {activeType === 'payable' ? 'Terbayar' : 'Diterima'}
+          </p>
+          <p className="text-sm sm:text-lg md:text-xl font-extrabold text-income whitespace-nowrap tabular-nums truncate">
             {formatRupiah(totalPaid)}
           </p>
         </div>
 
-        <div className="p-3.5 sm:p-4 bg-surface border border-border rounded-2xl shadow-xs space-y-1">
-          <p className="text-[11px] sm:text-xs text-text-muted font-semibold">Total Pokok Awal</p>
-          <p className="text-lg sm:text-xl font-extrabold text-text whitespace-nowrap tabular-nums">
+        <div className="p-2.5 sm:p-4 bg-surface border border-border rounded-2xl shadow-xs space-y-0.5 sm:space-y-1 min-w-0">
+          <p className="text-[10px] sm:text-xs text-text-muted font-semibold truncate">Pokok Awal</p>
+          <p className="text-sm sm:text-lg md:text-xl font-extrabold text-text whitespace-nowrap tabular-nums truncate">
             {formatRupiah(totalPrincipal)}
           </p>
         </div>

@@ -95,6 +95,7 @@ export default function MainPage() {
   // Modal State
   const [isTxModalOpen, setIsTxModalOpen] = useState(false);
   const [txModalType, setTxModalType] = useState<TransactionType>('expense');
+  const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
 
   // Application Data States
   const [reloadKey, setReloadKey] = useState(0);
@@ -256,7 +257,14 @@ export default function MainPage() {
   };
 
   const handleOpenAddModal = (type: TransactionType = 'expense') => {
+    setEditingTransaction(null);
     setTxModalType(type);
+    setIsTxModalOpen(true);
+  };
+
+  const handleEditTransaction = (trx: Transaction) => {
+    setEditingTransaction(trx);
+    setTxModalType(trx.type);
     setIsTxModalOpen(true);
   };
 
@@ -370,6 +378,7 @@ export default function MainPage() {
           <TransactionList
             transactions={transactions}
             onDeleteTransaction={handleDeleteTransaction}
+            onEditTransaction={handleEditTransaction}
             onOpenAddModal={handleOpenAddModal}
             isLoading={isDataLoading}
           />
@@ -384,6 +393,7 @@ export default function MainPage() {
           <TransactionList
             transactions={transactions}
             onDeleteTransaction={handleDeleteTransaction}
+            onEditTransaction={handleEditTransaction}
             onOpenAddModal={handleOpenAddModal}
             isLoading={isDataLoading}
           />
@@ -445,8 +455,12 @@ export default function MainPage() {
       {/* Global Add/Edit Transaction Modal */}
       <TransactionModal
         isOpen={isTxModalOpen}
-        onClose={() => setIsTxModalOpen(false)}
+        onClose={() => {
+          setIsTxModalOpen(false);
+          setEditingTransaction(null);
+        }}
         initialType={txModalType}
+        editingTransaction={editingTransaction}
         wallets={wallets}
         categories={categories}
         userId={user.id}

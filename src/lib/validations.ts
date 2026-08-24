@@ -71,6 +71,7 @@ export const payBillSchema = z.object({
 });
 
 export const settingsSchema = z.object({
+  name: z.string().min(1, 'Nama pengguna minimal 1 karakter').max(100).optional(),
   family_name: z.string().min(1, 'Nama keluarga wajib diisi').max(100),
   currency: z.string().regex(/^[A-Z]{3}$/, 'Kode mata uang harus 3 huruf besar (mis. IDR)').default('IDR'),
 });

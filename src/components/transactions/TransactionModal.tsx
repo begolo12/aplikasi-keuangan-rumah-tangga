@@ -4,13 +4,16 @@ import React, { useState } from 'react';
 import { Modal } from '../ui/Modal';
 import { AmountInput } from '../ui/AmountInput';
 import { Button } from '../ui/Button';
-import { Wallet, Category, TransactionType } from '@/lib/types';
+import { Wallet, Category, Transaction, TransactionType } from '@/lib/types';
 import { enqueueOfflineMutation } from '@/lib/offlineQueue';
+import { formatRupiah } from '@/lib/formatters';
+import { WifiSlash, PencilSimple, Plus } from '@phosphor-icons/react';
 
 interface TransactionModalProps {
   isOpen: boolean;
   onClose: () => void;
   initialType?: TransactionType;
+  editingTransaction?: Transaction | null;
   wallets: Wallet[];
   categories: Category[];
   userId: string;
@@ -19,6 +22,7 @@ interface TransactionModalProps {
 
 interface TransactionFormProps {
   initialType: TransactionType;
+  editingTransaction?: Transaction | null;
   wallets: Wallet[];
   categories: Category[];
   userId: string;
@@ -28,27 +32,37 @@ interface TransactionFormProps {
 
 function TransactionForm({
   initialType,
+  editingTransaction,
   wallets,
   categories,
   userId,
   onSuccess,
   onClose,
 }: TransactionFormProps) {
-  const defaultW = wallets.find((w) => w.is_default) || wallets[0];
-  const defaultWalletId = defaultW?.id || '';
-  const defaultToWallet = wallets.find((w) => w.id !== defaultWalletId);
-  const defaultCat = categories.find((c) => c.type === (initialType === 'income' ? 'income' : 'expense'));
+  const isEditing = Boolean(editingTransaction);
 
-  const [type, setType] = useState<TransactionType>(initialType);
-  const [amount, setAmount] = useState(0);
-  const [adminFee, setAdminFee] = useState(0);
+  const defaultW = wallets.find((w) => w.is_default) || wallets[0];
+  const defaultWalletId = editingTransaction?.wallet_id || defaultW?.id || '';
+  const defaultToWallet = wallets.find((w) => w.id !== defaultWalletId);
+  const defaultCat = categories.find(
+    (c) => c.type === ((editingTransaction?.type || initialType) === 'income' ? 'income' : 'expense')
+  );
+
+  const [type, setType] = useState<TransactionType>(editingTransaction?.type || initialType);
+  const [amount, setAmount] = useState(editingTransaction?.amount || 0);
+  const [adminFee, setAdminFee] = useState(editingTransaction?.admin_fee || 0);
   const [walletId, setWalletId] = useState(defaultWalletId);
-  const [toWalletId, setToWalletId] = useState(defaultToWallet?.id || '');
-  const [categoryId, setCategoryId] = useState(defaultCat?.id || '');
-  const [description, setDescription] = useState('');
-  const [date, setDate] = useState(() => new Date().toISOString().split('T')[0]);
+  const [toWalletId, setToWalletId] = useState(editingTransaction?.to_wallet_id || defaultToWallet?.id || '');
+  const [categoryId, setCategoryId] = useState(
+    editingTransaction?.category_id || defaultCat?.id || ''
+  );
+  const [description, setDescription] = useState(editingTransaction?.description || '');
+  const [date, setDate] = useState(
+    () => editingTransaction?.date || new Date().toISOString().split('T')[0]
+  );
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [offlineNotice, setOfflineNotice] = useState(false);
 
   const handleTypeChange = (newType: TransactionType) => {
     setType(newType);
@@ -70,6 +84,7 @@ function TransactionForm({
   };
 
   const filteredCategories = categories.filter((c) => c.type === (type === 'income' ? 'income' : 'expense'));
+  const selectedSourceWallet = wallets.find((w) => w.id === walletId);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -107,19 +122,24 @@ function TransactionForm({
       if (typeof navigator !== 'undefined' && !navigator.onLine) {
         await enqueueOfflineMutation({
           userId,
-          endpoint: '/api/transactions',
-          method: 'POST',
+          endpoint: isEditing && editingTransaction ? `/api/transactions/${editingTransaction.id}` : '/api/transactions',
+          method: isEditing ? 'PUT' : 'POST',
           payload,
         });
 
-        alert('Anda sedang offline. Transaksi disimpan di perangkat dan akan disinkronkan saat online.');
-        onSuccess();
-        onClose();
+        setOfflineNotice(true);
+        setTimeout(() => {
+          onSuccess();
+          onClose();
+        }, 1200);
         return;
       }
 
-      const res = await fetch('/api/transactions', {
-        method: 'POST',
+      const endpoint = isEditing && editingTransaction ? `/api/transactions/${editingTransaction.id}` : '/api/transactions';
+      const method = isEditing ? 'PUT' : 'POST';
+
+      const res = await fetch(endpoint, {
+        method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
@@ -148,13 +168,20 @@ function TransactionForm({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
+      {offlineNotice && (
+        <div role="status" className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-2xl text-amber-700 dark:text-amber-300 text-xs font-semibold flex items-center gap-2">
+          <WifiSlash size={18} className="shrink-0" />
+          <span>Offline: Transaksi disimpan di perangkat & akan disinkronkan saat terhubung kembali.</span>
+        </div>
+      )}
+
       {error && (
         <div role="alert" className="p-3.5 bg-expense/10 border border-expense/20 rounded-2xl text-expense text-xs font-semibold">
           {error}
         </div>
       )}
 
-      {/* Transaction Type Segmented Control */}
+      {/* 1. Transaction Type Segmented Control */}
       <div className="grid grid-cols-3 gap-1.5 p-1 bg-surface-2 rounded-2xl">
         <button
           type="button"
@@ -185,68 +212,13 @@ function TransactionForm({
         </button>
       </div>
 
-      {/* Amount Input with Live Format & Presets */}
-      <AmountInput value={amount} onChange={setAmount} />
-
-      {/* Extra fee for transfer */}
-      {type === 'transfer' && (
-        <div className="space-y-1">
-          <label htmlFor="tx-admin-fee" className="block text-xs font-semibold text-text-muted">Biaya Admin Transfer (Opsional)</label>
-          <input
-            id="tx-admin-fee"
-            type="number"
-            min="0"
-            value={adminFee || ''}
-            onChange={(e) => setAdminFee(e.target.value ? parseInt(e.target.value, 10) : 0)}
-            placeholder="0 (Contoh: 1000)"
-            className="w-full h-11 px-4 bg-background border border-border rounded-xl text-sm font-medium focus:ring-2 focus:ring-primary focus:outline-none"
-          />
-        </div>
-      )}
-
-      {/* Wallet Selection */}
+      {/* 2. Context Section: Category & Wallet Selection first */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-        <div className="space-y-1">
-          <label htmlFor="tx-source-wallet" className="block text-xs font-semibold text-text-muted">
-            {type === 'transfer' ? 'Dari Dompet (Asal)' : 'Pos Dompet / Rekening'}
-          </label>
-          <select
-            id="tx-source-wallet"
-            value={walletId}
-            onChange={(e) => handleWalletChange(e.target.value)}
-            required
-            className="w-full h-11 px-3 bg-background border border-border rounded-xl text-sm font-medium focus:ring-2 focus:ring-primary focus:outline-none"
-          >
-            {wallets.map((w) => (
-              <option key={w.id} value={w.id}>
-                {w.name} (Rp {new Intl.NumberFormat('id-ID').format(w.balance)})
-              </option>
-            ))}
-          </select>
-        </div>
-
-        {type === 'transfer' ? (
+        {type !== 'transfer' && (
           <div className="space-y-1">
-            <label htmlFor="tx-dest-wallet" className="block text-xs font-semibold text-text-muted">Ke Dompet (Tujuan)</label>
-            <select
-              id="tx-dest-wallet"
-              value={toWalletId}
-              onChange={(e) => setToWalletId(e.target.value)}
-              required
-              className="w-full h-11 px-3 bg-background border border-border rounded-xl text-sm font-medium focus:ring-2 focus:ring-primary focus:outline-none"
-            >
-              {wallets
-                .filter((w) => w.id !== walletId)
-                .map((w) => (
-                  <option key={w.id} value={w.id}>
-                    {w.name} (Rp {new Intl.NumberFormat('id-ID').format(w.balance)})
-                  </option>
-                ))}
-            </select>
-          </div>
-        ) : (
-          <div className="space-y-1">
-            <label htmlFor="tx-category" className="block text-xs font-semibold text-text-muted">Kategori</label>
+            <label htmlFor="tx-category" className="block text-xs font-semibold text-text-muted">
+              Kategori Transaksi
+            </label>
             <select
               id="tx-category"
               value={categoryId}
@@ -261,11 +233,84 @@ function TransactionForm({
             </select>
           </div>
         )}
+
+        <div className="space-y-1">
+          <label htmlFor="tx-source-wallet" className="block text-xs font-semibold text-text-muted">
+            {type === 'transfer' ? 'Dari Dompet (Asal)' : 'Pos Dompet / Rekening'}
+          </label>
+          <select
+            id="tx-source-wallet"
+            value={walletId}
+            onChange={(e) => handleWalletChange(e.target.value)}
+            required
+            className="w-full h-11 px-3 bg-background border border-border rounded-xl text-sm font-medium focus:ring-2 focus:ring-primary focus:outline-none"
+          >
+            {wallets.map((w) => (
+              <option key={w.id} value={w.id}>
+                {w.name} ({formatRupiah(w.balance)})
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {type === 'transfer' && (
+          <div className="space-y-1">
+            <label htmlFor="tx-dest-wallet" className="block text-xs font-semibold text-text-muted">
+              Ke Dompet (Tujuan)
+            </label>
+            <select
+              id="tx-dest-wallet"
+              value={toWalletId}
+              onChange={(e) => setToWalletId(e.target.value)}
+              required
+              className="w-full h-11 px-3 bg-background border border-border rounded-xl text-sm font-medium focus:ring-2 focus:ring-primary focus:outline-none"
+            >
+              {wallets
+                .filter((w) => w.id !== walletId)
+                .map((w) => (
+                  <option key={w.id} value={w.id}>
+                    {w.name} ({formatRupiah(w.balance)})
+                  </option>
+                ))}
+            </select>
+          </div>
+        )}
       </div>
 
-      {/* Date Selector */}
+      {/* Wallet Balance Hint */}
+      {selectedSourceWallet && (
+        <div className="text-[11px] text-text-muted flex items-center justify-between px-1">
+          <span>Saldo Tersedia ({selectedSourceWallet.name}):</span>
+          <span className="font-bold text-text tabular-nums">{formatRupiah(selectedSourceWallet.balance)}</span>
+        </div>
+      )}
+
+      {/* 3. Amount Input with live formatting & presets */}
+      <AmountInput value={amount} onChange={setAmount} />
+
+      {/* Extra fee for transfer */}
+      {type === 'transfer' && (
+        <div className="space-y-1">
+          <label htmlFor="tx-admin-fee" className="block text-xs font-semibold text-text-muted">
+            Biaya Admin Transfer (Opsional)
+          </label>
+          <input
+            id="tx-admin-fee"
+            type="number"
+            min="0"
+            value={adminFee || ''}
+            onChange={(e) => setAdminFee(e.target.value ? parseInt(e.target.value, 10) : 0)}
+            placeholder="0 (Contoh: 2500)"
+            className="w-full h-11 px-4 bg-background border border-border rounded-xl text-sm font-medium focus:ring-2 focus:ring-primary focus:outline-none"
+          />
+        </div>
+      )}
+
+      {/* 4. Date Selector */}
       <div className="space-y-1">
-        <label htmlFor="tx-date" className="block text-xs font-semibold text-text-muted">Tanggal Transaksi</label>
+        <label htmlFor="tx-date" className="block text-xs font-semibold text-text-muted">
+          Tanggal Transaksi
+        </label>
         <div className="flex items-center gap-2">
           <input
             id="tx-date"
@@ -285,9 +330,11 @@ function TransactionForm({
         </div>
       </div>
 
-      {/* Description & Autocomplete suggestions */}
+      {/* 5. Description & Autocomplete suggestions */}
       <div className="space-y-1.5">
-        <label htmlFor="tx-desc" className="block text-xs font-semibold text-text-muted">Catatan (Opsional)</label>
+        <label htmlFor="tx-desc" className="block text-xs font-semibold text-text-muted">
+          Catatan (Opsional)
+        </label>
         <input
           id="tx-desc"
           type="text"
@@ -320,7 +367,9 @@ function TransactionForm({
         isLoading={isLoading}
         className="w-full mt-4 text-base font-bold shadow-md"
       >
-        Simpan {type === 'expense' ? 'Pengeluaran' : type === 'income' ? 'Pemasukan' : 'Transfer'}
+        {isEditing
+          ? 'Simpan Perubahan Transaksi'
+          : `Simpan ${type === 'expense' ? 'Pengeluaran' : type === 'income' ? 'Pemasukan' : 'Transfer'}`}
       </Button>
     </form>
   );
@@ -330,26 +379,40 @@ export function TransactionModal({
   isOpen,
   onClose,
   initialType = 'expense',
+  editingTransaction = null,
   wallets,
   categories,
   userId,
   onSuccess,
 }: TransactionModalProps) {
+  const isEditing = Boolean(editingTransaction);
+
   return (
     <Modal
       isOpen={isOpen}
       onClose={onClose}
       title={
         <div className="flex items-center gap-2">
-          <span>Catat Transaksi</span>
+          {isEditing ? (
+            <>
+              <PencilSimple size={20} className="text-primary" weight="bold" />
+              <span>Edit Transaksi</span>
+            </>
+          ) : (
+            <>
+              <Plus size={20} className="text-primary" weight="bold" />
+              <span>Catat Transaksi</span>
+            </>
+          )}
         </div>
       }
       maxWidth="md"
     >
       {isOpen && (
         <TransactionForm
-          key={`${isOpen}-${initialType}`}
+          key={`${isOpen}-${initialType}-${editingTransaction?.id || 'new'}`}
           initialType={initialType}
+          editingTransaction={editingTransaction}
           wallets={wallets}
           categories={categories}
           userId={userId}

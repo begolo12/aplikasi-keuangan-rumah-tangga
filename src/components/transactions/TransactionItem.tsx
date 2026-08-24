@@ -4,14 +4,15 @@ import React, { useState } from 'react';
 import { Transaction } from '@/lib/types';
 import { formatRupiah, formatDate } from '@/lib/formatters';
 import { CategoryIcon } from '../ui/CategoryIcon';
-import { Trash, ArrowsLeftRight } from '@phosphor-icons/react';
+import { Trash, ArrowsLeftRight, PencilSimple } from '@phosphor-icons/react';
 
 interface TransactionItemProps {
   transaction: Transaction;
   onDelete: (id: string) => Promise<void>;
+  onEdit?: (transaction: Transaction) => void;
 }
 
-export function TransactionItem({ transaction, onDelete }: TransactionItemProps) {
+export function TransactionItem({ transaction, onDelete, onEdit }: TransactionItemProps) {
   const [isDeleting, setIsDeleting] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
 
@@ -67,7 +68,7 @@ export function TransactionItem({ transaction, onDelete }: TransactionItemProps)
         </div>
       </div>
 
-      {/* Amount & Delete Action */}
+      {/* Amount & Actions */}
       <div className="flex items-center gap-1.5 sm:gap-2 md:gap-3 shrink-0">
         <span
           className={`text-xs sm:text-sm md:text-base font-extrabold text-right whitespace-nowrap tabular-nums ${
@@ -83,27 +84,40 @@ export function TransactionItem({ transaction, onDelete }: TransactionItemProps)
             <button
               onClick={handleDelete}
               disabled={isDeleting}
-              className="px-2 py-1 bg-expense text-white text-xs font-bold rounded-lg hover:opacity-90 transition-opacity"
+              className="px-2.5 py-1 bg-expense text-white text-xs font-bold rounded-lg hover:opacity-90 transition-opacity"
             >
               {isDeleting ? '...' : 'Hapus'}
             </button>
             <button
               onClick={() => setShowConfirm(false)}
-              className="px-2 py-1 bg-surface-3 text-text text-xs rounded-lg hover:bg-surface-2"
+              className="px-2.5 py-1 bg-surface-3 text-text text-xs rounded-lg hover:bg-surface-2"
             >
               Batal
             </button>
           </div>
         ) : (
-          <button
-            type="button"
-            onClick={() => setShowConfirm(true)}
-            aria-label="Hapus transaksi"
-            title="Hapus Transaksi"
-            className="opacity-100 md:opacity-0 md:group-hover:opacity-100 md:focus-visible:opacity-100 md:focus-visible:pointer-events-auto p-1.5 text-text-muted hover:text-expense hover:bg-expense/10 rounded-lg transition-all"
-          >
-            <Trash size={16} />
-          </button>
+          <div className="flex items-center gap-0.5">
+            {onEdit && (
+              <button
+                type="button"
+                onClick={() => onEdit(transaction)}
+                aria-label="Edit transaksi"
+                title="Edit Transaksi"
+                className="opacity-100 md:opacity-0 md:group-hover:opacity-100 md:focus-visible:opacity-100 p-1.5 text-text-muted hover:text-primary hover:bg-primary/10 rounded-lg transition-all"
+              >
+                <PencilSimple size={16} />
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => setShowConfirm(true)}
+              aria-label="Hapus transaksi"
+              title="Hapus Transaksi"
+              className="opacity-100 md:opacity-0 md:group-hover:opacity-100 md:focus-visible:opacity-100 p-1.5 text-text-muted hover:text-expense hover:bg-expense/10 rounded-lg transition-all"
+            >
+              <Trash size={16} />
+            </button>
+          </div>
         )}
       </div>
     </div>

@@ -13,7 +13,10 @@ import {
 } from '@phosphor-icons/react';
 import { INDONESIAN_MONTHS } from '@/lib/formatters';
 
+import { NavTab } from './BottomNav';
+
 interface TopHeaderProps {
+  activeTab?: NavTab;
   currentMonth: number;
   currentYear: number;
   onPeriodChange: (month: number, year: number) => void;
@@ -25,6 +28,7 @@ interface TopHeaderProps {
 }
 
 export function TopHeader({
+  activeTab = 'dashboard',
   currentMonth,
   currentYear,
   onPeriodChange,
@@ -93,31 +97,45 @@ export function TopHeader({
   return (
     <header className="sticky top-0 z-30 bg-background/80 backdrop-blur-md border-b border-border px-3 sm:px-4 md:px-8 py-2.5 sm:py-3 transition-colors">
       <div className="flex items-center justify-between max-w-7xl mx-auto gap-2 sm:gap-4">
-        {/* Month / Year Period Selector */}
-        <div className="flex items-center gap-1 bg-surface border border-border px-2 sm:px-3 py-1 sm:py-1.5 rounded-2xl shadow-xs">
-          <Calendar size={16} className="text-primary mr-0.5 sm:mr-1 shrink-0" weight="duotone" />
-          <button
-            type="button"
-            onClick={handlePrevMonth}
-            aria-label="Bulan sebelumnya"
-            title="Bulan Sebelumnya"
-            className="min-w-[36px] min-h-[36px] sm:min-w-[40px] sm:min-h-[40px] flex items-center justify-center hover:bg-surface-2 rounded-lg text-text-muted hover:text-text transition-colors"
-          >
-            <CaretLeft size={16} weight="bold" />
-          </button>
-          <span className="text-xs sm:text-sm font-bold text-text min-w-[96px] sm:min-w-[110px] text-center select-none truncate">
-            {INDONESIAN_MONTHS[currentMonth - 1]} {currentYear}
-          </span>
-          <button
-            type="button"
-            onClick={handleNextMonth}
-            aria-label="Bulan berikutnya"
-            title="Bulan Berikutnya"
-            className="min-w-[36px] min-h-[36px] sm:min-w-[40px] sm:min-h-[40px] flex items-center justify-center hover:bg-surface-2 rounded-lg text-text-muted hover:text-text transition-colors"
-          >
-            <CaretRight size={16} weight="bold" />
-          </button>
-        </div>
+        {/* Context-aware Left Header: Period Selector on period-tabs, or Section Badge on non-period tabs */}
+        {['assets', 'debts', 'wallets', 'settings'].includes(activeTab) ? (
+          <div className="flex items-center gap-2 px-1">
+            <span className="text-xs sm:text-sm font-extrabold text-text capitalize">
+              {activeTab === 'assets'
+                ? 'Aset & Depresiasi'
+                : activeTab === 'debts'
+                ? 'Hutang & Piutang'
+                : activeTab === 'wallets'
+                ? 'Pos Kas & Rekening'
+                : 'Pengaturan & Backup'}
+            </span>
+          </div>
+        ) : (
+          <div className="flex items-center gap-1 bg-surface border border-border px-2 sm:px-3 py-1 sm:py-1.5 rounded-2xl shadow-xs">
+            <Calendar size={16} className="text-primary mr-0.5 sm:mr-1 shrink-0" weight="duotone" />
+            <button
+              type="button"
+              onClick={handlePrevMonth}
+              aria-label="Bulan sebelumnya"
+              title="Bulan Sebelumnya"
+              className="min-w-[36px] min-h-[36px] sm:min-w-[40px] sm:min-h-[40px] flex items-center justify-center hover:bg-surface-2 rounded-lg text-text-muted hover:text-text transition-colors"
+            >
+              <CaretLeft size={16} weight="bold" />
+            </button>
+            <span className="text-xs sm:text-sm font-bold text-text min-w-[96px] sm:min-w-[110px] text-center select-none truncate">
+              {INDONESIAN_MONTHS[currentMonth - 1]} {currentYear}
+            </span>
+            <button
+              type="button"
+              onClick={handleNextMonth}
+              aria-label="Bulan berikutnya"
+              title="Bulan Berikutnya"
+              className="min-w-[36px] min-h-[36px] sm:min-w-[40px] sm:min-h-[40px] flex items-center justify-center hover:bg-surface-2 rounded-lg text-text-muted hover:text-text transition-colors"
+            >
+              <CaretRight size={16} weight="bold" />
+            </button>
+          </div>
+        )}
 
         {/* User Profile Avatar & Dropdown Menu */}
         <div className="relative" ref={menuRef}>
