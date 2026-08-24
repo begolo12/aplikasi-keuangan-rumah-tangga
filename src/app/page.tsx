@@ -322,7 +322,7 @@ export default function MainPage() {
       ) : isDataLoading && transactions.length === 0 && wallets.length === 0 ? (
         <DashboardSkeleton />
       ) : activeTab === 'dashboard' ? (
-        <div className="space-y-6">
+        <div className="space-y-3.5 sm:space-y-5">
           {/* Total Balance & Safe-to-Spend Gradient Card */}
           <BalanceHeader
             totalBalance={summary.total_balance}

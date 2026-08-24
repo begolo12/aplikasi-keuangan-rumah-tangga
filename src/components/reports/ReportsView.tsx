@@ -125,108 +125,108 @@ export function ReportsView({ summary: initialSummary, currentMonth, currentYear
   const safeSpend = reportSummary?.safe_to_spend ?? (totalBal - (pendingBills + payableDue));
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-3.5 sm:space-y-5">
       {/* Header & Export Button */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="flex items-center justify-between gap-2">
         <div>
-          <h2 className="text-xl md:text-2xl font-bold text-text">Laporan Keuangan & Arus Kas</h2>
-          <p className="text-xs md:text-sm text-text-muted">
+          <h2 className="text-base sm:text-xl font-bold text-text">Laporan Keuangan & Arus Kas</h2>
+          <p className="text-[11px] sm:text-xs text-text-muted">
             Periode {INDONESIAN_MONTHS[currentMonth - 1]} {currentYear}
           </p>
         </div>
 
         <Button
           variant="outline"
-          size="md"
-          leftIcon={<FileCsv size={18} weight="bold" className="text-primary" />}
+          size="sm"
+          leftIcon={<FileCsv size={16} weight="bold" className="text-primary" />}
           onClick={handleExportCsv}
         >
-          Ekspor CSV (Siap Excel)
+          Ekspor CSV
         </Button>
       </div>
 
       {/* Arus Kas & Safe-to-Spend Liquidity Breakdown Card */}
-      <div className="p-4 sm:p-6 bg-surface border border-border rounded-3xl space-y-4 shadow-xs">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-border pb-3">
-          <div className="flex items-center gap-2">
-            <div className="p-2 bg-primary/10 text-primary rounded-xl">
-              <Sparkle size={20} weight="duotone" />
+      <div className="p-3 sm:p-4 md:p-5 bg-surface border border-border rounded-2xl sm:rounded-3xl space-y-2.5 sm:space-y-3.5 shadow-2xs">
+        <div className="flex items-center justify-between gap-2 border-b border-border pb-2">
+          <div className="flex items-center gap-1.5 min-w-0">
+            <div className="p-1.5 bg-primary/10 text-primary rounded-lg shrink-0">
+              <Sparkle size={16} weight="duotone" />
             </div>
-            <div>
-              <h3 className="text-sm sm:text-base font-bold text-text">Ringkasan Likuiditas & Dana Bebas</h3>
-              <p className="text-[11px] text-text-muted">
+            <div className="min-w-0">
+              <h3 className="text-xs sm:text-sm font-bold text-text truncate">Ringkasan Likuiditas & Dana Bebas</h3>
+              <p className="text-[10px] text-text-muted hidden sm:block">
                 Perhitungan uang riil keluarga setelah memperhitungkan seluruh kewajiban rutin.
               </p>
             </div>
           </div>
 
           <span
-            className={`self-start sm:self-center text-xs font-bold px-3 py-1 rounded-full border ${
+            className={`text-[10px] font-bold px-2 py-0.5 rounded-full border shrink-0 ${
               safeSpend >= 0
                 ? 'bg-income/10 text-income border-income/20'
                 : 'bg-expense/10 text-expense border-expense/20'
             }`}
           >
-            {safeSpend >= 0 ? 'Likuiditas Aman' : 'Kewajiban Melebihi Kas'}
+            {safeSpend >= 0 ? 'Likuiditas Aman' : 'Defisit Kewajiban'}
           </span>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-          <div className="p-3.5 bg-surface-2 rounded-2xl flex flex-col justify-between gap-1.5 border border-border/50">
-            <div className="flex items-center gap-1.5 text-text-muted text-xs font-semibold">
-              <ShieldCheck size={16} className="text-primary shrink-0" weight="duotone" />
-              <span className="truncate">Total Saldo Kas Riil</span>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
+          <div className="p-2 sm:p-2.5 bg-surface-2 rounded-xl flex flex-col justify-between gap-1 border border-border/40">
+            <div className="flex items-center gap-1 text-text-muted text-[10px] sm:text-[11px] font-semibold">
+              <ShieldCheck size={14} className="text-primary shrink-0" weight="duotone" />
+              <span className="truncate">Kas Riil</span>
             </div>
-            <p className="text-base sm:text-lg font-extrabold text-text whitespace-nowrap tabular-nums tracking-tight">
+            <p className="text-xs sm:text-sm md:text-base font-extrabold text-text whitespace-nowrap tabular-nums tracking-tight">
               {formatRupiah(totalBal)}
             </p>
           </div>
 
-          <div className="p-3.5 bg-surface-2 rounded-2xl flex flex-col justify-between gap-1.5 border border-border/50">
-            <div className="flex items-center gap-1.5 text-text-muted text-xs font-semibold">
-              <Receipt size={16} className="text-purple-500 shrink-0" weight="duotone" />
-              <span className="truncate">Tagihan Belum Bayar</span>
+          <div className="p-2 sm:p-2.5 bg-surface-2 rounded-xl flex flex-col justify-between gap-1 border border-border/40">
+            <div className="flex items-center gap-1 text-text-muted text-[10px] sm:text-[11px] font-semibold">
+              <Receipt size={14} className="text-purple-500 shrink-0" weight="duotone" />
+              <span className="truncate">Sisa Tagihan</span>
             </div>
-            <p className="text-base sm:text-lg font-extrabold text-purple-600 dark:text-purple-400 whitespace-nowrap tabular-nums tracking-tight">
+            <p className="text-xs sm:text-sm md:text-base font-extrabold text-purple-600 dark:text-purple-400 whitespace-nowrap tabular-nums tracking-tight">
               {formatRupiah(pendingBills)}
             </p>
           </div>
 
-          <div className="p-3.5 bg-surface-2 rounded-2xl flex flex-col justify-between gap-1.5 border border-border/50">
-            <div className="flex items-center gap-1.5 text-text-muted text-xs font-semibold">
-              <HandCoins size={16} className="text-expense shrink-0" weight="duotone" />
-              <span className="truncate">Sisa Hutang Berjalan</span>
+          <div className="p-2 sm:p-2.5 bg-surface-2 rounded-xl flex flex-col justify-between gap-1 border border-border/40">
+            <div className="flex items-center gap-1 text-text-muted text-[10px] sm:text-[11px] font-semibold">
+              <HandCoins size={14} className="text-expense shrink-0" weight="duotone" />
+              <span className="truncate">Sisa Hutang</span>
             </div>
-            <p className="text-base sm:text-lg font-extrabold text-expense whitespace-nowrap tabular-nums tracking-tight">
+            <p className="text-xs sm:text-sm md:text-base font-extrabold text-expense whitespace-nowrap tabular-nums tracking-tight">
               {formatRupiah(payableDue)}
             </p>
           </div>
 
-          <div className="p-3.5 bg-primary/10 border border-primary/20 rounded-2xl flex flex-col justify-between gap-1.5">
-            <div className="flex items-center gap-1.5 text-primary text-xs font-bold">
-              <Sparkle size={16} weight="fill" className="shrink-0" />
-              <span className="truncate">Dana Bebas (Safe-to-Spend)</span>
+          <div className="p-2 sm:p-2.5 bg-primary/10 border border-primary/20 rounded-xl flex flex-col justify-between gap-1">
+            <div className="flex items-center gap-1 text-primary text-[10px] sm:text-[11px] font-bold">
+              <Sparkle size={14} weight="fill" className="shrink-0" />
+              <span className="truncate">Dana Bebas</span>
             </div>
-            <p className="text-base sm:text-lg font-extrabold text-primary whitespace-nowrap tabular-nums tracking-tight">
+            <p className="text-xs sm:text-sm md:text-base font-extrabold text-primary whitespace-nowrap tabular-nums tracking-tight">
               {formatRupiah(safeSpend)}
             </p>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
-          <div className="flex items-center justify-between gap-3 p-3.5 bg-background rounded-2xl border border-border shadow-2xs">
-            <span className="text-xs font-medium text-text-muted flex items-center gap-1.5 shrink-0">
-              <TrendUp size={16} className="text-income shrink-0" weight="bold" /> Pemasukan Bulan Ini
+        <div className="grid grid-cols-2 gap-2 pt-0.5">
+          <div className="flex items-center justify-between gap-1.5 p-2 sm:p-2.5 bg-background rounded-xl border border-border">
+            <span className="text-[10px] sm:text-xs font-medium text-text-muted flex items-center gap-1 shrink-0">
+              <TrendUp size={14} className="text-income shrink-0" weight="bold" /> Pemasukan
             </span>
-            <span className="text-sm sm:text-base font-bold text-income whitespace-nowrap tabular-nums text-right">
+            <span className="text-xs sm:text-sm font-bold text-income whitespace-nowrap tabular-nums text-right">
               {formatRupiah(reportSummary?.total_income || 0)}
             </span>
           </div>
-          <div className="flex items-center justify-between gap-3 p-3.5 bg-background rounded-2xl border border-border shadow-2xs">
-            <span className="text-xs font-medium text-text-muted flex items-center gap-1.5 shrink-0">
-              <TrendDown size={16} className="text-expense shrink-0" weight="bold" /> Pengeluaran Bulan Ini
+          <div className="flex items-center justify-between gap-1.5 p-2 sm:p-2.5 bg-background rounded-xl border border-border">
+            <span className="text-[10px] sm:text-xs font-medium text-text-muted flex items-center gap-1 shrink-0">
+              <TrendDown size={14} className="text-expense shrink-0" weight="bold" /> Pengeluaran
             </span>
-            <span className="text-sm sm:text-base font-bold text-expense whitespace-nowrap tabular-nums text-right">
+            <span className="text-xs sm:text-sm font-bold text-expense whitespace-nowrap tabular-nums text-right">
               {formatRupiah(reportSummary?.total_expense || 0)}
             </span>
           </div>
@@ -234,29 +234,29 @@ export function ReportsView({ summary: initialSummary, currentMonth, currentYear
       </div>
 
       {/* 2-Column Analytics Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3.5 sm:gap-4">
         {/* Card 1: Komposisi Pengeluaran Kategori */}
-        <div className="p-5 md:p-6 bg-surface border border-border rounded-3xl space-y-4 shadow-xs">
+        <div className="p-3.5 sm:p-4 md:p-5 bg-surface border border-border rounded-2xl sm:rounded-3xl space-y-2.5 sm:space-y-3.5 shadow-2xs">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <div className="p-2 bg-primary/10 text-primary rounded-xl">
-                <ChartPieSlice size={20} weight="duotone" />
+            <div className="flex items-center gap-1.5">
+              <div className="p-1.5 bg-primary/10 text-primary rounded-lg">
+                <ChartPieSlice size={17} weight="duotone" />
               </div>
-              <h3 className="text-sm md:text-base font-bold text-text">Komposisi Pengeluaran</h3>
+              <h3 className="text-xs sm:text-sm md:text-base font-bold text-text">Komposisi Pengeluaran</h3>
             </div>
-            <span className="text-xs font-bold text-expense">{formatRupiah(categoryTotal)}</span>
+            <span className="text-xs sm:text-sm font-bold text-expense whitespace-nowrap tabular-nums">{formatRupiah(categoryTotal)}</span>
           </div>
 
           <CategoryChart data={categoryData} total={categoryTotal} />
         </div>
 
         {/* Card 2: Tren Arus Kas Harian */}
-        <div className="p-5 md:p-6 bg-surface border border-border rounded-3xl space-y-4 shadow-xs">
-          <div className="flex items-center gap-2">
-            <div className="p-2 bg-primary/10 text-primary rounded-xl">
-              <ChartBar size={20} weight="duotone" />
+        <div className="p-3.5 sm:p-4 md:p-5 bg-surface border border-border rounded-2xl sm:rounded-3xl space-y-2.5 sm:space-y-3.5 shadow-2xs">
+          <div className="flex items-center gap-1.5">
+            <div className="p-1.5 bg-primary/10 text-primary rounded-lg">
+              <ChartBar size={17} weight="duotone" />
             </div>
-            <h3 className="text-sm md:text-base font-bold text-text">Tren Arus Kas Harian</h3>
+            <h3 className="text-xs sm:text-sm md:text-base font-bold text-text">Tren Arus Kas Harian</h3>
           </div>
 
           <CashflowChart data={dailyTrends} />

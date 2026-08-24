@@ -84,8 +84,8 @@ export function QuickActions({
   ];
 
   return (
-    <div className="bg-surface border border-border rounded-3xl p-3.5 sm:p-4 md:p-5 shadow-sm">
-      <div className="grid grid-cols-4 md:grid-cols-8 gap-2 sm:gap-2.5 md:gap-3">
+    <div className="bg-surface border border-border rounded-2xl sm:rounded-3xl p-2.5 sm:p-3.5 md:p-4 shadow-2xs">
+      <div className="grid grid-cols-4 md:grid-cols-8 gap-1 sm:gap-2">
         {ACTIONS.map((item, idx) => {
           const Icon = item.icon;
           return (
@@ -93,19 +93,19 @@ export function QuickActions({
               key={idx}
               type="button"
               onClick={item.action}
-              className="flex flex-col items-center justify-start p-1 sm:p-1.5 md:p-2 rounded-2xl hover:bg-surface-2 active:scale-95 transition-all text-center group relative min-w-0"
+              className="flex flex-col items-center justify-start p-1 sm:p-1.5 rounded-xl hover:bg-surface-2 active:scale-95 transition-all text-center group relative min-w-0"
             >
               {item.badge !== undefined && (
-                <span className="absolute top-0.5 right-1 sm:right-2 md:right-3 w-4 h-4 bg-expense text-white rounded-full text-[10px] font-bold flex items-center justify-center shadow-xs">
+                <span className="absolute top-0 right-1 sm:right-2 w-3.5 h-3.5 bg-expense text-white rounded-full text-[9px] font-bold flex items-center justify-center shadow-xs">
                   {item.badge}
                 </span>
               )}
               <div
-                className={`w-11 h-11 sm:w-12 sm:h-12 rounded-2xl flex items-center justify-center border shadow-2xs mb-1.5 transition-transform group-hover:scale-105 ${item.color}`}
+                className={`w-9 h-9 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center border shadow-2xs mb-1 transition-transform group-hover:scale-105 ${item.color}`}
               >
-                <Icon size={22} weight="duotone" />
+                <Icon size={18} weight="duotone" />
               </div>
-              <span className="text-[10px] sm:text-[11px] md:text-xs font-bold text-text text-center leading-tight tracking-tight max-w-full break-words">
+              <span className="text-[10px] sm:text-[11px] font-semibold text-text text-center leading-tight tracking-tight max-w-full truncate">
                 {item.label}
               </span>
             </button>

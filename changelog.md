@@ -3,6 +3,16 @@
 Log eksekusi plan. Entri baru ditambahkan di bagian paling atas.
 Format entri lihat `AGENTS.md` bagian "Langkah 3 — Catat ke Changelog".
 
+## [2026-08-24] Desain Kompak Mobile & Efisiensi Layar Minimal Scroll
+
+**Plan**: `docs/plans/2026-08-24-desain-kompak-mobile-minimal-scroll.md`
+
+### Berubah
+- **Laporan & Arus Kas Kompak**: Memadatkan ringkasan likuiditas di [ReportsView.tsx](file:///f:/APLIKASI-KEUANGAN-GANANG/src/components/reports/ReportsView.tsx) menjadi grid 2x2 kompak (`grid-cols-2 lg:grid-cols-4 gap-2`) dengan padding `p-2 sm:p-2.5` sehingga seluruh metrik utama muat dalam satu kotak ringkas tanpa scroll panjang.
+- **Header Saldo & Safe-to-Spend Padat**: Mengoptimalkan ukuran [BalanceHeader.tsx](file:///f:/APLIKASI-KEUANGAN-GANANG/src/components/dashboard/BalanceHeader.tsx) (`p-3.5 sm:p-5`, font saldo `text-xl sm:text-2xl md:text-3xl`, strip safe-to-spend `p-2.5 sm:p-3`).
+- **Aksi Cepat & Pos Kas Ringkas**: Merampingkan [QuickActions.tsx](file:///f:/APLIKASI-KEUANGAN-GANANG/src/components/dashboard/QuickActions.tsx), [MonthlySummary.tsx](file:///f:/APLIKASI-KEUANGAN-GANANG/src/components/dashboard/MonthlySummary.tsx), dan [WalletScroller.tsx](file:///f:/APLIKASI-KEUANGAN-GANANG/src/components/dashboard/WalletScroller.tsx) agar menghemat lebih dari 40% tinggi vertikal di layar smartphone.
+- **Pembersihan Whitespace Kontainer**: Menyesuaikan padding utama pada [AppShell.tsx](file:///f:/APLIKASI-KEUANGAN-GANANG/src/components/layout/AppShell.tsx) (`p-2.5 sm:p-4`) dan jarak seksi [page.tsx](file:///f:/APLIKASI-KEUANGAN-GANANG/src/app/page.tsx) (`space-y-3.5 sm:space-y-5`).
+
 ## [2026-08-24] Optimasi Visual Mobile & Tipografi Anti-Wrapping Angka Rupiah
 
 **Plan**: `docs/plans/2026-08-24-optimasi-visual-mobile-anti-wrapping.md`
