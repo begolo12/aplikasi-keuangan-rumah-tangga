@@ -123,46 +123,46 @@ export function SidebarNav({
   ];
 
   return (
-    <aside className="hidden md:flex flex-col w-56 lg:w-60 shrink-0 bg-surface border-r border-border min-h-screen p-3 sticky top-0 h-screen justify-between transition-all overflow-y-auto no-scrollbar select-none">
-      <div className="space-y-3">
-        {/* Top Brand Logo */}
-        <div className="flex items-center gap-2 px-1.5 pt-0.5">
-          <div className="w-8 h-8 bg-primary text-primary-fg rounded-xl flex items-center justify-center shadow-md shadow-primary/20 shrink-0">
-            <Wallet size={19} weight="duotone" />
+    <aside className="hidden md:flex flex-col w-64 shrink-0 bg-surface border-r border-border min-h-screen p-4 sticky top-0 h-screen justify-between transition-all overflow-y-auto no-scrollbar select-none">
+      <div className="space-y-4">
+        {/* Brand Identity Header */}
+        <div className="flex items-center gap-3 px-1 pt-0.5">
+          <div className="w-9 h-9 bg-primary text-primary-fg rounded-2xl flex items-center justify-center shadow-md shadow-primary/20 ring-1 ring-primary/20 shrink-0">
+            <Wallet size={20} weight="duotone" />
           </div>
           <div className="min-w-0 flex-1">
-            <h2 className="text-sm font-extrabold text-text leading-tight truncate">KasPribadi</h2>
-            <p className="text-[10px] text-text-muted font-medium truncate">{familyName}</p>
+            <h1 className="text-base font-extrabold text-text leading-tight tracking-tight">KasPribadi</h1>
+            <p className="text-[11px] text-text-muted font-medium truncate">{familyName}</p>
           </div>
         </div>
 
-        {/* Quick Add Button with Dropdown Popover */}
+        {/* Action Button: Catat Transaksi with Dropdown Popover */}
         <div className="relative" ref={dropdownRef}>
           <button
             type="button"
             onClick={() => setIsDropdownOpen(!isDropdownOpen)}
             aria-expanded={isDropdownOpen}
             aria-haspopup="true"
-            className="w-full h-8.5 bg-primary hover:bg-primary-hover text-primary-fg font-bold rounded-xl flex items-center justify-between px-3 shadow-2xs active:scale-98 transition-all text-xs group"
+            className="w-full h-9.5 bg-primary hover:bg-primary-hover active:scale-[0.98] text-primary-fg font-bold rounded-xl flex items-center justify-between px-3.5 shadow-sm shadow-primary/20 transition-all text-xs group"
           >
-            <div className="flex items-center gap-1.5">
-              <Plus size={15} weight="bold" />
+            <div className="flex items-center gap-2">
+              <Plus size={16} weight="bold" />
               <span>Catat Transaksi</span>
             </div>
-            <div className="flex items-center gap-1">
-              <span className="text-[9px] bg-white/20 px-1 py-0.2 rounded font-mono">N</span>
+            <div className="flex items-center gap-1.5">
+              <span className="text-[9px] bg-white/20 px-1.5 py-0.5 rounded font-mono font-medium">N</span>
               <CaretDown
-                size={11}
+                size={12}
                 weight="bold"
                 className={`transition-transform duration-200 ${isDropdownOpen ? 'rotate-180' : ''}`}
               />
             </div>
           </button>
 
-          {/* Dropdown Popover Menu */}
+          {/* Dropdown Menu Card */}
           {isDropdownOpen && (
-            <div className="absolute left-0 right-0 top-full mt-1.5 z-50 bg-surface border border-border rounded-2xl shadow-xl p-1.5 space-y-1 animate-in fade-in zoom-in-95 duration-150">
-              <div className="px-2 py-0.5 text-[9px] font-bold text-text-muted uppercase tracking-wider">
+            <div className="absolute left-0 right-0 top-full mt-2 z-50 bg-surface/98 backdrop-blur-md border border-border rounded-2xl shadow-xl p-1.5 space-y-1 animate-in fade-in zoom-in-95 duration-150">
+              <div className="px-2.5 py-1 text-[9px] font-bold text-text-muted uppercase tracking-wider">
                 Pilih Jenis Transaksi
               </div>
 
@@ -170,19 +170,20 @@ export function SidebarNav({
               <button
                 type="button"
                 onClick={() => handleSelectType('expense')}
-                className="w-full flex items-center justify-between p-1.5 rounded-xl hover:bg-expense/10 text-left transition-colors group"
+                className="w-full flex items-center justify-between p-2 rounded-xl hover:bg-expense/10 text-left transition-colors group"
               >
-                <div className="flex items-center gap-2 min-w-0">
-                  <div className="w-6 h-6 rounded-lg bg-expense/10 text-expense flex items-center justify-center shrink-0 border border-expense/20">
-                    <ArrowDownRight size={14} weight="bold" />
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className="w-7 h-7 rounded-lg bg-expense/10 text-expense flex items-center justify-center shrink-0 border border-expense/20">
+                    <ArrowDownRight size={15} weight="bold" />
                   </div>
                   <div className="min-w-0">
                     <p className="text-xs font-bold text-text group-hover:text-expense transition-colors">
                       Pengeluaran
                     </p>
+                    <p className="text-[10px] text-text-muted truncate">Belanja & uang keluar</p>
                   </div>
                 </div>
-                <kbd className="bg-surface-2 border border-border px-1 py-0.2 rounded text-[9px] font-mono text-text-muted">
+                <kbd className="bg-surface-2 border border-border px-1.5 py-0.5 rounded text-[10px] font-mono text-text-muted">
                   E
                 </kbd>
               </button>
@@ -191,19 +192,20 @@ export function SidebarNav({
               <button
                 type="button"
                 onClick={() => handleSelectType('income')}
-                className="w-full flex items-center justify-between p-1.5 rounded-xl hover:bg-income/10 text-left transition-colors group"
+                className="w-full flex items-center justify-between p-2 rounded-xl hover:bg-income/10 text-left transition-colors group"
               >
-                <div className="flex items-center gap-2 min-w-0">
-                  <div className="w-6 h-6 rounded-lg bg-income/10 text-income flex items-center justify-center shrink-0 border border-income/20">
-                    <ArrowUpRight size={14} weight="bold" />
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className="w-7 h-7 rounded-lg bg-income/10 text-income flex items-center justify-center shrink-0 border border-income/20">
+                    <ArrowUpRight size={15} weight="bold" />
                   </div>
                   <div className="min-w-0">
                     <p className="text-xs font-bold text-text group-hover:text-income transition-colors">
                       Pemasukan
                     </p>
+                    <p className="text-[10px] text-text-muted truncate">Gaji, bonus & dividen</p>
                   </div>
                 </div>
-                <kbd className="bg-surface-2 border border-border px-1 py-0.2 rounded text-[9px] font-mono text-text-muted">
+                <kbd className="bg-surface-2 border border-border px-1.5 py-0.5 rounded text-[10px] font-mono text-text-muted">
                   I
                 </kbd>
               </button>
@@ -212,19 +214,20 @@ export function SidebarNav({
               <button
                 type="button"
                 onClick={() => handleSelectType('transfer')}
-                className="w-full flex items-center justify-between p-1.5 rounded-xl hover:bg-transfer/10 text-left transition-colors group"
+                className="w-full flex items-center justify-between p-2 rounded-xl hover:bg-transfer/10 text-left transition-colors group"
               >
-                <div className="flex items-center gap-2 min-w-0">
-                  <div className="w-6 h-6 rounded-lg bg-transfer/10 text-transfer flex items-center justify-center shrink-0 border border-transfer/20">
-                    <ArrowsLeftRight size={14} weight="bold" />
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className="w-7 h-7 rounded-lg bg-transfer/10 text-transfer flex items-center justify-center shrink-0 border border-transfer/20">
+                    <ArrowsLeftRight size={15} weight="bold" />
                   </div>
                   <div className="min-w-0">
                     <p className="text-xs font-bold text-text group-hover:text-transfer transition-colors">
-                      Transfer
+                      Transfer Dompet
                     </p>
+                    <p className="text-[10px] text-text-muted truncate">Pindah saldo kas/bank</p>
                   </div>
                 </div>
-                <kbd className="bg-surface-2 border border-border px-1 py-0.2 rounded text-[9px] font-mono text-text-muted">
+                <kbd className="bg-surface-2 border border-border px-1.5 py-0.5 rounded text-[10px] font-mono text-text-muted">
                   T
                 </kbd>
               </button>
@@ -232,16 +235,16 @@ export function SidebarNav({
           )}
         </div>
 
-        {/* Hierarchical Grouped Navigation */}
-        <nav className="space-y-2.5">
+        {/* Grouped Section Navigation */}
+        <nav className="space-y-3 pt-0.5">
           {NAV_SECTIONS.map((section, sIdx) => (
             <div key={sIdx} className="space-y-0.5">
-              {/* Section Head */}
-              <div className="px-2 pt-1 pb-0.5 text-[9px] font-extrabold uppercase tracking-wider text-text-muted/60">
+              {/* Section Heading */}
+              <div className="px-2.5 pt-1.5 pb-1 text-[9.5px] font-bold uppercase tracking-widest text-text-muted/60">
                 {section.title}
               </div>
 
-              {/* Sub-menu Items */}
+              {/* Sub-menu Item List */}
               <div className="space-y-0.5">
                 {section.items.map((item) => {
                   const Icon = item.icon;
@@ -251,18 +254,18 @@ export function SidebarNav({
                       key={item.id}
                       type="button"
                       onClick={() => onTabChange(item.id)}
-                      className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-xl font-medium text-xs transition-all group ${
+                      className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-xl text-xs transition-all group ${
                         isActive
-                          ? 'bg-primary text-white shadow-2xs font-bold'
-                          : 'text-text-muted hover:text-text hover:bg-surface-2'
+                          ? 'bg-primary/10 text-primary font-bold border border-primary/20 shadow-2xs'
+                          : 'text-text/75 font-medium hover:text-text hover:bg-surface-2 border border-transparent'
                       }`}
                     >
                       <div className="flex items-center gap-2.5 min-w-0">
                         <Icon
-                          size={16}
-                          weight={isActive ? 'fill' : 'regular'}
+                          size={17}
+                          weight={isActive ? 'duotone' : 'regular'}
                           className={`shrink-0 transition-transform duration-150 ${
-                            isActive ? 'text-white' : 'text-text-muted group-hover:text-text'
+                            isActive ? 'text-primary' : 'text-text-muted group-hover:text-text'
                           }`}
                         />
                         <span className="truncate">{item.label}</span>
@@ -270,10 +273,10 @@ export function SidebarNav({
 
                       {item.badge && (
                         <span
-                          className={`text-[8px] font-bold px-1.5 py-0.2 rounded-md ${
+                          className={`text-[8.5px] font-extrabold px-1.5 py-0.2 rounded-md ${
                             isActive
-                              ? 'bg-white/20 text-white'
-                              : 'bg-primary/10 text-primary border border-primary/20'
+                              ? 'bg-primary text-white'
+                              : 'bg-primary/15 text-primary border border-primary/20'
                           }`}
                         >
                           {item.badge}
@@ -288,54 +291,54 @@ export function SidebarNav({
         </nav>
       </div>
 
-      {/* Bottom Profile & Shortcuts */}
-      <div className="space-y-2 pt-2 border-t border-border mt-2">
-        {/* Keyboard shortcut guide - Ultra Compact */}
-        <div className="bg-background/60 p-1.5 rounded-xl border border-border/40 text-[9px] text-text-muted space-y-0.5 hidden lg:block">
+      {/* Bottom Profile Card & Keyboard Shortcuts */}
+      <div className="space-y-3 pt-3 border-t border-border mt-3">
+        {/* Keyboard Shortcuts Mini Card */}
+        <div className="bg-surface-2/60 p-2.5 rounded-2xl border border-border/60 text-[10px] text-text-muted space-y-1.5 hidden lg:block">
           <div className="flex items-center justify-between font-bold text-text px-0.5">
-            <span className="flex items-center gap-1">
-              <Keyboard size={11} />
-              <span>Pintasan</span>
+            <span className="flex items-center gap-1.5 text-text">
+              <Keyboard size={13} className="text-primary" weight="duotone" />
+              <span>Pintasan Cepat</span>
             </span>
-            <span className="text-[8px] text-text-muted">Keyboard</span>
+            <span className="text-[9px] font-normal text-text-muted">Tombol</span>
           </div>
-          <div className="grid grid-cols-2 gap-x-2 gap-y-0.5 text-[9px] pt-0.5 px-0.5">
+          <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-[9.5px] pt-0.5 px-0.5">
             <div className="flex items-center justify-between">
-              <span>Keluar</span>
-              <kbd className="bg-surface px-1 rounded border font-mono text-[8px]">E</kbd>
+              <span className="text-text-muted">Pengeluaran</span>
+              <kbd className="bg-surface px-1.5 py-0.2 rounded border border-border font-mono text-[9px] text-text">E</kbd>
             </div>
             <div className="flex items-center justify-between">
-              <span>Masuk</span>
-              <kbd className="bg-surface px-1 rounded border font-mono text-[8px]">I</kbd>
+              <span className="text-text-muted">Pemasukan</span>
+              <kbd className="bg-surface px-1.5 py-0.2 rounded border border-border font-mono text-[9px] text-text">I</kbd>
             </div>
             <div className="flex items-center justify-between">
-              <span>Transfer</span>
-              <kbd className="bg-surface px-1 rounded border font-mono text-[8px]">T</kbd>
+              <span className="text-text-muted">Transfer</span>
+              <kbd className="bg-surface px-1.5 py-0.2 rounded border border-border font-mono text-[9px] text-text">T</kbd>
             </div>
             <div className="flex items-center justify-between">
-              <span>Tutup</span>
-              <kbd className="bg-surface px-1 rounded border font-mono text-[8px]">Esc</kbd>
+              <span className="text-text-muted">Tutup Dialog</span>
+              <kbd className="bg-surface px-1.5 py-0.2 rounded border border-border font-mono text-[9px] text-text">Esc</kbd>
             </div>
           </div>
         </div>
 
-        {/* User profile info & logout */}
-        <div className="flex items-center justify-between px-1">
-          <div className="flex items-center gap-2 overflow-hidden min-w-0">
-            <div className="w-6.5 h-6.5 rounded-lg bg-primary/10 text-primary border border-primary/20 flex items-center justify-center font-bold text-[10px] shrink-0">
+        {/* User Profile Card with Logout Trigger */}
+        <div className="p-1.5 rounded-2xl bg-surface-2/40 border border-border/50 flex items-center justify-between">
+          <div className="flex items-center gap-2.5 overflow-hidden min-w-0 pl-1">
+            <div className="w-8 h-8 rounded-xl bg-primary text-primary-fg flex items-center justify-center font-bold text-xs shadow-xs shrink-0">
               {userName.charAt(0).toUpperCase()}
             </div>
             <div className="overflow-hidden min-w-0">
-              <p className="text-xs font-bold text-text truncate">{userName}</p>
-              <p className="text-[9px] text-text-muted truncate">{familyName}</p>
+              <p className="text-xs font-bold text-text truncate leading-tight">{userName}</p>
+              <p className="text-[10px] text-text-muted truncate leading-tight">Akun Terhubung</p>
             </div>
           </div>
           <button
             onClick={onLogout}
             title="Keluar dari Akun"
-            className="p-1 text-text-muted hover:text-expense hover:bg-expense/10 rounded-lg transition-colors shrink-0"
+            className="p-2 text-text-muted hover:text-expense hover:bg-expense/10 rounded-xl transition-colors shrink-0"
           >
-            <SignOut size={15} />
+            <SignOut size={16} />
           </button>
         </div>
       </div>
