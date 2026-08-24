@@ -3,6 +3,25 @@
 Log eksekusi plan. Entri baru ditambahkan di bagian paling atas.
 Format entri lihat `AGENTS.md` bagian "Langkah 3 — Catat ke Changelog".
 
+## [2026-08-24] Pengujian End-to-End (E2E) Menyeluruh Semua Fungsi
+
+**Plan**: `docs/plans/2026-08-24-e2e-pengujian-menyeluruh-semua-fungsi.md`
+
+### Berubah
+- **Suite Pengujian E2E Otomatis**: Membuat skrip pengujian komprehensif [e2e-full-suite.ts](file:///f:/APLIKASI-KEUANGAN-GANANG/scripts/e2e-full-suite.ts) yang menguji langsung terhadap database live Neon Postgres mencakup 13 modul fungsional:
+  1. Registrasi user baru & auto-seeding dompet default (4 dompet), kategori (15 kategori), dan profil pengaturan keluarga.
+  2. Autentikasi Bcrypt & penandatanganan/verifikasi token sesi JWT (`jose`).
+  3. Manajemen dompet, mutasi saldo, dan penegakan batas strict-zero (saldo anti-minus).
+  4. Transaksi multi-tipe (pengeluaran, pemasukan, dan transfer antar-dompet dengan biaya admin & locking deterministik).
+  5. Pembuatan batas anggaran bulanan per kategori dan kalkulasi pelacakan real-time.
+  6. Pendaftaran tagihan rutin dan pelunasan tagihan atomik multi-tabel (`bill_payments`, `transactions`, `wallets`).
+  7. Modul hutang-piutang: pencatatan pinjaman, pembayaran cicilan, dan pembaruan saldo dompet.
+  8. Agregasi bootstrap dashboard dan kalkulasi arus kas likuiditas nyata (*Safe-to-Spend*).
+  9. Ekspor cadangan JSON, ekspor laporan transaksi CSV, dan isolasi data per-user.
+  10. Pembaruan pengaturan nama keluarga dan mata uang.
+  11. Pembersihan data pengujian (*cascade teardown*).
+- **Integrasi Test Command**: Mengintegrasikan script `test:e2e` ke dalam `npm test` (`test:audit` + `test:e2e`), mencakup total **87 assertions** (62 unit test + 25 E2E test) dengan tingkat kelulusan 100%.
+
 ## [2026-08-24] Menu Profil, Pengaturan & Edit Akun di Top Header Mobile
 
 **Plan**: `docs/plans/2026-08-24-menu-profile-pengaturan-mobile.md`

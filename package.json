@@ -11,7 +11,8 @@
     "start": "next start",
     "lint": "eslint .",
     "test:audit": "npx tsx scripts/audit-self-test.ts",
-    "test": "npm run test:audit"
+    "test:e2e": "npx tsx scripts/e2e-full-suite.ts",
+    "test": "npm run test:audit && npm run test:e2e"
   },
   "dependencies": {
     "@neondatabase/serverless": "^0.10.4",
