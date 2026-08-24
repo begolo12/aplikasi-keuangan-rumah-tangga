@@ -1,17 +1,55 @@
-import { NextResponse } from 'next/server';
-import { query } from '@/lib/db';
+import { NextRequest, NextResponse } from 'next/server';
+import { getAuthSession } from '@/lib/auth';
+import { withTransaction } from '@/lib/db';
+import { handleRouteError, BusinessError } from '@/lib/apiHelpers';
 
-export async function GET() {
-  return POST();
+type Client = Parameters<Parameters<typeof withTransaction>[0]>[0];
+
+/**
+ * Init hanya boleh:
+ * 1. Dipanggil dengan header X-Init-Secret yang cocok dengan INIT_SECRET env, ATAU
+ * 2. Menyelesaikan bootstrap pertama saat database masih kosong (belum ada tabel users / user terdaftar).
+ * Setelah produksi berjalan, endpoint terkunci tanpa secret.
+ */
+async function assertInitAllowed(client: Client): Promise<void> {
+  const secret = process.env.INIT_SECRET;
+  if (secret) {
+    return; // verifikasi header dilakukan sebelum transaksi
+  }
+  const tables = await client.query(
+    `SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'users') AS has_users`
+  );
+  if (!tables.rows[0].has_users) {
+    return; // database belum diinisialisasi: bootstrap pertama diizinkan
+  }
+  const counted = await client.query('SELECT COUNT(*)::int AS total FROM users');
+  if (counted.rows[0].total > 0) {
+    throw new BusinessError('Database sudah berisi data. Inisialisasi ulang butuh header X-Init-Secret.', 403);
+  }
 }
 
-export async function POST() {
-  try {
-    // 1. Extensions
-    await query(`CREATE EXTENSION IF NOT EXISTS "pgcrypto";`);
+async function initializeSchema(req: NextRequest): Promise<NextResponse> {
+  const session = await getAuthSession(req);
+  const secret = process.env.INIT_SECRET;
+  const authorizedBySecret = Boolean(secret) && req.headers.get('x-init-secret') === secret;
+  // User yang sudah login (pemilik aplikasi) tetap boleh menjalankan migrasi ringan.
+  if (!authorizedBySecret && !session) {
+    try {
+      await withTransaction(async (client) => {
+        await assertInitAllowed(client);
+      });
+    } catch {
+      return NextResponse.json(
+        { success: false, error: 'Inisialisasi membutuhkan login atau header X-Init-Secret.' },
+        { status: 403 }
+      );
+    }
+  }
 
-    // 2. Users Table
-    await query(`
+  await withTransaction(async (client) => {
+    await client.query(`CREATE EXTENSION IF NOT EXISTS "pgcrypto";`);
+
+    await client.query(`
       CREATE TABLE IF NOT EXISTS users (
         id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         name          VARCHAR(100) NOT NULL,
@@ -25,8 +63,7 @@ export async function POST() {
       CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
     `);
 
-    // 3. Wallets Table
-    await query(`
+    await client.query(`
       CREATE TABLE IF NOT EXISTS wallets (
         id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         user_id      UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -43,8 +80,7 @@ export async function POST() {
       CREATE INDEX IF NOT EXISTS idx_wallets_user ON wallets(user_id);
     `);
 
-    // 4. Categories Table
-    await query(`
+    await client.query(`
       CREATE TABLE IF NOT EXISTS categories (
         id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         user_id    UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -58,8 +94,7 @@ export async function POST() {
       CREATE INDEX IF NOT EXISTS idx_categories_user ON categories(user_id);
     `);
 
-    // 5. Transactions Table
-    await query(`
+    await client.query(`
       CREATE TABLE IF NOT EXISTS transactions (
         id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         user_id         UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -80,8 +115,7 @@ export async function POST() {
       CREATE INDEX IF NOT EXISTS idx_trx_user_type_date ON transactions(user_id, type, date);
     `);
 
-    // 6. Budgets Table
-    await query(`
+    await client.query(`
       CREATE TABLE IF NOT EXISTS budgets (
         id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         user_id        UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -95,8 +129,7 @@ export async function POST() {
       CREATE INDEX IF NOT EXISTS idx_budgets_user_my ON budgets(user_id, month, year);
     `);
 
-    // 7. Recurring Bills Table
-    await query(`
+    await client.query(`
       CREATE TABLE IF NOT EXISTS recurring_bills (
         id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         user_id        UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -111,8 +144,7 @@ export async function POST() {
       CREATE INDEX IF NOT EXISTS idx_bills_user ON recurring_bills(user_id);
     `);
 
-    // 8. Bill Payments Table
-    await query(`
+    await client.query(`
       CREATE TABLE IF NOT EXISTS bill_payments (
         id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         user_id      UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -127,8 +159,7 @@ export async function POST() {
       CREATE INDEX IF NOT EXISTS idx_bill_payments_user ON bill_payments(user_id);
     `);
 
-    // 9. App Settings Table
-    await query(`
+    await client.query(`
       CREATE TABLE IF NOT EXISTS app_settings (
         id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         user_id       UUID UNIQUE NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -138,15 +169,83 @@ export async function POST() {
       );
     `);
 
-    return NextResponse.json({
-      success: true,
-      message: 'Database schema and all tables initialized successfully on Neon Postgres.',
-    });
-  } catch (error: any) {
-    console.error('Init error:', error);
-    return NextResponse.json(
-      { success: false, error: error.message || 'Database initialization failed' },
-      { status: 500 }
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS debts (
+        id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_id          UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        type             VARCHAR(20) NOT NULL CHECK (type IN ('payable','receivable')),
+        person_name      VARCHAR(100) NOT NULL,
+        total_amount     NUMERIC(15,2) NOT NULL CHECK (total_amount > 0),
+        paid_amount      NUMERIC(15,2) NOT NULL DEFAULT 0 CHECK (paid_amount >= 0),
+        due_date         DATE,
+        notes            TEXT,
+        status           VARCHAR(20) NOT NULL DEFAULT 'unpaid' CHECK (status IN ('unpaid','partial','paid')),
+        created_at       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at       TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+      CREATE INDEX IF NOT EXISTS idx_debts_user_type ON debts(user_id, type);
+      CREATE INDEX IF NOT EXISTS idx_debts_user_status ON debts(user_id, status);
+      CREATE INDEX IF NOT EXISTS idx_debts_user_due ON debts(user_id, due_date);
+    `);
+
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS debt_payments (
+        id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        debt_id      UUID NOT NULL REFERENCES debts(id) ON DELETE CASCADE,
+        user_id      UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        wallet_id    UUID NOT NULL REFERENCES wallets(id) ON DELETE RESTRICT,
+        amount       NUMERIC(15,2) NOT NULL CHECK (amount > 0),
+        payment_date DATE NOT NULL DEFAULT CURRENT_DATE,
+        notes        TEXT,
+        created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+      CREATE INDEX IF NOT EXISTS idx_debt_payments_debt ON debt_payments(debt_id);
+      CREATE INDEX IF NOT EXISTS idx_debt_payments_user ON debt_payments(user_id);
+    `);
+
+    // ---- Migrasi inkremental (idempoten) ----
+
+    // Invarian strict-zero di level database: saldo dompet tidak boleh minus.
+    await client.query(`UPDATE wallets SET balance = 0 WHERE balance < 0;`);
+    await client.query(`
+      DO $$
+      BEGIN
+        IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'wallets_balance_nonnegative') THEN
+          ALTER TABLE wallets ADD CONSTRAINT wallets_balance_nonnegative CHECK (balance >= 0);
+        END IF;
+      END
+      $$;
+    `);
+
+    // Kunci idempotency untuk transaksi dari offline queue.
+    await client.query(`ALTER TABLE transactions ADD COLUMN IF NOT EXISTS idempotency_key UUID;`);
+    await client.query(
+      `CREATE UNIQUE INDEX IF NOT EXISTS idx_trx_idempotency ON transactions(idempotency_key) WHERE idempotency_key IS NOT NULL;`
     );
+
+    // Indeks pelengkap query laporan per bulan.
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_bills_user_active ON recurring_bills(user_id, is_active);`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_bill_payments_user_month ON bill_payments(user_id, year, month);`);
+  });
+
+  return NextResponse.json({
+    success: true,
+    message: 'Skema database siap. Migrasi (constraint saldo, idempotency key, indeks) diterapkan.',
+  });
+}
+
+export async function GET(req: NextRequest) {
+  try {
+    return await initializeSchema(req);
+  } catch (error) {
+    return handleRouteError(error, 'init:get');
+  }
+}
+
+export async function POST(req: NextRequest) {
+  try {
+    return await initializeSchema(req);
+  } catch (error) {
+    return handleRouteError(error, 'init:post');
   }
 }

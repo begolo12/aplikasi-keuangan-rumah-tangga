@@ -3,109 +3,69 @@
 import React, { useState } from 'react';
 import { Wallet, WalletType } from '@/lib/types';
 import { formatRupiah } from '@/lib/formatters';
-import { CategoryIcon, AVAILABLE_ICONS, AVAILABLE_COLORS } from '../ui/CategoryIcon';
+import { CategoryIcon, AVAILABLE_COLORS } from '../ui/CategoryIcon';
 import { Button } from '../ui/Button';
 import { Modal } from '../ui/Modal';
 import { AmountInput } from '../ui/AmountInput';
-import { Plus, Trash, PencilSimple, ArrowsLeftRight, CheckCircle } from '@phosphor-icons/react';
+import { useWalletForm } from './useWalletForm';
+import { ApiError, apiFetch, endpoints } from '@/lib/apiFetch';
+import { Plus, Trash, PencilSimple, ArrowsLeftRight, Wallet as WalletIcon } from '@phosphor-icons/react';
+
+const COLOR_NAMES: Record<string, string> = {
+  emerald: 'Hijau Emerald',
+  teal: 'Teal',
+  blue: 'Biru',
+  indigo: 'Indigo',
+  purple: 'Ungu',
+  orange: 'Oranye',
+  amber: 'Amber Kuning',
+  rose: 'Merah Muda',
+  red: 'Merah',
+  gray: 'Abu-abu',
+};
 
 interface WalletsViewProps {
   wallets: Wallet[];
   onRefresh: () => void;
   onOpenTransfer: () => void;
+  onAddWallet?: () => void;
 }
 
-export function WalletsView({ wallets, onRefresh, onOpenTransfer }: WalletsViewProps) {
-  const [isAddOpen, setIsAddOpen] = useState(false);
-  const [editingWallet, setEditingWallet] = useState<Wallet | null>(null);
+export function WalletsView({ wallets, onRefresh, onOpenTransfer, onAddWallet }: WalletsViewProps) {
+  const [listError, setListError] = useState<string | null>(null);
 
-  const [name, setName] = useState('');
-  const [type, setType] = useState<WalletType>('bank');
-  const [balance, setBalance] = useState(0);
-  const [icon, setIcon] = useState('bank');
-  const [color, setColor] = useState('blue');
-  const [isDefault, setIsDefault] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const {
+    isAddOpen,
+    editingWallet,
+    name,
+    setName,
+    type,
+    setType,
+    balance,
+    setBalance,
+    color,
+    setColor,
+    isDefault,
+    setIsDefault,
+    isLoading,
+    error,
+    openAddModal,
+    openEditModal,
+    closeModal,
+    handleSubmit,
+  } = useWalletForm({ onSuccess: onRefresh });
 
-  const openAddModal = () => {
-    setEditingWallet(null);
-    setName('');
-    setType('bank');
-    setBalance(0);
-    setIcon('bank');
-    setColor('blue');
-    setIsDefault(false);
-    setError(null);
-    setIsAddOpen(true);
-  };
+  const handleFirstWallet = onAddWallet ?? openAddModal;
 
-  const openEditModal = (wallet: Wallet) => {
-    setEditingWallet(wallet);
-    setName(wallet.name);
-    setType(wallet.type);
-    setBalance(wallet.balance);
-    setIcon(wallet.icon);
-    setColor(wallet.color);
-    setIsDefault(wallet.is_default);
-    setError(null);
-    setIsAddOpen(true);
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsLoading(true);
-    setError(null);
-
-    const payload = {
-      name,
-      type,
-      balance,
-      icon,
-      color,
-      is_default: isDefault,
-    };
-
-    try {
-      if (editingWallet) {
-        const res = await fetch(`/api/wallets/${editingWallet.id}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
-        });
-        const data = await res.json();
-        if (!res.ok || !data.success) throw new Error(data.error || 'Gagal mengubah dompet');
-      } else {
-        const res = await fetch('/api/wallets', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
-        });
-        const data = await res.json();
-        if (!res.ok || !data.success) throw new Error(data.error || 'Gagal membuat dompet');
-      }
-
-      onRefresh();
-      setIsAddOpen(false);
-    } catch (err: any) {
-      setError(err.message);
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   const handleDelete = async (id: string) => {
     if (!confirm('Apakah Anda yakin ingin menghapus pos dompet ini?')) return;
     try {
-      const res = await fetch(`/api/wallets/${id}`, { method: 'DELETE' });
-      const data = await res.json();
-      if (!res.ok || !data.success) {
-        alert(data.error || 'Gagal menghapus dompet.');
-        return;
-      }
+      await apiFetch(endpoints.wallet(id), { method: 'DELETE' });
+      setListError(null);
       onRefresh();
     } catch (err) {
-      console.error(err);
+      setListError(err instanceof ApiError ? err.message : 'Gagal menghapus dompet.');
     }
   };
 
@@ -156,6 +116,30 @@ export function WalletsView({ wallets, onRefresh, onOpenTransfer }: WalletsViewP
         </div>
       </div>
 
+      {/* Empty State */}
+      {wallets.length === 0 && (
+        <div className="p-10 bg-surface border border-dashed border-border rounded-3xl flex flex-col items-center justify-center gap-4 text-center">
+          <div className="w-16 h-16 bg-primary/10 text-primary rounded-2xl flex items-center justify-center">
+            <WalletIcon size={32} weight="duotone" />
+          </div>
+          <div>
+            <h3 className="text-base font-bold text-text">Belum Ada Pos Kas</h3>
+            <p className="text-xs md:text-sm text-text-muted mt-1">
+              Catat saldo awal dompet tunai, rekening bank, atau e-wallet Anda di sini.
+            </p>
+          </div>
+          <Button variant="primary" size="md" leftIcon={<Plus size={18} weight="bold" />} onClick={handleFirstWallet}>
+            Tambah Dompet Pertama
+          </Button>
+        </div>
+      )}
+
+      {/* Delete Error */}
+      {listError && (
+        <div role="alert" className="rounded-xl border border-expense/30 bg-expense/10 px-4 py-3 text-sm font-semibold text-expense">
+          {listError}
+        </div>
+      )}
       {/* Wallets Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {wallets.map((wallet) => (
@@ -183,16 +167,20 @@ export function WalletsView({ wallets, onRefresh, onOpenTransfer }: WalletsViewP
 
               <div className="flex items-center gap-1">
                 <button
+                  type="button"
                   onClick={() => openEditModal(wallet)}
+                  aria-label={`Ubah pos ${wallet.name}`}
                   title="Ubah Pos"
-                  className="p-1.5 text-text-muted hover:text-text hover:bg-surface-2 rounded-lg transition-colors"
+                  className="min-w-[44px] min-h-[44px] flex items-center justify-center text-text-muted hover:text-text hover:bg-surface-2 rounded-xl transition-colors"
                 >
                   <PencilSimple size={16} />
                 </button>
                 <button
+                  type="button"
                   onClick={() => handleDelete(wallet.id)}
+                  aria-label={`Hapus pos ${wallet.name}`}
                   title="Hapus Pos"
-                  className="p-1.5 text-text-muted hover:text-expense hover:bg-expense/10 rounded-lg transition-colors"
+                  className="min-w-[44px] min-h-[44px] flex items-center justify-center text-text-muted hover:text-expense hover:bg-expense/10 rounded-xl transition-colors"
                 >
                   <Trash size={16} />
                 </button>
@@ -210,7 +198,7 @@ export function WalletsView({ wallets, onRefresh, onOpenTransfer }: WalletsViewP
       {/* Add / Edit Wallet Modal */}
       <Modal
         isOpen={isAddOpen}
-        onClose={() => setIsAddOpen(false)}
+        onClose={closeModal}
         title={editingWallet ? 'Ubah Pos Dompet' : 'Tambah Pos Kas Baru'}
       >
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -221,9 +209,10 @@ export function WalletsView({ wallets, onRefresh, onOpenTransfer }: WalletsViewP
           )}
 
           <div className="space-y-1">
-            <label className="block text-xs font-semibold text-text-muted">Nama Pos Dompet / Rekening</label>
+            <label htmlFor="walletName" className="block text-xs font-semibold text-text-muted">Nama Pos Dompet / Rekening</label>
             <input
               type="text"
+              id="walletName"
               required
               value={name}
               onChange={(e) => setName(e.target.value)}
@@ -233,8 +222,9 @@ export function WalletsView({ wallets, onRefresh, onOpenTransfer }: WalletsViewP
           </div>
 
           <div className="space-y-1">
-            <label className="block text-xs font-semibold text-text-muted">Tipe Pos</label>
+            <label htmlFor="walletType" className="block text-xs font-semibold text-text-muted">Tipe Pos</label>
             <select
+              id="walletType"
               value={type}
               onChange={(e) => setType(e.target.value as WalletType)}
               className="w-full h-11 px-3 bg-background border border-border rounded-xl text-sm font-medium focus:ring-2 focus:ring-primary focus:outline-none"
@@ -247,7 +237,7 @@ export function WalletsView({ wallets, onRefresh, onOpenTransfer }: WalletsViewP
           </div>
 
           {!editingWallet && (
-            <AmountInput label="Saldo Awal (Rp)" value={balance} onChange={setBalance} />
+            <AmountInput id="walletBalance" label="Saldo Awal (Rp)" value={balance} onChange={setBalance} />
           )}
 
           {/* Color & Icon Selector */}
@@ -259,26 +249,34 @@ export function WalletsView({ wallets, onRefresh, onOpenTransfer }: WalletsViewP
                   key={c}
                   type="button"
                   onClick={() => setColor(c)}
-                  className={`w-7 h-7 rounded-full border-2 transition-transform ${
-                    color === c ? 'scale-110 border-text shadow-sm' : 'border-transparent'
+                  aria-label={`Warna ${COLOR_NAMES[c] ?? c}`}
+                  aria-pressed={color === c}
+                  className={`min-w-[44px] min-h-[44px] p-2 flex items-center justify-center rounded-full transition-transform ${
+                    color === c ? 'scale-110' : ''
                   }`}
-                  style={{
-                    backgroundColor:
-                      c === 'emerald'
-                        ? '#20986C'
-                        : c === 'blue'
-                        ? '#1E6BE5'
-                        : c === 'teal'
-                        ? '#0D9488'
-                        : c === 'amber'
-                        ? '#E98B0B'
-                        : c === 'purple'
-                        ? '#9333EA'
-                        : c === 'rose'
-                        ? '#E11D48'
-                        : '#64748B',
-                  }}
-                />
+                >
+                  <span
+                    className={`w-7 h-7 rounded-full border-2 block ${
+                      color === c ? 'border-text shadow-sm' : 'border-transparent'
+                    }`}
+                    style={{
+                      backgroundColor:
+                        c === 'emerald'
+                          ? '#20986C'
+                          : c === 'blue'
+                          ? '#1E6BE5'
+                          : c === 'teal'
+                          ? '#0D9488'
+                          : c === 'amber'
+                          ? '#E98B0B'
+                          : c === 'purple'
+                          ? '#9333EA'
+                          : c === 'rose'
+                          ? '#E11D48'
+                          : '#64748B',
+                    }}
+                  />
+                </button>
               ))}
             </div>
           </div>

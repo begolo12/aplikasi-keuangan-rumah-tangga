@@ -1,4 +1,4 @@
-import { Pool, neonConfig } from '@neondatabase/serverless';
+import { Pool } from '@neondatabase/serverless';
 
 // Cache the pool across hot reloads in development
 let pool: Pool | null = null;
@@ -22,22 +22,29 @@ export function getDbPool(): Pool {
 /**
  * Execute a SQL query with parameters using the Neon connection pool.
  */
-export async function query<T = any>(text: string, params: any[] = []): Promise<T[]> {
+export async function query<T = any>(text: string, params: unknown[] = []): Promise<T[]> {
   const p = getDbPool();
   const client = await p.connect();
   try {
-    const result = await client.query(text, params);
+    const result = await client.query(text, params as (string | number | boolean | null | undefined)[]);
     return result.rows as T[];
   } finally {
     client.release();
   }
 }
 
+export interface DbTransactionClient {
+  query: <R = any>(
+    text: string,
+    params?: unknown[]
+  ) => Promise<{ rows: R[]; rowCount?: number | null; [key: string]: any }>;
+}
+
 /**
  * Run a transaction callback with automatic BEGIN, COMMIT, and ROLLBACK.
  */
 export async function withTransaction<T>(
-  callback: (client: { query: (text: string, params?: any[]) => Promise<any> }) => Promise<T>
+  callback: (client: DbTransactionClient) => Promise<T>
 ): Promise<T> {
   const p = getDbPool();
   const client = await p.connect();

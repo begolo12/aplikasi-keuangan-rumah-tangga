@@ -8,6 +8,7 @@ import { Modal } from '../ui/Modal';
 import { AmountInput } from '../ui/AmountInput';
 import { EmptyState } from '../ui/EmptyState';
 import { Plus, Vault } from '@phosphor-icons/react';
+import { ApiError, apiFetch, endpoints } from '@/lib/apiFetch';
 
 interface BudgetViewProps {
   budgets: Budget[];
@@ -30,6 +31,7 @@ export function BudgetView({
   const [limit, setLimit] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [listError, setListError] = useState<string | null>(null);
 
   const expenseCategories = categories.filter((c) => c.type === 'expense');
 
@@ -65,34 +67,23 @@ export function BudgetView({
 
     try {
       if (editingBudget) {
-        // PUT update
-        const res = await fetch(`/api/budgets/${editingBudget.id}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ monthly_limit: limit }),
-        });
-        const data = await res.json();
-        if (!res.ok || !data.success) throw new Error(data.error || 'Gagal mengubah anggaran');
+        await apiFetch(endpoints.budget(editingBudget.id), { method: 'PUT', json: { monthly_limit: limit } });
       } else {
-        // POST create
-        const res = await fetch('/api/budgets', {
+        await apiFetch(endpoints.budgets, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
+          json: {
             category_id: categoryId,
             monthly_limit: limit,
             month: currentMonth,
             year: currentYear,
-          }),
+          },
         });
-        const data = await res.json();
-        if (!res.ok || !data.success) throw new Error(data.error || 'Gagal membuat anggaran');
       }
 
       onRefresh();
       setIsModalOpen(false);
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Terjadi kesalahan jaringan.');
     } finally {
       setIsLoading(false);
     }
@@ -101,10 +92,11 @@ export function BudgetView({
   const handleDelete = async (id: string) => {
     if (!confirm('Apakah Anda yakin ingin menghapus anggaran kategori ini?')) return;
     try {
-      const res = await fetch(`/api/budgets/${id}`, { method: 'DELETE' });
-      if (res.ok) onRefresh();
+      await apiFetch(endpoints.budget(id), { method: 'DELETE' });
+      setListError(null);
+      onRefresh();
     } catch (err) {
-      console.error(err);
+      setListError(err instanceof ApiError ? err.message : 'Gagal menghapus anggaran.');
     }
   };
 
@@ -128,6 +120,13 @@ export function BudgetView({
           Tetapkan Anggaran
         </Button>
       </div>
+
+      {/* Delete Error */}
+      {listError && (
+        <div role="alert" className="rounded-xl border border-expense/30 bg-expense/10 px-4 py-3 text-sm font-semibold text-expense">
+          {listError}
+        </div>
+      )}
 
       {/* Budgets List */}
       {budgets.length > 0 ? (
@@ -166,8 +165,9 @@ export function BudgetView({
 
           {!editingBudget && (
             <div className="space-y-1">
-              <label className="block text-xs font-semibold text-text-muted">Pilih Kategori Belanja</label>
+              <label htmlFor="budgetCategory" className="block text-xs font-semibold text-text-muted">Pilih Kategori Belanja</label>
               <select
+                id="budgetCategory"
                 value={categoryId}
                 onChange={(e) => setCategoryId(e.target.value)}
                 required
@@ -183,6 +183,7 @@ export function BudgetView({
           )}
 
           <AmountInput
+            id="budgetLimit"
             label="Batas Maksimal Pengeluaran Sebulan (Rp)"
             value={limit}
             onChange={setLimit}

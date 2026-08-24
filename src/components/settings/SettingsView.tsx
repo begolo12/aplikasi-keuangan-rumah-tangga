@@ -9,7 +9,6 @@ import {
   SignOut,
   FloppyDisk,
   CheckCircle,
-  Warning,
   User as UserIcon,
   UsersThree,
 } from '@phosphor-icons/react';
@@ -45,8 +44,8 @@ export function SettingsView({ user, settings, onRefresh, onLogout }: SettingsVi
       setSaveSuccess(true);
       setTimeout(() => setSaveSuccess(false), 3000);
       onRefresh();
-    } catch (err: any) {
-      alert(err.message);
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : 'Gagal menyimpan pengaturan');
     } finally {
       setIsSaving(false);
     }
@@ -83,8 +82,8 @@ export function SettingsView({ user, settings, onRefresh, onLogout }: SettingsVi
 
       setRestoreMessage('Data berhasil dipulihkan!');
       onRefresh();
-    } catch (err: any) {
-      alert(err.message || 'Format file JSON tidak valid');
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : 'Format file JSON tidak valid');
     } finally {
       setIsRestoring(false);
       e.target.value = '';

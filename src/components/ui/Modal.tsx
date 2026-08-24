@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { X } from '@phosphor-icons/react';
 
 interface ModalProps {
@@ -10,23 +10,58 @@ interface ModalProps {
 }
 
 export function Modal({ isOpen, onClose, title, children, maxWidth = 'md' }: ModalProps) {
+  const containerRef = useRef<HTMLDivElement | null>(null);
+
   useEffect(() => {
+    if (!isOpen) return;
+    const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    document.body.style.overflow = 'hidden';
+
+    const getFocusableElements = (): HTMLElement[] => {
+      if (!containerRef.current) return [];
+      return Array.from(
+        containerRef.current.querySelectorAll<HTMLElement>(
+          'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])'
+        )
+      );
+    };
+
+    getFocusableElements()[0]?.focus();
+
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && isOpen) {
+      if (e.key === 'Escape') {
         onClose();
+        return;
+      }
+      if (e.key !== 'Tab') return;
+
+      const items = getFocusableElements();
+      if (items.length === 0) {
+        e.preventDefault();
+        return;
+      }
+      const first = items[0];
+      const last = items[items.length - 1];
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
       }
     };
-    if (isOpen) {
-      document.body.style.overflow = 'hidden';
-      window.addEventListener('keydown', handleKeyDown);
-    }
+
+    window.addEventListener('keydown', handleKeyDown);
     return () => {
       document.body.style.overflow = '';
       window.removeEventListener('keydown', handleKeyDown);
+      previousFocus?.focus();
     };
   }, [isOpen, onClose]);
 
   if (!isOpen) return null;
+
+  const ariaLabel = typeof title === 'string' ? title : undefined;
 
   const maxWidthClasses = {
     sm: 'md:max-w-sm',
@@ -45,6 +80,10 @@ export function Modal({ isOpen, onClose, title, children, maxWidth = 'md' }: Mod
 
       {/* Adaptive Modal Content: Bottom Sheet on Mobile, Centered Card on Desktop */}
       <div
+        ref={containerRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label={ariaLabel}
         className={`relative z-10 w-full ${maxWidthClasses[maxWidth]} max-h-[90vh] md:max-h-[85vh] bg-surface rounded-t-3xl md:rounded-3xl shadow-xl flex flex-col overflow-hidden border border-border transition-transform animate-slide-up md:animate-scale-in`}
       >
         {/* Mobile Drag Indicator Handle */}
@@ -58,6 +97,7 @@ export function Modal({ isOpen, onClose, title, children, maxWidth = 'md' }: Mod
           <button
             type="button"
             onClick={onClose}
+            aria-label="Tutup dialog"
             className="p-1.5 text-text-muted hover:text-text hover:bg-surface-2 rounded-xl transition-colors"
           >
             <X size={20} />

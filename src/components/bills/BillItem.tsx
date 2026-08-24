@@ -54,15 +54,15 @@ export function BillItem({ bill, onPay, onDelete }: BillItemProps) {
 
   return (
     <div
-      className={`p-4 md:p-5 bg-surface border rounded-3xl flex flex-col md:flex-row md:items-center justify-between gap-4 transition-all shadow-xs ${
+      className={`p-3.5 sm:p-4 md:p-5 bg-surface border rounded-3xl flex flex-col md:flex-row md:items-center justify-between gap-3 sm:gap-4 transition-all shadow-xs min-w-0 ${
         bill.status === 'overdue' || bill.status === 'due_today'
           ? 'border-expense/40 shadow-expense/5'
           : 'border-border'
       }`}
     >
-      <div className="flex items-start md:items-center gap-3.5">
+      <div className="flex items-start md:items-center gap-3 min-w-0 flex-1">
         <div
-          className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 border ${
+          className={`w-11 h-11 sm:w-12 sm:h-12 rounded-2xl flex items-center justify-center shrink-0 border ${
             bill.is_paid
               ? 'bg-income/10 text-income border-income/20'
               : bill.status === 'overdue' || bill.status === 'due_today'
@@ -70,12 +70,12 @@ export function BillItem({ bill, onPay, onDelete }: BillItemProps) {
               : 'bg-purple-500/10 text-purple-600 border-purple-500/20'
           }`}
         >
-          <Receipt size={24} weight="duotone" />
+          <Receipt size={22} weight="duotone" />
         </div>
 
-        <div className="space-y-1">
-          <div className="flex items-center gap-2 flex-wrap">
-            <h4 className="text-sm md:text-base font-bold text-text">{bill.title}</h4>
+        <div className="space-y-1 min-w-0 flex-1">
+          <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
+            <h4 className="text-xs sm:text-sm md:text-base font-bold text-text truncate max-w-full">{bill.title}</h4>
             {getStatusBadge()}
           </div>
           <p className="text-xs text-text-muted">
@@ -85,11 +85,11 @@ export function BillItem({ bill, onPay, onDelete }: BillItemProps) {
         </div>
       </div>
 
-      <div className="flex items-center gap-2.5 self-end md:self-center">
+      <div className="flex items-center gap-2 self-stretch sm:self-end md:self-center justify-end shrink-0">
         {!bill.is_paid && (
           <button
             onClick={() => onPay(bill)}
-            className="px-4 py-2 bg-primary hover:bg-primary-hover text-primary-fg text-xs font-bold rounded-xl active:scale-95 transition-all shadow-xs"
+            className="min-h-[40px] px-3.5 sm:px-4 py-2 bg-primary hover:bg-primary-hover text-primary-fg text-xs font-bold rounded-xl active:scale-95 transition-all shadow-xs"
           >
             Bayar Sekarang
           </button>
@@ -98,7 +98,8 @@ export function BillItem({ bill, onPay, onDelete }: BillItemProps) {
         <button
           onClick={() => onDelete(bill.id)}
           title="Hapus Tagihan"
-          className="p-2 text-text-muted hover:text-expense hover:bg-expense/10 rounded-xl transition-colors"
+          aria-label={`Hapus tagihan ${bill.title}`}
+          className="min-w-[40px] min-h-[40px] flex items-center justify-center text-text-muted hover:text-expense hover:bg-expense/10 rounded-xl transition-colors"
         >
           <Trash size={18} />
         </button>

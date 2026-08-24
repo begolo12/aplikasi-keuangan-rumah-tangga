@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthSession } from '@/lib/auth';
 import { query } from '@/lib/db';
+import { periodQuerySchema } from '@/lib/validations';
+import { handleRouteError } from '@/lib/apiHelpers';
 import { MonthlySummary } from '@/lib/types';
 
 export async function GET(req: NextRequest) {
@@ -10,90 +12,119 @@ export async function GET(req: NextRequest) {
 
     const searchParams = req.nextUrl.searchParams;
     const now = new Date();
-    const month = parseInt(searchParams.get('month') || (now.getMonth() + 1).toString(), 10);
-    const year = parseInt(searchParams.get('year') || now.getFullYear().toString(), 10);
+    const parsed = periodQuerySchema.parse({
+      month: searchParams.get('month') ?? undefined,
+      year: searchParams.get('year') ?? undefined,
+    });
+    const month = parsed.month ?? now.getMonth() + 1;
+    const year = parsed.year ?? now.getFullYear();
+    const uid = session.userId;
 
-    // 1. Total wallet balance
-    const walletBalanceRow = await query<{ total: string }>(
-      'SELECT COALESCE(SUM(balance), 0) as total FROM wallets WHERE user_id = $1',
-      [session.userId]
-    );
-    const totalBalance = parseFloat(walletBalanceRow[0]?.total || '0');
+    const [
+      walletBalanceRows,
+      incomeRows,
+      expenseRows,
+      transferRows,
+      pendingBillsRows,
+      overbudgetRows,
+      dailyRows,
+      debtRows,
+    ] = await Promise.all([
+      query<{ total: string }>(
+        'SELECT COALESCE(SUM(balance), 0) as total FROM wallets WHERE user_id = $1',
+        [uid]
+      ),
+      query<{ total: string }>(
+        `SELECT COALESCE(SUM(amount), 0) as total
+         FROM transactions
+         WHERE user_id = $1 AND type = 'income'
+           AND EXTRACT(MONTH FROM date) = $2 AND EXTRACT(YEAR FROM date) = $3`,
+        [uid, month, year]
+      ),
+      query<{ total: string; admin_total: string }>(
+        `SELECT
+          COALESCE(SUM(CASE WHEN type = 'expense' THEN amount ELSE 0 END), 0) as total,
+          COALESCE(SUM(admin_fee), 0) as admin_total
+         FROM transactions
+         WHERE user_id = $1
+           AND EXTRACT(MONTH FROM date) = $2 AND EXTRACT(YEAR FROM date) = $3`,
+        [uid, month, year]
+      ),
+      query<{ total: string }>(
+        `SELECT COALESCE(SUM(amount), 0) as total
+         FROM transactions
+         WHERE user_id = $1 AND type = 'transfer'
+           AND EXTRACT(MONTH FROM date) = $2 AND EXTRACT(YEAR FROM date) = $3`,
+        [uid, month, year]
+      ),
+      query<{ count: string; total_pending_amount: string }>(
+        `SELECT 
+           COUNT(*)::text as count,
+           COALESCE(SUM(b.amount), 0)::text as total_pending_amount
+         FROM recurring_bills b
+         LEFT JOIN bill_payments bp ON bp.bill_id = b.id AND bp.month = $2 AND bp.year = $3 AND bp.user_id = b.user_id
+         WHERE b.user_id = $1 AND b.is_active = TRUE AND bp.id IS NULL`,
+        [uid, month, year]
+      ),
+      query<{ count: string }>(
+        `SELECT COUNT(*)::text as count
+         FROM (
+           SELECT b.id, b.monthly_limit, COALESCE(SUM(t.amount), 0) as spent
+           FROM budgets b
+           LEFT JOIN transactions t ON t.category_id = b.category_id
+             AND t.type = 'expense'
+             AND t.user_id = b.user_id
+             AND EXTRACT(MONTH FROM t.date) = b.month
+             AND EXTRACT(YEAR FROM t.date) = b.year
+           WHERE b.user_id = $1 AND b.month = $2 AND b.year = $3
+           GROUP BY b.id, b.monthly_limit
+           HAVING COALESCE(SUM(t.amount), 0) > b.monthly_limit
+         ) over_budgets`,
+        [uid, month, year]
+      ),
+      query<{ day: number; income: string; expense: string }>(
+        `SELECT
+          EXTRACT(DAY FROM date)::INTEGER as day,
+          COALESCE(SUM(CASE WHEN type = 'income' THEN amount ELSE 0 END), 0)::TEXT as income,
+          (COALESCE(SUM(CASE WHEN type = 'expense' THEN amount ELSE 0 END), 0) + COALESCE(SUM(admin_fee), 0))::TEXT as expense
+         FROM transactions
+         WHERE user_id = $1
+           AND EXTRACT(MONTH FROM date) = $2 AND EXTRACT(YEAR FROM date) = $3
+         GROUP BY EXTRACT(DAY FROM date)
+         ORDER BY day ASC`,
+        [uid, month, year]
+      ),
+      query<{ type: string; remaining_amount: string; status: string }>(
+        `SELECT type, (total_amount - paid_amount)::text as remaining_amount, status
+         FROM debts
+         WHERE user_id = $1 AND status != 'paid'`,
+        [uid]
+      ),
+    ]);
 
-    // 2. Total Income and Total Expense (transfers excluded from net cash flow)
-    const incomeRow = await query<{ total: string }>(
-      `SELECT COALESCE(SUM(amount), 0) as total 
-       FROM transactions 
-       WHERE user_id = $1 AND type = 'income' 
-         AND EXTRACT(MONTH FROM date) = $2 AND EXTRACT(YEAR FROM date) = $3`,
-      [session.userId, month, year]
-    );
-    const totalIncome = parseFloat(incomeRow[0]?.total || '0');
+    const totalBalance = parseFloat(walletBalanceRows[0]?.total || '0');
+    const totalIncome = parseFloat(incomeRows[0]?.total || '0');
+    const totalExpense = parseFloat(expenseRows[0]?.total || '0') + parseFloat(expenseRows[0]?.admin_total || '0');
+    const totalTransfer = parseFloat(transferRows[0]?.total || '0');
+    const totalBillsPendingAmount = parseFloat(pendingBillsRows[0]?.total_pending_amount || '0');
 
-    const expenseRow = await query<{ total: string; admin_total: string }>(
-      `SELECT 
-        COALESCE(SUM(CASE WHEN type = 'expense' THEN amount ELSE 0 END), 0) as total,
-        COALESCE(SUM(admin_fee), 0) as admin_total
-       FROM transactions 
-       WHERE user_id = $1 
-         AND EXTRACT(MONTH FROM date) = $2 AND EXTRACT(YEAR FROM date) = $3`,
-      [session.userId, month, year]
-    );
-    const totalExpense = parseFloat(expenseRow[0]?.total || '0') + parseFloat(expenseRow[0]?.admin_total || '0');
+    let totalPayableDue = 0;
+    let totalReceivableDue = 0;
+    let payableUnpaidCount = 0;
+    let receivableUnpaidCount = 0;
 
-    const transferRow = await query<{ total: string }>(
-      `SELECT COALESCE(SUM(amount), 0) as total 
-       FROM transactions 
-       WHERE user_id = $1 AND type = 'transfer' 
-         AND EXTRACT(MONTH FROM date) = $2 AND EXTRACT(YEAR FROM date) = $3`,
-      [session.userId, month, year]
-    );
-    const totalTransfer = parseFloat(transferRow[0]?.total || '0');
+    for (const d of debtRows) {
+      const rem = parseFloat(d.remaining_amount || '0');
+      if (d.type === 'payable') {
+        payableUnpaidCount++;
+        totalPayableDue += rem;
+      } else {
+        receivableUnpaidCount++;
+        totalReceivableDue += rem;
+      }
+    }
 
-    const netCashFlow = totalIncome - totalExpense;
-
-    // 3. Pending recurring bills count for this month
-    const pendingBillsRow = await query<{ count: string }>(
-      `SELECT COUNT(*)::text as count
-       FROM recurring_bills b
-       LEFT JOIN bill_payments bp ON bp.bill_id = b.id AND bp.month = $2 AND bp.year = $3 AND bp.user_id = b.user_id
-       WHERE b.user_id = $1 AND b.is_active = TRUE AND bp.id IS NULL`,
-      [session.userId, month, year]
-    );
-    const billPendingCount = parseInt(pendingBillsRow[0]?.count || '0', 10);
-
-    // 4. Overbudget count
-    const overbudgetRow = await query<{ count: string }>(
-      `SELECT COUNT(*)::text as count
-       FROM (
-         SELECT b.id, b.monthly_limit, COALESCE(SUM(t.amount), 0) as spent
-         FROM budgets b
-         LEFT JOIN transactions t ON t.category_id = b.category_id 
-           AND t.type = 'expense'
-           AND t.user_id = b.user_id
-           AND EXTRACT(MONTH FROM t.date) = b.month
-           AND EXTRACT(YEAR FROM t.date) = b.year
-         WHERE b.user_id = $1 AND b.month = $2 AND b.year = $3
-         GROUP BY b.id, b.monthly_limit
-         HAVING COALESCE(SUM(t.amount), 0) > b.monthly_limit
-       ) over_budgets`,
-      [session.userId, month, year]
-    );
-    const budgetOverCount = parseInt(overbudgetRow[0]?.count || '0', 10);
-
-    // 5. Daily cashflow breakdown for the month
-    const dailyRows = await query<{ day: number; income: string; expense: string }>(
-      `SELECT 
-        EXTRACT(DAY FROM date)::INTEGER as day,
-        COALESCE(SUM(CASE WHEN type = 'income' THEN amount ELSE 0 END), 0)::TEXT as income,
-        COALESCE(SUM(CASE WHEN type = 'expense' THEN amount ELSE 0 END) + SUM(admin_fee), 0)::TEXT as expense
-       FROM transactions
-       WHERE user_id = $1 
-         AND EXTRACT(MONTH FROM date) = $2 AND EXTRACT(YEAR FROM date) = $3
-       GROUP BY EXTRACT(DAY FROM date)
-       ORDER BY day ASC`,
-      [session.userId, month, year]
-    );
+    const safeToSpend = totalBalance - (totalBillsPendingAmount + totalPayableDue);
 
     const summary: MonthlySummary = {
       month,
@@ -101,10 +132,16 @@ export async function GET(req: NextRequest) {
       total_balance: totalBalance,
       total_income: totalIncome,
       total_expense: totalExpense,
-      net_cash_flow: netCashFlow,
+      net_cash_flow: totalIncome - totalExpense,
       total_transfer: totalTransfer,
-      bill_pending_count: billPendingCount,
-      budget_over_count: budgetOverCount,
+      bill_pending_count: parseInt(pendingBillsRows[0]?.count || '0', 10),
+      budget_over_count: parseInt(overbudgetRows[0]?.count || '0', 10),
+      total_bills_pending_amount: totalBillsPendingAmount,
+      total_payable_due: totalPayableDue,
+      total_receivable_due: totalReceivableDue,
+      safe_to_spend: safeToSpend,
+      payable_unpaid_count: payableUnpaidCount,
+      receivable_unpaid_count: receivableUnpaidCount,
     };
 
     return NextResponse.json({
@@ -118,8 +155,7 @@ export async function GET(req: NextRequest) {
         })),
       },
     });
-  } catch (error: any) {
-    console.error('Get monthly report error:', error);
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+  } catch (error) {
+    return handleRouteError(error, 'reports:monthly');
   }
 }

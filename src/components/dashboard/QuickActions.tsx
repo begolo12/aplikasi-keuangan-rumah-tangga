@@ -7,9 +7,9 @@ import {
   ArrowsLeftRight,
   Vault,
   Receipt,
+  HandCoins,
   Wallet,
   ChartPieSlice,
-  Gear,
 } from '@phosphor-icons/react';
 import { NavTab } from '../layout/BottomNav';
 import { TransactionType } from '@/lib/types';
@@ -19,6 +19,7 @@ interface QuickActionsProps {
   onNavigate: (tab: NavTab) => void;
   pendingBillsCount?: number;
   overbudgetCount?: number;
+  unpaidDebtsCount?: number;
 }
 
 export function QuickActions({
@@ -26,6 +27,7 @@ export function QuickActions({
   onNavigate,
   pendingBillsCount = 0,
   overbudgetCount = 0,
+  unpaidDebtsCount = 0,
 }: QuickActionsProps) {
   const ACTIONS = [
     {
@@ -41,10 +43,17 @@ export function QuickActions({
       action: () => onOpenTransactionModal('income'),
     },
     {
-      label: 'Transfer Kas',
+      label: 'Transfer',
       icon: ArrowsLeftRight,
       color: 'bg-transfer/10 text-transfer border-transfer/20',
       action: () => onOpenTransactionModal('transfer'),
+    },
+    {
+      label: 'Hutang',
+      icon: HandCoins,
+      color: 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20',
+      badge: unpaidDebtsCount > 0 ? unpaidDebtsCount : undefined,
+      action: () => onNavigate('debts'),
     },
     {
       label: 'Anggaran',
@@ -61,7 +70,7 @@ export function QuickActions({
       action: () => onNavigate('bills'),
     },
     {
-      label: 'Pos Dompet',
+      label: 'Pos Kas',
       icon: Wallet,
       color: 'bg-teal-500/10 text-teal-600 dark:text-teal-400 border-teal-500/20',
       action: () => onNavigate('wallets'),
@@ -72,17 +81,11 @@ export function QuickActions({
       color: 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20',
       action: () => onNavigate('reports'),
     },
-    {
-      label: 'Pengaturan',
-      icon: Gear,
-      color: 'bg-surface-2 text-text border-border',
-      action: () => onNavigate('settings'),
-    },
   ];
 
   return (
-    <div className="bg-surface border border-border rounded-3xl p-5 shadow-sm">
-      <div className="grid grid-cols-4 md:grid-cols-8 gap-3">
+    <div className="bg-surface border border-border rounded-3xl p-3.5 sm:p-4 md:p-5 shadow-sm">
+      <div className="grid grid-cols-4 md:grid-cols-8 gap-2 sm:gap-2.5 md:gap-3">
         {ACTIONS.map((item, idx) => {
           const Icon = item.icon;
           return (
@@ -90,19 +93,19 @@ export function QuickActions({
               key={idx}
               type="button"
               onClick={item.action}
-              className="flex flex-col items-center justify-center p-2 rounded-2xl hover:bg-surface-2 active:scale-95 transition-all text-center group relative"
+              className="flex flex-col items-center justify-start p-1 sm:p-1.5 md:p-2 rounded-2xl hover:bg-surface-2 active:scale-95 transition-all text-center group relative min-w-0"
             >
               {item.badge !== undefined && (
-                <span className="absolute top-1 right-2 md:right-4 w-4 h-4 bg-expense text-white rounded-full text-[10px] font-bold flex items-center justify-center shadow-sm">
+                <span className="absolute top-0.5 right-1 sm:right-2 md:right-3 w-4 h-4 bg-expense text-white rounded-full text-[10px] font-bold flex items-center justify-center shadow-xs">
                   {item.badge}
                 </span>
               )}
               <div
-                className={`w-12 h-12 rounded-2xl flex items-center justify-center border shadow-2xs mb-1.5 transition-transform group-hover:scale-105 ${item.color}`}
+                className={`w-11 h-11 sm:w-12 sm:h-12 rounded-2xl flex items-center justify-center border shadow-2xs mb-1.5 transition-transform group-hover:scale-105 ${item.color}`}
               >
-                <Icon size={24} weight="duotone" />
+                <Icon size={22} weight="duotone" />
               </div>
-              <span className="text-[11px] md:text-xs font-bold text-text truncate max-w-full">
+              <span className="text-[10px] sm:text-[11px] md:text-xs font-bold text-text text-center leading-tight tracking-tight max-w-full break-words">
                 {item.label}
               </span>
             </button>

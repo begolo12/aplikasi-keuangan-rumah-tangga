@@ -27,24 +27,26 @@ export function BudgetProgressBar({ budget, onEdit, onDelete }: BudgetProgressBa
     : 'bg-primary';
 
   return (
-    <div className="p-4 md:p-5 bg-surface border border-border rounded-3xl space-y-3 shadow-xs hover:border-primary/30 transition-all">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
+    <div className="p-3.5 sm:p-4 md:p-5 bg-surface border border-border rounded-3xl space-y-3 shadow-xs hover:border-primary/30 transition-all min-w-0">
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 flex-1">
           <CategoryIcon
             name={budget.category_icon || 'vault'}
             color={budget.category_color || 'teal'}
-            size={20}
+            size={18}
+            className="shrink-0"
           />
-          <div>
-            <h4 className="text-sm font-bold text-text leading-tight">{budget.category_name}</h4>
-            <p className="text-xs text-text-muted mt-0.5">
-              Terpakai: <span className="font-bold text-text">{formatRupiah(budget.spent)}</span> dari{' '}
-              {formatRupiah(budget.monthly_limit)}
+          <div className="min-w-0 flex-1">
+            <h4 className="text-xs sm:text-sm font-bold text-text leading-tight truncate">{budget.category_name}</h4>
+            <p className="text-[11px] sm:text-xs text-text-muted mt-0.5 flex flex-wrap items-center gap-1">
+              <span>Terpakai: <span className="font-bold text-text">{formatRupiah(budget.spent)}</span></span>
+              <span>/</span>
+              <span>{formatRupiah(budget.monthly_limit)}</span>
             </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-1 shrink-0">
           <button
             onClick={() => onEdit(budget)}
             title="Ubah Batas Limit"

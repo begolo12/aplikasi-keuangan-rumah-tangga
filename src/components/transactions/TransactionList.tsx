@@ -4,7 +4,8 @@ import React, { useState } from 'react';
 import { Transaction, TransactionType } from '@/lib/types';
 import { TransactionItem } from './TransactionItem';
 import { EmptyState } from '../ui/EmptyState';
-import { MagnifyingGlass, Plus, Receipt } from '@phosphor-icons/react';
+import { TransactionItemSkeleton } from '../ui/LoadingSkeleton';
+import { MagnifyingGlass, Receipt } from '@phosphor-icons/react';
 
 interface TransactionListProps {
   transactions: Transaction[];
@@ -74,6 +75,7 @@ export function TransactionList({
         <MagnifyingGlass size={18} className="absolute left-3.5 text-text-muted select-none" />
         <input
           type="text"
+          aria-label="Cari transaksi"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           placeholder="Cari transaksi berdasarkan catatan, kategori, atau dompet..."
@@ -91,7 +93,13 @@ export function TransactionList({
 
       {/* Transactions List */}
       <div className="space-y-2.5">
-        {filteredTransactions.length > 0 ? (
+        {isLoading ? (
+          <>
+            <TransactionItemSkeleton />
+            <TransactionItemSkeleton />
+            <TransactionItemSkeleton />
+          </>
+        ) : filteredTransactions.length > 0 ? (
           filteredTransactions.map((trx) => (
             <TransactionItem key={trx.id} transaction={trx} onDelete={onDeleteTransaction} />
           ))

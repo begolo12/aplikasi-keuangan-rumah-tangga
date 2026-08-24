@@ -7,10 +7,13 @@ import { TopHeader } from './TopHeader';
 import { OfflineBanner } from './OfflineBanner';
 import { IosInstallPrompt } from './IosInstallPrompt';
 
+import { TransactionType } from '@/lib/types';
+
 interface AppShellProps {
   activeTab: NavTab;
   onTabChange: (tab: NavTab) => void;
   onOpenAddModal: () => void;
+  onOpenTypedModal?: (type: TransactionType) => void;
   currentMonth: number;
   currentYear: number;
   onPeriodChange: (month: number, year: number) => void;
@@ -26,6 +29,7 @@ export function AppShell({
   activeTab,
   onTabChange,
   onOpenAddModal,
+  onOpenTypedModal,
   currentMonth,
   currentYear,
   onPeriodChange,
@@ -36,21 +40,30 @@ export function AppShell({
   onDataRefresh,
   children,
 }: AppShellProps) {
-  // Desktop keyboard shortcut listener ('N' for new transaction)
+  // Desktop keyboard shortcuts: N / E for Expense, I for Income, T for Transfer
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (
-        e.key.toLowerCase() === 'n' &&
-        !['input', 'textarea', 'select'].includes((e.target as HTMLElement)?.tagName?.toLowerCase())
-      ) {
+      const tag = (e.target as HTMLElement)?.tagName?.toLowerCase();
+      if (['input', 'textarea', 'select'].includes(tag)) return;
+
+      const key = e.key.toLowerCase();
+      const openModal = onOpenTypedModal || ((_t: TransactionType) => onOpenAddModal());
+
+      if (key === 'n' || key === 'e') {
         e.preventDefault();
-        onOpenAddModal();
+        openModal('expense');
+      } else if (key === 'i') {
+        e.preventDefault();
+        openModal('income');
+      } else if (key === 't') {
+        e.preventDefault();
+        openModal('transfer');
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [onOpenAddModal]);
+  }, [onOpenAddModal, onOpenTypedModal]);
 
   return (
     <div className="min-h-screen bg-background text-text flex flex-col md:flex-row">
@@ -65,7 +78,7 @@ export function AppShell({
       />
 
       {/* Main Container Area */}
-      <div className="flex-1 flex flex-col min-w-0 pb-20 md:pb-8">
+      <div className="flex-1 flex flex-col min-w-0 pb-24 md:pb-8">
         {/* Offline notification banner */}
         <OfflineBanner userId={userId} onSynced={onDataRefresh} />
 
@@ -80,7 +93,7 @@ export function AppShell({
         />
 
         {/* Content View Body */}
-        <main className="flex-1 p-4 md:p-8 max-w-7xl w-full mx-auto animate-fade-in">
+        <main className="flex-1 p-3.5 sm:p-4 md:p-8 max-w-7xl w-full mx-auto animate-fade-in">
           {children}
         </main>
       </div>

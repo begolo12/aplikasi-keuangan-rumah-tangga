@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { z } from 'zod';
 import { getAuthSession } from '@/lib/auth';
 import { query } from '@/lib/db';
-import { z } from 'zod';
+import { uuidIdParam } from '@/lib/validations';
+import { handleRouteError, readJsonBody } from '@/lib/apiHelpers';
 
 const updateBudgetSchema = z.object({
   monthly_limit: z.number().positive('Batas anggaran harus lebih dari 0'),
@@ -13,8 +15,8 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     if (!session) return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
 
     const { id } = await params;
-    const body = await req.json();
-    const validated = updateBudgetSchema.parse(body);
+    uuidIdParam.parse(id);
+    const validated = updateBudgetSchema.parse(await readJsonBody(req));
 
     const updated = await query(
       `UPDATE budgets
@@ -29,12 +31,8 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     }
 
     return NextResponse.json({ success: true, data: updated[0] });
-  } catch (error: any) {
-    if (error.name === 'ZodError') {
-      return NextResponse.json({ success: false, error: error.errors[0].message }, { status: 400 });
-    }
-    console.error('Update budget error:', error);
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+  } catch (error) {
+    return handleRouteError(error, 'budgets:put');
   }
 }
 
@@ -44,12 +42,12 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
     if (!session) return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
 
     const { id } = await params;
+    uuidIdParam.parse(id);
 
     await query('DELETE FROM budgets WHERE id = $1 AND user_id = $2', [id, session.userId]);
 
     return NextResponse.json({ success: true, message: 'Anggaran berhasil dihapus' });
-  } catch (error: any) {
-    console.error('Delete budget error:', error);
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+  } catch (error) {
+    return handleRouteError(error, 'budgets:delete');
   }
 }

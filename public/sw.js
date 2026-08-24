@@ -1,63 +1,63 @@
-const CACHE_NAME = 'kaskeluarga-cache-v1';
+// Service worker KasKeluarga: network-first untuk navigasi (data selalu segar),
+// cache-first hanya untuk aset statis immutable. API /api/ TIDAK pernah dicache.
 
-const STATIC_ASSETS = [
-  '/',
-  '/manifest.json',
-  '/icons/icon-192.png',
-  '/icons/icon-512.png',
-  '/icons/apple-touch-icon.png',
-];
+const CACHE_NAME = 'kaskeluarga-static-v2';
+const PRECACHE_URLS = ['/', '/manifest.json', '/icons/icon-192.png', '/icons/icon-512.png'];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(STATIC_ASSETS).catch(() => {});
-    })
+    caches
+      .open(CACHE_NAME)
+      .then((cache) => Promise.allSettled(PRECACHE_URLS.map((url) => cache.add(url))))
+      .then(() => self.skipWaiting())
   );
-  self.skipWaiting();
 });
 
 self.addEventListener('activate', (event) => {
   event.waitUntil(
-    caches.keys().then((keys) => {
-      return Promise.all(
-        keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key))
-      );
-    })
+    caches
+      .keys()
+      .then((keys) => Promise.all(keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key))))
+      .then(() => self.clients.claim())
   );
-  self.clients.claim();
 });
 
 self.addEventListener('fetch', (event) => {
-  if (event.request.method !== 'GET') return;
+  const { request } = event;
+  if (request.method !== 'GET') return;
 
-  const url = new URL(event.request.url);
+  const url = new URL(request.url);
+  if (url.origin !== self.location.origin) return;
+  if (url.pathname.startsWith('/api/')) return; // data finansial selalu dari jaringan
 
-  // Do not cache API routes to avoid stale financial states
-  if (url.pathname.startsWith('/api/')) {
+  // Navigasi halaman: network-first, fallback ke cache saat offline.
+  if (request.mode === 'navigate') {
+    event.respondWith(
+      fetch(request)
+        .then((response) => {
+          const copy = response.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put('/', copy));
+          return response;
+        })
+        .catch(() => caches.match('/').then((cached) => cached || Response.error()))
+    );
     return;
   }
 
-  event.respondWith(
-    caches.match(event.request).then((cachedResponse) => {
-      if (cachedResponse) {
-        // Return cached and update in background (stale-while-revalidate)
-        fetch(event.request)
-          .then((networkResponse) => {
-            if (networkResponse && networkResponse.status === 200) {
-              caches.open(CACHE_NAME).then((cache) => cache.put(event.request, networkResponse));
+  // Aset statis: cache-first (URL berisi hash konten sehingga aman).
+  if (url.pathname.startsWith('/_next/static/') || url.pathname.startsWith('/icons/')) {
+    event.respondWith(
+      caches.match(request).then(
+        (cached) =>
+          cached ||
+          fetch(request).then((response) => {
+            if (response.ok) {
+              const copy = response.clone();
+              caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
             }
+            return response;
           })
-          .catch(() => {});
-        return cachedResponse;
-      }
-
-      return fetch(event.request).catch(() => {
-        // If offline and request is document, return root cache
-        if (event.request.mode === 'navigate') {
-          return caches.match('/');
-        }
-      });
-    })
-  );
+      )
+    );
+  }
 });

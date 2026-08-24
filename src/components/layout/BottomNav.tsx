@@ -3,7 +3,7 @@
 import React from 'react';
 import { House, ListDashes, Plus, ChartPieSlice, Vault } from '@phosphor-icons/react';
 
-export type NavTab = 'dashboard' | 'transactions' | 'budget' | 'reports' | 'wallets' | 'bills' | 'settings';
+export type NavTab = 'dashboard' | 'transactions' | 'budget' | 'reports' | 'wallets' | 'bills' | 'debts' | 'settings';
 
 interface BottomNavProps {
   activeTab: NavTab;

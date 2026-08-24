@@ -24,8 +24,8 @@ export const walletSchema = z.object({
 export const categorySchema = z.object({
   name: z.string().min(1, 'Nama kategori wajib diisi').max(100),
   type: z.enum(['expense', 'income']),
-  icon: z.string().min(1, 'Ikon kategori wajib dipilih'),
-  color: z.string().default('gray'),
+  icon: z.string().min(1, 'Ikon kategori wajib dipilih').max(50),
+  color: z.string().max(20).default('gray'),
 });
 
 export const transactionSchema = z.object({
@@ -72,5 +72,43 @@ export const payBillSchema = z.object({
 
 export const settingsSchema = z.object({
   family_name: z.string().min(1, 'Nama keluarga wajib diisi').max(100),
-  currency: z.string().default('IDR'),
+  currency: z.string().regex(/^[A-Z]{3}$/, 'Kode mata uang harus 3 huruf besar (mis. IDR)').default('IDR'),
+});
+
+export const uuidIdParam = z.string().uuid('ID tidak valid');
+
+export const periodQuerySchema = z.object({
+  month: z.coerce.number().int().min(1, 'Bulan harus 1-12').max(12, 'Bulan harus 1-12').optional(),
+  year: z.coerce.number().int().min(2000, 'Tahun tidak wajar').max(2100, 'Tahun tidak wajar').optional(),
+});
+
+export const transactionListQuerySchema = z.object({
+  month: z.coerce.number().int().min(1).max(12).optional(),
+  year: z.coerce.number().int().min(2000).max(2100).optional(),
+  type: z.enum(['expense', 'income', 'transfer']).optional(),
+  wallet_id: z.string().uuid().optional(),
+  category_id: z.string().uuid().optional(),
+  search: z.string().max(100).optional(),
+  limit: z.coerce.number().int().min(1).max(200, 'Limit maksimal 200').default(50),
+  offset: z.coerce.number().int().min(0).default(0),
+});
+
+export const debtSchema = z.object({
+  type: z.enum(['payable', 'receivable']),
+  person_name: z.string().min(1, 'Nama pihak/orang wajib diisi').max(100),
+  total_amount: z.number().positive('Nominal hutang/piutang harus lebih dari 0'),
+  due_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Format tanggal harus YYYY-MM-DD').optional().nullable(),
+  notes: z.string().max(500).optional().nullable(),
+});
+
+export const debtPaymentSchema = z.object({
+  wallet_id: z.string().uuid('Pilih dompet untuk transaksi'),
+  amount: z.number().positive('Nominal pembayaran harus lebih dari 0'),
+  payment_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Format tanggal harus YYYY-MM-DD').default(() => new Date().toISOString().split('T')[0]),
+  notes: z.string().max(500).optional().nullable(),
+});
+
+export const debtQuerySchema = z.object({
+  type: z.enum(['payable', 'receivable']).optional(),
+  status: z.enum(['unpaid', 'partial', 'paid']).optional(),
 });

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAuthSession } from '@/lib/auth';
 import { query } from '@/lib/db';
 import { categorySchema } from '@/lib/validations';
+import { handleRouteError, readJsonBody } from '@/lib/apiHelpers';
 import { Category } from '@/lib/types';
 
 export async function GET(req: NextRequest) {
@@ -15,9 +16,8 @@ export async function GET(req: NextRequest) {
     );
 
     return NextResponse.json({ success: true, data: categories });
-  } catch (error: any) {
-    console.error('Get categories error:', error);
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+  } catch (error) {
+    return handleRouteError(error, 'categories:list');
   }
 }
 
@@ -26,8 +26,7 @@ export async function POST(req: NextRequest) {
     const session = await getAuthSession(req);
     if (!session) return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
 
-    const body = await req.json();
-    const validated = categorySchema.parse(body);
+    const validated = categorySchema.parse(await readJsonBody(req));
 
     const inserted = await query<Category>(
       `INSERT INTO categories (user_id, name, type, icon, color, is_default)
@@ -37,11 +36,7 @@ export async function POST(req: NextRequest) {
     );
 
     return NextResponse.json({ success: true, data: inserted[0] });
-  } catch (error: any) {
-    if (error.name === 'ZodError') {
-      return NextResponse.json({ success: false, error: error.errors[0].message }, { status: 400 });
-    }
-    console.error('Create category error:', error);
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+  } catch (error) {
+    return handleRouteError(error, 'categories:create');
   }
 }

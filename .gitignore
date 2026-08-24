@@ -34,5 +34,9 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-.vercel
+# local secrets & tooling
 .env*
+env-*.json
+proj-old.json
+dep.json
+.omo/

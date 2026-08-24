@@ -9,6 +9,8 @@ import { AmountInput } from '../ui/AmountInput';
 import { EmptyState } from '../ui/EmptyState';
 import { Plus, Receipt } from '@phosphor-icons/react';
 import { formatRupiah } from '@/lib/formatters';
+import { useBillForm } from './useBillForm';
+import { ApiError, apiFetch, endpoints } from '@/lib/apiFetch';
 
 interface BillsViewProps {
   bills: RecurringBill[];
@@ -18,115 +20,77 @@ interface BillsViewProps {
 }
 
 export function BillsView({ bills, wallets, categories, onRefresh }: BillsViewProps) {
-  const [isAddOpen, setIsAddOpen] = useState(false);
   const [isPayOpen, setIsPayOpen] = useState(false);
   const [selectedBill, setSelectedBill] = useState<RecurringBill | null>(null);
-
-  // Form states for Add Bill
-  const [title, setTitle] = useState('');
-  const [amount, setAmount] = useState(0);
-  const [dueDay, setDueDay] = useState(1);
-  const [categoryId, setCategoryId] = useState('');
-  const [walletId, setWalletId] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [listError, setListError] = useState<string | null>(null);
 
   // Form states for Pay Bill
   const [payWalletId, setPayWalletId] = useState('');
   const [payDate, setPayDate] = useState(() => new Date().toISOString().split('T')[0]);
+  const [isPaying, setIsPaying] = useState(false);
+  const [payError, setPayError] = useState<string | null>(null);
 
-  const openAddModal = () => {
-    setTitle('');
-    setAmount(0);
-    setDueDay(5);
-    setError(null);
-    if (categories.length > 0) setCategoryId(categories[0].id);
-    if (wallets.length > 0) setWalletId(wallets[0].id);
-    setIsAddOpen(true);
-  };
+  const {
+    isAddOpen,
+    title,
+    setTitle,
+    amount,
+    setAmount,
+    dueDay,
+    setDueDay,
+    categoryId,
+    setCategoryId,
+    isLoading,
+    error,
+    openAddModal,
+    closeModal,
+    handleAddSubmit,
+  } = useBillForm({ wallets, categories, onSuccess: onRefresh });
 
   const handlePayClick = (bill: RecurringBill) => {
     setSelectedBill(bill);
     const defaultW = wallets.find((w) => w.is_default) || wallets[0];
     if (defaultW) setPayWalletId(defaultW.id);
     setPayDate(new Date().toISOString().split('T')[0]);
-    setError(null);
+    setPayError(null);
     setIsPayOpen(true);
-  };
-
-  const handleAddSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (amount <= 0) {
-      setError('Nominal tagihan harus lebih dari 0.');
-      return;
-    }
-
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      const res = await fetch('/api/bills', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          title,
-          amount,
-          due_day: dueDay,
-          category_id: categoryId || null,
-          wallet_id: walletId || null,
-        }),
-      });
-
-      const data = await res.json();
-      if (!res.ok || !data.success) throw new Error(data.error || 'Gagal menambahkan tagihan');
-
-      onRefresh();
-      setIsAddOpen(false);
-    } catch (err: any) {
-      setError(err.message);
-    } finally {
-      setIsLoading(false);
-    }
   };
 
   const handlePaySubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedBill) return;
 
-    setIsLoading(true);
-    setError(null);
+    setIsPaying(true);
+    setPayError(null);
 
     try {
-      const res = await fetch(`/api/bills/${selectedBill.id}/pay`, {
+      await apiFetch(endpoints.payBill(selectedBill.id), {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+        json: {
           wallet_id: payWalletId,
           paid_date: payDate,
-        }),
+        },
       });
-
-      const data = await res.json();
-      if (!res.ok || !data.success) throw new Error(data.error || 'Gagal memproses pembayaran');
-
       onRefresh();
       setIsPayOpen(false);
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err) {
+      setPayError(err instanceof ApiError ? err.message : 'Gagal memproses pembayaran.');
     } finally {
-      setIsLoading(false);
+      setIsPaying(false);
     }
   };
 
   const handleDelete = async (id: string) => {
     if (!confirm('Apakah Anda yakin ingin menghapus tagihan rutin ini?')) return;
     try {
-      const res = await fetch(`/api/bills/${id}`, { method: 'DELETE' });
-      if (res.ok) onRefresh();
+      await apiFetch(endpoints.bill(id), { method: 'DELETE' });
+      setListError(null);
+      onRefresh();
     } catch (err) {
-      console.error(err);
+      setListError(err instanceof ApiError ? err.message : 'Gagal menghapus tagihan.');
     }
   };
+
 
   return (
     <div className="space-y-6">
@@ -149,6 +113,13 @@ export function BillsView({ bills, wallets, categories, onRefresh }: BillsViewPr
         </Button>
       </div>
 
+      {/* Delete Error */}
+      {listError && (
+        <div role="alert" className="rounded-xl border border-expense/30 bg-expense/10 px-4 py-3 text-sm font-semibold text-expense">
+          {listError}
+        </div>
+      )}
+
       {/* Bills List */}
       {bills.length > 0 ? (
         <div className="space-y-3">
@@ -167,7 +138,7 @@ export function BillsView({ bills, wallets, categories, onRefresh }: BillsViewPr
       )}
 
       {/* Add Bill Modal */}
-      <Modal isOpen={isAddOpen} onClose={() => setIsAddOpen(false)} title="Tambah Tagihan Rutin">
+      <Modal isOpen={isAddOpen} onClose={closeModal} title="Tambah Tagihan Rutin">
         <form onSubmit={handleAddSubmit} className="space-y-4">
           {error && (
             <div className="p-3 bg-expense/10 border border-expense/20 rounded-2xl text-expense text-xs font-semibold">
@@ -176,9 +147,10 @@ export function BillsView({ bills, wallets, categories, onRefresh }: BillsViewPr
           )}
 
           <div className="space-y-1">
-            <label className="block text-xs font-semibold text-text-muted">Nama Tagihan</label>
+            <label htmlFor="billTitle" className="block text-xs font-semibold text-text-muted">Nama Tagihan</label>
             <input
               type="text"
+              id="billTitle"
               required
               value={title}
               onChange={(e) => setTitle(e.target.value)}
@@ -187,13 +159,14 @@ export function BillsView({ bills, wallets, categories, onRefresh }: BillsViewPr
             />
           </div>
 
-          <AmountInput label="Estimasi / Nominal Tagihan (Rp)" value={amount} onChange={setAmount} />
+          <AmountInput id="billAmount" label="Estimasi / Nominal Tagihan (Rp)" value={amount} onChange={setAmount} />
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div className="space-y-1">
-              <label className="block text-xs font-semibold text-text-muted">Tanggal Jatuh Tempo (1-31)</label>
+              <label htmlFor="billDueDay" className="block text-xs font-semibold text-text-muted">Tanggal Jatuh Tempo (1-31)</label>
               <input
                 type="number"
+                id="billDueDay"
                 min="1"
                 max="31"
                 required
@@ -204,8 +177,9 @@ export function BillsView({ bills, wallets, categories, onRefresh }: BillsViewPr
             </div>
 
             <div className="space-y-1">
-              <label className="block text-xs font-semibold text-text-muted">Kategori</label>
+              <label htmlFor="billCategory" className="block text-xs font-semibold text-text-muted">Kategori</label>
               <select
+                id="billCategory"
                 value={categoryId}
                 onChange={(e) => setCategoryId(e.target.value)}
                 className="w-full h-11 px-3 bg-background border border-border rounded-xl text-sm font-medium focus:ring-2 focus:ring-primary focus:outline-none"
@@ -232,9 +206,9 @@ export function BillsView({ bills, wallets, categories, onRefresh }: BillsViewPr
         title={`Pelunasan: ${selectedBill?.title}`}
       >
         <form onSubmit={handlePaySubmit} className="space-y-4">
-          {error && (
+          {payError && (
             <div className="p-3 bg-expense/10 border border-expense/20 rounded-2xl text-expense text-xs font-semibold">
-              {error}
+              {payError}
             </div>
           )}
 
@@ -246,8 +220,9 @@ export function BillsView({ bills, wallets, categories, onRefresh }: BillsViewPr
           </div>
 
           <div className="space-y-1">
-            <label className="block text-xs font-semibold text-text-muted">Bayar Menggunakan Dompet / Rekening</label>
+            <label htmlFor="payWallet" className="block text-xs font-semibold text-text-muted">Bayar Menggunakan Dompet / Rekening</label>
             <select
+              id="payWallet"
               value={payWalletId}
               onChange={(e) => setPayWalletId(e.target.value)}
               required
@@ -262,9 +237,10 @@ export function BillsView({ bills, wallets, categories, onRefresh }: BillsViewPr
           </div>
 
           <div className="space-y-1">
-            <label className="block text-xs font-semibold text-text-muted">Tanggal Pembayaran</label>
+            <label htmlFor="payDate" className="block text-xs font-semibold text-text-muted">Tanggal Pembayaran</label>
             <input
               type="date"
+              id="payDate"
               required
               value={payDate}
               onChange={(e) => setPayDate(e.target.value)}
@@ -272,7 +248,7 @@ export function BillsView({ bills, wallets, categories, onRefresh }: BillsViewPr
             />
           </div>
 
-          <Button type="submit" variant="primary" size="lg" isLoading={isLoading} className="w-full mt-4 font-bold">
+          <Button type="submit" variant="primary" size="lg" isLoading={isPaying} className="w-full mt-4 font-bold">
             Konfirmasi Bayar & Catat Pengeluaran
           </Button>
         </form>

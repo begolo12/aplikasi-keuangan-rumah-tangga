@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { AuthCard } from '@/components/auth/AuthCard';
 import { Button } from '@/components/ui/Button';
+import { apiFetch, endpoints } from '@/lib/apiFetch';
 import { Eye, EyeSlash, Lock, Envelope } from '@phosphor-icons/react';
 
 export default function LoginPage() {
@@ -21,22 +22,12 @@ export default function LoginPage() {
     setIsLoading(true);
 
     try {
-      const res = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
-      });
-
-      const data = await res.json();
-
-      if (!res.ok || !data.success) {
-        throw new Error(data.error || 'Login gagal. Periksa kembali email dan password.');
-      }
+      await apiFetch(endpoints.authLogin, { method: 'POST', json: { email, password } });
 
       router.push('/');
       router.refresh();
-    } catch (err: any) {
-      setError(err.message || 'Terjadi kesalahan sistem.');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Terjadi kesalahan sistem.');
     } finally {
       setIsLoading(false);
     }
@@ -55,11 +46,12 @@ export default function LoginPage() {
         )}
 
         <div className="space-y-1.5">
-          <label className="block text-xs font-semibold text-text-muted">Email</label>
+          <label htmlFor="loginEmail" className="block text-xs font-semibold text-text-muted">Email</label>
           <div className="relative flex items-center">
             <Envelope size={20} className="absolute left-3.5 text-text-muted select-none" />
             <input
               type="email"
+              id="loginEmail"
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
@@ -70,21 +62,23 @@ export default function LoginPage() {
         </div>
 
         <div className="space-y-1.5">
-          <label className="block text-xs font-semibold text-text-muted">Kata Sandi</label>
+          <label htmlFor="loginPassword" className="block text-xs font-semibold text-text-muted">Kata Sandi</label>
           <div className="relative flex items-center">
             <Lock size={20} className="absolute left-3.5 text-text-muted select-none" />
             <input
               type={showPassword ? 'text' : 'password'}
+              id="loginPassword"
               required
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="••••••••"
-              className="w-full h-12 pl-11 pr-11 bg-background border border-border rounded-xl text-sm font-medium focus:ring-2 focus:ring-primary focus:outline-none placeholder:text-text-muted/50"
+              className="w-full h-12 pl-11 pr-12 bg-background border border-border rounded-xl text-sm font-medium focus:ring-2 focus:ring-primary focus:outline-none placeholder:text-text-muted/50"
             />
             <button
               type="button"
               onClick={() => setShowPassword(!showPassword)}
-              className="absolute right-3.5 p-1 text-text-muted hover:text-text"
+              aria-label={showPassword ? 'Sembunyikan kata sandi' : 'Tampilkan kata sandi'}
+              className="absolute right-2 min-w-[44px] min-h-[44px] flex items-center justify-center text-text-muted hover:text-text"
             >
               {showPassword ? <EyeSlash size={18} /> : <Eye size={18} />}
             </button>

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useSyncExternalStore } from 'react';
 import { WifiSlash, ArrowClockwise, CheckCircle } from '@phosphor-icons/react';
 import { drainOfflineQueue, getOfflineMutations } from '@/lib/offlineQueue';
 
@@ -9,54 +9,85 @@ interface OfflineBannerProps {
   onSynced?: () => void;
 }
 
+function subscribeOnline(callback: () => void) {
+  window.addEventListener('online', callback);
+  window.addEventListener('offline', callback);
+  return () => {
+    window.removeEventListener('online', callback);
+    window.removeEventListener('offline', callback);
+  };
+}
+
+function getOnlineSnapshot() {
+  return typeof navigator !== 'undefined' ? navigator.onLine : true;
+}
+
+function getOnlineServerSnapshot() {
+  return true;
+}
+
 export function OfflineBanner({ userId, onSynced }: OfflineBannerProps) {
-  const [isOnline, setIsOnline] = useState(true);
+  const isOnline = useSyncExternalStore(subscribeOnline, getOnlineSnapshot, getOnlineServerSnapshot);
   const [pendingCount, setPendingCount] = useState(0);
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncSuccess, setSyncSuccess] = useState(false);
 
-  const checkQueue = async () => {
+  const checkQueue = useCallback(async () => {
     if (!userId) return;
-    const items = await getOfflineMutations(userId);
-    setPendingCount(items.length);
-  };
+    try {
+      const items = await getOfflineMutations(userId);
+      setPendingCount(items.length);
+    } catch {
+      // IndexedDB error caught safely
+    }
+  }, [userId]);
 
-  const handleSync = async () => {
+  const handleSync = useCallback(async () => {
     if (!isOnline || isSyncing || !userId) return;
     setIsSyncing(true);
-    const { synced } = await drainOfflineQueue(userId, onSynced);
-    setIsSyncing(false);
-    await checkQueue();
-    if (synced > 0) {
-      setSyncSuccess(true);
-      setTimeout(() => setSyncSuccess(false), 3000);
+    try {
+      const { synced } = await drainOfflineQueue(userId, onSynced);
+      await checkQueue();
+      if (synced > 0) {
+        setSyncSuccess(true);
+        setTimeout(() => setSyncSuccess(false), 3000);
+      }
+    } finally {
+      setIsSyncing(false);
     }
-  };
+  }, [isOnline, isSyncing, userId, onSynced, checkQueue]);
 
   useEffect(() => {
-    if (typeof window === 'undefined') return;
+    if (!userId) return;
+    let active = true;
 
-    setIsOnline(navigator.onLine);
-    checkQueue();
+    const run = async () => {
+      try {
+        const items = await getOfflineMutations(userId);
+        if (active) setPendingCount(items.length);
+      } catch {
+        // safely ignored
+      }
 
-    const handleOnline = () => {
-      setIsOnline(true);
-      handleSync();
+      if (isOnline) {
+        try {
+          const { synced } = await drainOfflineQueue(userId, onSynced);
+          if (active && synced > 0) {
+            setSyncSuccess(true);
+            setTimeout(() => setSyncSuccess(false), 3000);
+          }
+        } catch {
+          // safely ignored
+        }
+      }
     };
 
-    const handleOffline = () => {
-      setIsOnline(false);
-      checkQueue();
-    };
-
-    window.addEventListener('online', handleOnline);
-    window.addEventListener('offline', handleOffline);
+    void run();
 
     return () => {
-      window.removeEventListener('online', handleOnline);
-      window.removeEventListener('offline', handleOffline);
+      active = false;
     };
-  }, [userId]);
+  }, [userId, isOnline, onSynced]);
 
   if (isOnline && pendingCount === 0 && !syncSuccess) {
     return null;

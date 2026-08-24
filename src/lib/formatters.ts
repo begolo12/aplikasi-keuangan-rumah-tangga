@@ -19,16 +19,16 @@ export function formatRupiah(amount: number | string | null | undefined, withSym
  * Example: 1500000 -> "1,5 jt", 25000 -> "25 rb"
  */
 export function formatCompactRupiah(amount: number): string {
-  if (Math.abs(amount) >= 1_000_000_000) {
-    return `${(amount / 1_000_000_000).toFixed(1).replace('.0', '')} M`;
-  }
-  if (Math.abs(amount) >= 1_000_000) {
-    return `${(amount / 1_000_000).toFixed(1).replace('.0', '')} jt`;
-  }
-  if (Math.abs(amount) >= 1_000) {
-    return `${(amount / 1_000).toFixed(0)} rb`;
-  }
-  return amount.toString();
+  const sign = amount < 0 ? '-' : '';
+  const abs = Math.abs(amount);
+  const oneDecimal = (value: number): string => {
+    const fixed = value.toFixed(1);
+    return fixed.endsWith('.0') ? fixed.slice(0, -2) : fixed.replace('.', ',');
+  };
+  if (abs >= 1_000_000_000) return `${sign}${oneDecimal(abs / 1_000_000_000)} M`;
+  if (abs >= 1_000_000) return `${sign}${oneDecimal(abs / 1_000_000)} jt`;
+  if (abs >= 1_000) return `${sign}${Math.round(abs / 1_000)} rb`;
+  return `${sign}${abs}`;
 }
 
 /**

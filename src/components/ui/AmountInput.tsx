@@ -7,12 +7,15 @@ interface AmountInputProps {
   label?: string;
   error?: string;
   disabled?: boolean;
+  /** id for the input so an external <label htmlFor> can target it */
+  id?: string;
 }
 
-export function AmountInput({ value, onChange, label = 'Nominal (Rp)', error, disabled }: AmountInputProps) {
+export function AmountInput({ value, onChange, label = 'Nominal (Rp)', error, disabled, id }: AmountInputProps) {
+  const inputId = id ?? `amount-${label.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
   const formatDisplay = (num: number) => {
     if (!num || num === 0) return '';
-    return new Intl.NumberFormat('id-ID').format(num);
+    return new Intl.NumberFormat('id-ID', { maximumFractionDigits: 0 }).format(num);
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -37,17 +40,22 @@ export function AmountInput({ value, onChange, label = 'Nominal (Rp)', error, di
 
   return (
     <div className="w-full space-y-2">
-      {label && <label className="block text-xs font-semibold text-text-muted">{label}</label>}
-
+      {label && (
+        <label htmlFor={inputId} className="block text-xs font-semibold text-text-muted">
+          {label}
+        </label>
+      )}
       <div className="relative flex items-center">
         <span className="absolute left-4 text-base font-bold text-text-muted select-none">Rp</span>
         <input
           type="text"
           inputMode="numeric"
+          id={inputId}
           disabled={disabled}
           value={formatDisplay(value)}
           onChange={handleInputChange}
           placeholder="0"
+          aria-label={label ? undefined : 'Nominal (Rp)'}
           className={`w-full h-14 pl-12 pr-10 text-xl font-bold bg-surface border rounded-2xl focus:bg-background focus:ring-2 focus:ring-primary focus:outline-none transition-all placeholder:text-text-muted/40 ${
             error ? 'border-expense ring-1 ring-expense' : 'border-border'
           }`}

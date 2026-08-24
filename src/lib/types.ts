@@ -111,6 +111,38 @@ export interface AppSettings {
   updated_at: string;
 }
 
+export type DebtType = 'payable' | 'receivable';
+export type DebtStatus = 'unpaid' | 'partial' | 'paid';
+
+export interface Debt {
+  id: string;
+  user_id: string;
+  type: DebtType;
+  person_name: string;
+  total_amount: number;
+  paid_amount: number;
+  remaining_amount: number;
+  due_date?: string | null;
+  notes?: string | null;
+  status: DebtStatus;
+  days_until_due?: number;
+  is_overdue?: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface DebtPayment {
+  id: string;
+  debt_id: string;
+  user_id: string;
+  wallet_id: string;
+  wallet_name?: string | null;
+  amount: number;
+  payment_date: string;
+  notes?: string | null;
+  created_at: string;
+}
+
 export interface MonthlySummary {
   month: number;
   year: number;
@@ -121,6 +153,12 @@ export interface MonthlySummary {
   total_transfer: number;
   bill_pending_count: number;
   budget_over_count: number;
+  total_bills_pending_amount?: number;
+  total_payable_due?: number;
+  total_receivable_due?: number;
+  safe_to_spend?: number;
+  payable_unpaid_count?: number;
+  receivable_unpaid_count?: number;
 }
 
 export interface ApiResponse<T = unknown> {

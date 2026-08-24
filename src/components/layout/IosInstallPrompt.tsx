@@ -1,28 +1,37 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useSyncExternalStore } from 'react';
 import { Export, PlusSquare, X } from '@phosphor-icons/react';
 
+function subscribe(callback: () => void) {
+  window.addEventListener('storage', callback);
+  return () => window.removeEventListener('storage', callback);
+}
+
+function getSnapshot() {
+  if (typeof window === 'undefined') return false;
+  const isIos = /iPad|iPhone|iPod/.test(navigator.userAgent) && !('MSStream' in window);
+  const iosNavigator = navigator as Navigator & { standalone?: boolean };
+  const isStandalone =
+    window.matchMedia('(display-mode: standalone)').matches || iosNavigator.standalone === true;
+  const dismissed = localStorage.getItem('ios_install_prompt_dismissed');
+  return Boolean(isIos && !isStandalone && !dismissed);
+}
+
+function getServerSnapshot() {
+  return false;
+}
+
 export function IosInstallPrompt() {
-  const [showPrompt, setShowPrompt] = useState(false);
+  const isEligible = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
+  const [dismissedLocal, setDismissedLocal] = useState(false);
 
-  useEffect(() => {
-    // Detect if running on iOS Safari and not already in standalone standalone mode
-    const isIos = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
-    const isStandalone = window.matchMedia('(display-mode: standalone)').matches || (navigator as any).standalone;
-    const dismissed = localStorage.getItem('ios_install_prompt_dismissed');
-
-    if (isIos && !isStandalone && !dismissed) {
-      setShowPrompt(true);
-    }
-  }, []);
+  if (!isEligible || dismissedLocal) return null;
 
   const handleDismiss = () => {
     localStorage.setItem('ios_install_prompt_dismissed', 'true');
-    setShowPrompt(false);
+    setDismissedLocal(true);
   };
-
-  if (!showPrompt) return null;
 
   return (
     <div className="fixed bottom-20 left-4 right-4 z-40 bg-surface border border-border p-4 rounded-2xl shadow-xl animate-slide-up md:hidden">
@@ -37,7 +46,12 @@ export function IosInstallPrompt() {
             .
           </p>
         </div>
-        <button onClick={handleDismiss} className="text-text-muted hover:text-text p-1">
+        <button
+          type="button"
+          onClick={handleDismiss}
+          aria-label="Tutup panduan pemasangan"
+          className="min-w-[44px] min-h-[44px] -mr-2 -mt-2 flex items-center justify-center text-text-muted hover:text-text"
+        >
           <X size={16} />
         </button>
       </div>

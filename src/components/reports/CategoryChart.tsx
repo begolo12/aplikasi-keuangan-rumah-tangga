@@ -54,7 +54,10 @@ export function CategoryChart({ data, total }: CategoryChartProps) {
               ))}
             </Pie>
             <Tooltip
-              formatter={(value: any) => [formatRupiah(value), 'Pengeluaran']}
+              formatter={(value: string | number | readonly (string | number)[] | undefined) => [
+                formatRupiah(typeof value === 'number' || typeof value === 'string' ? value : 0),
+                'Pengeluaran',
+              ]}
               contentStyle={{
                 backgroundColor: 'hsl(var(--color-surface))',
                 borderColor: 'hsl(var(--color-border))',

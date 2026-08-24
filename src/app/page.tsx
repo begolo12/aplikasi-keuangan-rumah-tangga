@@ -1,8 +1,21 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { User, Wallet, Category, Transaction, MonthlySummary as MonthlySummaryType, Budget, RecurringBill, AppSettings, TransactionType } from '@/lib/types';
+import dynamic from 'next/dynamic';
+import {
+  User,
+  Wallet,
+  Category,
+  Transaction,
+  MonthlySummary as MonthlySummaryType,
+  Budget,
+  RecurringBill,
+  Debt,
+  AppSettings,
+  TransactionType,
+} from '@/lib/types';
+import { ApiError, apiFetch, endpoints } from '@/lib/apiFetch';
 import { AppShell } from '@/components/layout/AppShell';
 import { NavTab } from '@/components/layout/BottomNav';
 import { BalanceHeader } from '@/components/dashboard/BalanceHeader';
@@ -10,13 +23,48 @@ import { QuickActions } from '@/components/dashboard/QuickActions';
 import { WalletScroller } from '@/components/dashboard/WalletScroller';
 import { MonthlySummary } from '@/components/dashboard/MonthlySummary';
 import { TransactionList } from '@/components/transactions/TransactionList';
-import { TransactionModal } from '@/components/transactions/TransactionModal';
-import { BudgetView } from '@/components/budget/BudgetView';
-import { BillsView } from '@/components/bills/BillsView';
-import { WalletsView } from '@/components/wallets/WalletsView';
-import { ReportsView } from '@/components/reports/ReportsView';
-import { SettingsView } from '@/components/settings/SettingsView';
 import { DashboardSkeleton } from '@/components/ui/LoadingSkeleton';
+import { clearOfflineQueue } from '@/lib/offlineQueue';
+
+const TransactionModal = dynamic(
+  () => import('@/components/transactions/TransactionModal').then((m) => m.TransactionModal),
+  { ssr: false }
+);
+const BudgetView = dynamic(
+  () => import('@/components/budget/BudgetView').then((m) => m.BudgetView),
+  { ssr: false, loading: () => <DashboardSkeleton /> }
+);
+const BillsView = dynamic(
+  () => import('@/components/bills/BillsView').then((m) => m.BillsView),
+  { ssr: false, loading: () => <DashboardSkeleton /> }
+);
+const DebtsView = dynamic(
+  () => import('@/components/debts/DebtsView').then((m) => m.DebtsView),
+  { ssr: false, loading: () => <DashboardSkeleton /> }
+);
+const WalletsView = dynamic(
+  () => import('@/components/wallets/WalletsView').then((m) => m.WalletsView),
+  { ssr: false, loading: () => <DashboardSkeleton /> }
+);
+const SettingsView = dynamic(
+  () => import('@/components/settings/SettingsView').then((m) => m.SettingsView),
+  { ssr: false, loading: () => <DashboardSkeleton /> }
+);
+const ReportsView = dynamic(
+  () => import('@/components/reports/ReportsView').then((m) => m.ReportsView),
+  { ssr: false, loading: () => <DashboardSkeleton /> }
+);
+
+type BootstrapData = {
+  wallets?: Wallet[];
+  categories?: Category[];
+  transactions?: Transaction[];
+  budgets?: Budget[];
+  bills?: RecurringBill[];
+  debts?: Debt[];
+  summary?: MonthlySummaryType;
+  settings?: AppSettings;
+};
 
 export default function MainPage() {
   const router = useRouter();
@@ -30,19 +78,24 @@ export default function MainPage() {
   const [currentMonth, setCurrentMonth] = useState(now.getMonth() + 1);
   const [currentYear, setCurrentYear] = useState(now.getFullYear());
 
-  // Navigation State
+  // Navigation & History State
   const [activeTab, setActiveTab] = useState<NavTab>('dashboard');
+  const [_tabHistory, setTabHistory] = useState<NavTab[]>(['dashboard']);
+  const [exitToast, setExitToast] = useState(false);
+  const exitToastTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   // Modal State
   const [isTxModalOpen, setIsTxModalOpen] = useState(false);
   const [txModalType, setTxModalType] = useState<TransactionType>('expense');
 
   // Application Data States
+  const [reloadKey, setReloadKey] = useState(0);
   const [wallets, setWallets] = useState<Wallet[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [budgets, setBudgets] = useState<Budget[]>([]);
   const [bills, setBills] = useState<RecurringBill[]>([]);
+  const [debts, setDebts] = useState<Debt[]>([]);
   const [summary, setSummary] = useState<MonthlySummaryType>({
     month: currentMonth,
     year: currentYear,
@@ -53,9 +106,18 @@ export default function MainPage() {
     total_transfer: 0,
     bill_pending_count: 0,
     budget_over_count: 0,
+    total_bills_pending_amount: 0,
+    total_payable_due: 0,
+    total_receivable_due: 0,
+    safe_to_spend: 0,
+    payable_unpaid_count: 0,
+    receivable_unpaid_count: 0,
   });
   const [settings, setSettings] = useState<AppSettings | null>(null);
   const [isDataLoading, setIsDataLoading] = useState(true);
+  const [dataError, setDataError] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const bootstrapAbortRef = useRef<AbortController | null>(null);
 
   // 1. Check Authentication on Mount
   useEffect(() => {
@@ -63,17 +125,17 @@ export default function MainPage() {
       try {
         const res = await fetch('/api/auth/me');
         if (!res.ok) {
-          router.push('/login');
+          router.replace('/login');
           return;
         }
         const data = await res.json();
-        if (data.success && data.data) {
-          setUser(data.data);
+        if (data.success && data.data?.user) {
+          setUser(data.data.user);
         } else {
-          router.push('/login');
+          router.replace('/login');
         }
-      } catch (err) {
-        router.push('/login');
+      } catch {
+        router.replace('/login');
       } finally {
         setIsAuthLoading(false);
       }
@@ -82,86 +144,138 @@ export default function MainPage() {
     checkAuth();
   }, [router]);
 
-  // 2. Fetch All Application Data for the Current Period
-  const fetchData = useCallback(async () => {
-    if (!user) return;
-    setIsDataLoading(true);
-
-    try {
-      const [wRes, cRes, tRes, bRes, billRes, sRes, setRes] = await Promise.all([
-        fetch('/api/wallets'),
-        fetch('/api/categories'),
-        fetch(`/api/transactions?month=${currentMonth}&year=${currentYear}`),
-        fetch(`/api/budgets?month=${currentMonth}&year=${currentYear}`),
-        fetch(`/api/bills?month=${currentMonth}&year=${currentYear}`),
-        fetch(`/api/reports/monthly?month=${currentMonth}&year=${currentYear}`),
-        fetch('/api/settings'),
-      ]);
-
-      const [wData, cData, tData, bData, billData, sData, setData] = await Promise.all([
-        wRes.json(),
-        cRes.json(),
-        tRes.json(),
-        bRes.json(),
-        billRes.json(),
-        sRes.json(),
-        setRes.json(),
-      ]);
-
-      if (wData.success) setWallets(wData.data || []);
-      if (cData.success) setCategories(cData.data || []);
-      if (tData.success) setTransactions(tData.data || []);
-      if (bData.success) setBudgets(bData.data || []);
-      if (billData.success) setBills(billData.data || []);
-      if (sData.success) setSummary(sData.data?.summary || summary);
-      if (setData.success) setSettings(setData.data || null);
-    } catch (err) {
-      console.error('Failed to fetch data:', err);
-    } finally {
-      setIsDataLoading(false);
-    }
-  }, [user, currentMonth, currentYear]);
-
+  // 2. Fetch Bootstrap Data
   useEffect(() => {
-    if (user) {
-      fetchData();
-    }
-  }, [user, fetchData]);
+    if (!user) return;
+    let ignore = false;
+    const controller = new AbortController();
+    bootstrapAbortRef.current = controller;
 
-  // Handlers
-  const handleOpenAddModal = (type: TransactionType = 'expense') => {
-    setTxModalType(type);
-    setIsTxModalOpen(true);
-  };
+    const loadData = async () => {
+      setIsDataLoading(true);
+      setDataError(null);
+      try {
+        const data = await apiFetch<BootstrapData>(endpoints.bootstrap(currentMonth, currentYear), {
+          signal: controller.signal,
+        });
+        if (ignore) return;
+        setWallets(data.wallets || []);
+        setCategories(data.categories || []);
+        setTransactions(data.transactions || []);
+        setBudgets(data.budgets || []);
+        setBills(data.bills || []);
+        setDebts(data.debts || []);
+        if (data.summary) setSummary(data.summary);
+        if (data.settings) setSettings(data.settings);
+      } catch (err) {
+        if (err instanceof Error && err.name === 'AbortError') return;
+        if (ignore) return;
+        setDataError(err instanceof ApiError ? err.message : 'Terjadi kesalahan jaringan.');
+      } finally {
+        if (!ignore) {
+          setIsDataLoading(false);
+        }
+      }
+    };
+
+    loadData();
+
+    return () => {
+      ignore = true;
+      controller.abort();
+      bootstrapAbortRef.current = null;
+    };
+  }, [user, currentMonth, currentYear, reloadKey]);
+
+  // Handle Tab Navigation with History Stack
+  const handleTabChange = useCallback((newTab: NavTab) => {
+    if (newTab === activeTab) return;
+    setTabHistory((prev) => [...prev, newTab]);
+    setActiveTab(newTab);
+    window.history.pushState({ tab: newTab }, '', '');
+  }, [activeTab]);
+
+  // Handle Mobile Back Button & Exit Confirmation
+  useEffect(() => {
+    window.history.replaceState({ tab: 'dashboard' }, '', '');
+
+    const handlePopState = () => {
+      // 1. If transaction modal is open, close it first
+      if (isTxModalOpen) {
+        setIsTxModalOpen(false);
+        window.history.pushState({ tab: activeTab }, '', '');
+        return;
+      }
+
+      // 2. If on non-dashboard tab, pop history back to previous tab
+      if (activeTab !== 'dashboard') {
+        setTabHistory((prev) => {
+          const next = [...prev];
+          next.pop(); // remove current tab
+          const previous = next.length > 0 ? next[next.length - 1] : 'dashboard';
+          setActiveTab(previous);
+          return next.length > 0 ? next : ['dashboard'];
+        });
+        window.history.pushState({ tab: 'dashboard' }, '', '');
+        return;
+      }
+
+      // 3. If on root dashboard tab, trigger double-back exit confirmation
+      if (!exitToast) {
+        setExitToast(true);
+        window.history.pushState({ tab: 'dashboard' }, '', '');
+        if (exitToastTimerRef.current) clearTimeout(exitToastTimerRef.current);
+        exitToastTimerRef.current = setTimeout(() => {
+          setExitToast(false);
+        }, 2500);
+      } else {
+        setExitToast(false);
+        window.history.back();
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+      if (exitToastTimerRef.current) clearTimeout(exitToastTimerRef.current);
+    };
+  }, [activeTab, isTxModalOpen, exitToast]);
 
   const handlePeriodChange = (month: number, year: number) => {
     setCurrentMonth(month);
     setCurrentYear(year);
   };
 
+  const handleOpenAddModal = (type: TransactionType = 'expense') => {
+    setTxModalType(type);
+    setIsTxModalOpen(true);
+  };
+
   const handleDeleteTransaction = async (id: string) => {
+    setDeleteError(null);
     try {
-      const res = await fetch(`/api/transactions/${id}`, { method: 'DELETE' });
-      const data = await res.json();
-      if (!res.ok || !data.success) {
-        alert(data.error || 'Gagal menghapus transaksi.');
-        return;
-      }
-      fetchData();
+      await apiFetch(endpoints.transaction(id), { method: 'DELETE' });
+      setReloadKey((k) => k + 1);
     } catch (err) {
-      console.error(err);
+      setDeleteError(err instanceof ApiError ? err.message : 'Gagal menghapus transaksi.');
     }
   };
 
   const handleLogout = async () => {
     try {
-      await fetch('/api/auth/logout', { method: 'POST' });
+      await fetch(endpoints.authLogout, { method: 'POST' });
+      if (user) {
+        await clearOfflineQueue(user.id);
+      }
       router.push('/login');
-      router.refresh();
-    } catch (err) {
-      console.error(err);
+    } catch {
+      router.push('/login');
     }
   };
+
+  const refetch = useCallback(() => {
+    setReloadKey((k) => k + 1);
+  }, []);
 
   if (isAuthLoading) {
     return (
@@ -179,8 +293,9 @@ export default function MainPage() {
   return (
     <AppShell
       activeTab={activeTab}
-      onTabChange={setActiveTab}
+      onTabChange={handleTabChange}
       onOpenAddModal={() => handleOpenAddModal('expense')}
+      onOpenTypedModal={handleOpenAddModal}
       currentMonth={currentMonth}
       currentYear={currentYear}
       onPeriodChange={handlePeriodChange}
@@ -188,32 +303,48 @@ export default function MainPage() {
       familyName={settings?.family_name || user.family_name}
       userId={user.id}
       onLogout={handleLogout}
-      onDataRefresh={fetchData}
+      onDataRefresh={refetch}
     >
       {/* Dynamic View Switcher */}
-      {isDataLoading && transactions.length === 0 && wallets.length === 0 ? (
+      {dataError ? (
+        <div className="rounded-2xl border border-red-200 bg-red-50 p-6 text-center space-y-3">
+          <p className="text-sm font-semibold text-red-700">{dataError}</p>
+          <button
+            type="button"
+            onClick={refetch}
+            className="min-h-[44px] px-5 py-2.5 rounded-xl bg-primary text-white text-sm font-bold hover:opacity-90 active:opacity-80 transition-opacity"
+          >
+            Coba lagi
+          </button>
+        </div>
+      ) : isDataLoading && transactions.length === 0 && wallets.length === 0 ? (
         <DashboardSkeleton />
       ) : activeTab === 'dashboard' ? (
         <div className="space-y-6">
-          {/* Total Balance Gradient Card */}
+          {/* Total Balance & Safe-to-Spend Gradient Card */}
           <BalanceHeader
             totalBalance={summary.total_balance}
             walletCount={wallets.length}
-            onManageWallets={() => setActiveTab('wallets')}
+            safeToSpend={summary.safe_to_spend}
+            pendingBillsAmount={summary.total_bills_pending_amount}
+            payableDueAmount={summary.total_payable_due}
+            onManageWallets={() => handleTabChange('wallets')}
+            onNavigateToDebts={() => handleTabChange('debts')}
           />
 
-          {/* Quick 8-Button Grid Actions */}
+          {/* Quick Grid Actions */}
           <QuickActions
             onOpenTransactionModal={handleOpenAddModal}
-            onNavigate={setActiveTab}
+            onNavigate={handleTabChange}
             pendingBillsCount={summary.bill_pending_count}
             overbudgetCount={summary.budget_over_count}
+            unpaidDebtsCount={summary.payable_unpaid_count}
           />
 
           {/* Digital Wallets Scroller */}
           <WalletScroller
             wallets={wallets}
-            onAddWallet={() => setActiveTab('wallets')}
+            onAddWallet={() => handleTabChange('wallets')}
             onTransfer={() => handleOpenAddModal('transfer')}
           />
 
@@ -221,17 +352,37 @@ export default function MainPage() {
           <MonthlySummary summary={summary} />
 
           {/* Recent Transactions List */}
+          {deleteError && (
+            <div role="alert" className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
+              {deleteError}
+            </div>
+          )}
           <TransactionList
             transactions={transactions}
             onDeleteTransaction={handleDeleteTransaction}
             onOpenAddModal={handleOpenAddModal}
+            isLoading={isDataLoading}
           />
         </div>
       ) : activeTab === 'transactions' ? (
-        <TransactionList
-          transactions={transactions}
-          onDeleteTransaction={handleDeleteTransaction}
-          onOpenAddModal={handleOpenAddModal}
+        <>
+          {deleteError && (
+            <div role="alert" className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
+              {deleteError}
+            </div>
+          )}
+          <TransactionList
+            transactions={transactions}
+            onDeleteTransaction={handleDeleteTransaction}
+            onOpenAddModal={handleOpenAddModal}
+            isLoading={isDataLoading}
+          />
+        </>
+      ) : activeTab === 'debts' ? (
+        <DebtsView
+          debts={debts}
+          wallets={wallets}
+          onRefresh={refetch}
         />
       ) : activeTab === 'budget' ? (
         <BudgetView
@@ -239,19 +390,19 @@ export default function MainPage() {
           categories={categories}
           currentMonth={currentMonth}
           currentYear={currentYear}
-          onRefresh={fetchData}
+          onRefresh={refetch}
         />
       ) : activeTab === 'bills' ? (
         <BillsView
           bills={bills}
           wallets={wallets}
           categories={categories}
-          onRefresh={fetchData}
+          onRefresh={refetch}
         />
       ) : activeTab === 'wallets' ? (
         <WalletsView
           wallets={wallets}
-          onRefresh={fetchData}
+          onRefresh={refetch}
           onOpenTransfer={() => handleOpenAddModal('transfer')}
         />
       ) : activeTab === 'reports' ? (
@@ -264,7 +415,7 @@ export default function MainPage() {
         <SettingsView
           user={user}
           settings={settings}
-          onRefresh={fetchData}
+          onRefresh={refetch}
           onLogout={handleLogout}
         />
       ) : null}
@@ -277,8 +428,15 @@ export default function MainPage() {
         wallets={wallets}
         categories={categories}
         userId={user.id}
-        onSuccess={fetchData}
+        onSuccess={refetch}
       />
+
+      {/* Mobile Back Exit Toast */}
+      {exitToast && (
+        <div className="fixed bottom-20 left-1/2 -translate-x-1/2 z-50 bg-text text-background px-4 py-2.5 rounded-2xl shadow-xl text-xs font-bold animate-fade-in flex items-center gap-2 pointer-events-none">
+          <span>Tekan sekali lagi untuk keluar dari aplikasi</span>
+        </div>
+      )}
     </AppShell>
   );
 }

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthSession } from '@/lib/auth';
 import { query } from '@/lib/db';
+import { handleRouteError } from '@/lib/apiHelpers';
 
 export async function GET(req: NextRequest) {
   try {
@@ -46,8 +47,7 @@ export async function GET(req: NextRequest) {
         'Content-Disposition': `attachment; filename="${filename}"`,
       },
     });
-  } catch (error: any) {
-    console.error('Backup export error:', error);
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+  } catch (error) {
+    return handleRouteError(error, 'backup:export');
   }
 }

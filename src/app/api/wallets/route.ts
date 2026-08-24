@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthSession } from '@/lib/auth';
-import { query } from '@/lib/db';
+import { query, withTransaction } from '@/lib/db';
 import { walletSchema } from '@/lib/validations';
+import { handleRouteError, readJsonBody } from '@/lib/apiHelpers';
 import { Wallet } from '@/lib/types';
 
 export async function GET(req: NextRequest) {
@@ -15,9 +16,8 @@ export async function GET(req: NextRequest) {
     );
 
     return NextResponse.json({ success: true, data: wallets });
-  } catch (error: any) {
-    console.error('Get wallets error:', error);
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+  } catch (error) {
+    return handleRouteError(error, 'wallets:list');
   }
 }
 
@@ -26,35 +26,32 @@ export async function POST(req: NextRequest) {
     const session = await getAuthSession(req);
     if (!session) return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
 
-    const body = await req.json();
-    const validated = walletSchema.parse(body);
+    const validated = walletSchema.parse(await readJsonBody(req));
 
-    // If set as default, unset other defaults
-    if (validated.is_default) {
-      await query(`UPDATE wallets SET is_default = FALSE WHERE user_id = $1`, [session.userId]);
-    }
+    // Unset default lama dan insert dompet baru harus atomik.
+    const inserted = await withTransaction(async (client) => {
+      if (validated.is_default) {
+        await client.query('UPDATE wallets SET is_default = FALSE WHERE user_id = $1', [session.userId]);
+      }
+      const rows = await client.query<Wallet>(
+        `INSERT INTO wallets (user_id, name, type, balance, icon, color, is_default)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)
+         RETURNING *`,
+        [
+          session.userId,
+          validated.name,
+          validated.type,
+          validated.balance,
+          validated.icon,
+          validated.color,
+          validated.is_default,
+        ]
+      );
+      return rows.rows[0];
+    });
 
-    const inserted = await query<Wallet>(
-      `INSERT INTO wallets (user_id, name, type, balance, icon, color, is_default)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)
-       RETURNING *`,
-      [
-        session.userId,
-        validated.name,
-        validated.type,
-        validated.balance,
-        validated.icon,
-        validated.color,
-        validated.is_default,
-      ]
-    );
-
-    return NextResponse.json({ success: true, data: inserted[0] });
-  } catch (error: any) {
-    if (error.name === 'ZodError') {
-      return NextResponse.json({ success: false, error: error.errors[0].message }, { status: 400 });
-    }
-    console.error('Create wallet error:', error);
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    return NextResponse.json({ success: true, data: inserted });
+  } catch (error) {
+    return handleRouteError(error, 'wallets:create');
   }
 }

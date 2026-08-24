@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next';
 import { Manrope } from 'next/font/google';
+import { ServiceWorkerRegister } from '@/components/pwa/ServiceWorkerRegister';
 import './globals.css';
 
 const manrope = Manrope({
@@ -26,8 +27,6 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
-  maximumScale: 1,
-  userScalable: false,
   viewportFit: 'cover',
   themeColor: '#20986C',
 };
@@ -43,6 +42,7 @@ export default function RootLayout({
         <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
       </head>
       <body className="min-h-screen bg-background text-text antialiased selection:bg-primary selection:text-white">
+        <ServiceWorkerRegister />
         {children}
       </body>
     </html>

@@ -39,7 +39,10 @@ export function CashflowChart({ data }: CashflowChartProps) {
             tickFormatter={(v) => formatCompactRupiah(v)}
           />
           <Tooltip
-            formatter={(value: any, name: any) => [formatRupiah(value), name]}
+            formatter={(value: string | number | readonly (string | number)[] | undefined, name: string | number | undefined) => [
+              formatRupiah(typeof value === 'number' || typeof value === 'string' ? value : 0),
+              String(name || ''),
+            ]}
             contentStyle={{
               backgroundColor: 'hsl(var(--color-surface))',
               borderColor: 'hsl(var(--color-border))',

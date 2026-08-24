@@ -1,7 +1,7 @@
 import { SignJWT, jwtVerify } from 'jose';
 import { cookies } from 'next/headers';
 import { NextRequest, NextResponse } from 'next/server';
-import { User } from './types';
+import { BusinessError } from './apiHelpers';
 
 function getJwtSecret(): Uint8Array {
   const secret = process.env.JWT_SECRET;
@@ -64,6 +64,17 @@ export async function getAuthSession(req?: NextRequest): Promise<SessionPayload 
 
   if (!token) return null;
   return verifySessionToken(token);
+}
+
+/**
+ * Enforce that request has valid session, otherwise throws BusinessError.
+ */
+export async function requireAuth(req?: NextRequest): Promise<SessionPayload> {
+  const session = await getAuthSession(req);
+  if (!session) {
+    throw new BusinessError('Sesi login telah berakhir. Silakan login kembali.', 401);
+  }
+  return session;
 }
 
 /**

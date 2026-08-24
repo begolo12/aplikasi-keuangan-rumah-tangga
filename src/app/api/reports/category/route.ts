@@ -1,6 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { z } from 'zod';
 import { getAuthSession } from '@/lib/auth';
 import { query } from '@/lib/db';
+import { periodQuerySchema } from '@/lib/validations';
+import { handleRouteError } from '@/lib/apiHelpers';
+
+const categoryReportQuery = z.object({
+  type: z.enum(['expense', 'income']).default('expense'),
+});
 
 export async function GET(req: NextRequest) {
   try {
@@ -9,10 +16,15 @@ export async function GET(req: NextRequest) {
 
     const searchParams = req.nextUrl.searchParams;
     const now = new Date();
-    const month = parseInt(searchParams.get('month') || (now.getMonth() + 1).toString(), 10);
-    const year = parseInt(searchParams.get('year') || now.getFullYear().toString(), 10);
-    const type = searchParams.get('type') || 'expense';
+    const parsedPeriod = periodQuerySchema.parse({
+      month: searchParams.get('month') ?? undefined,
+      year: searchParams.get('year') ?? undefined,
+    });
+    const parsedType = categoryReportQuery.parse({ type: searchParams.get('type') ?? undefined });
+    const month = parsedPeriod.month ?? now.getMonth() + 1;
+    const year = parsedPeriod.year ?? now.getFullYear();
 
+    // Join kategori diikat pemiliknya agar metadata lintas user tak mungkin bocor.
     const categoryBreakdown = await query<{
       category_id: string;
       name: string;
@@ -21,7 +33,7 @@ export async function GET(req: NextRequest) {
       total_amount: string;
       transaction_count: string;
     }>(
-      `SELECT 
+      `SELECT
         COALESCE(c.id::text, 'other') as category_id,
         COALESCE(c.name, 'Lain-lain') as name,
         COALESCE(c.icon, 'dots-three') as icon,
@@ -29,14 +41,14 @@ export async function GET(req: NextRequest) {
         SUM(t.amount)::text as total_amount,
         COUNT(t.id)::text as transaction_count
        FROM transactions t
-       LEFT JOIN categories c ON t.category_id = c.id
-       WHERE t.user_id = $1 
-         AND t.type = $2 
-         AND EXTRACT(MONTH FROM t.date) = $3 
+       LEFT JOIN categories c ON t.category_id = c.id AND c.user_id = t.user_id
+       WHERE t.user_id = $1
+         AND t.type = $2
+         AND EXTRACT(MONTH FROM t.date) = $3
          AND EXTRACT(YEAR FROM t.date) = $4
        GROUP BY c.id, c.name, c.icon, c.color
        ORDER BY SUM(t.amount) DESC`,
-      [session.userId, type, month, year]
+      [session.userId, parsedType.type, month, year]
     );
 
     const totalSum = categoryBreakdown.reduce((acc, cur) => acc + parseFloat(cur.total_amount), 0);
@@ -61,8 +73,7 @@ export async function GET(req: NextRequest) {
         categories: data,
       },
     });
-  } catch (error: any) {
-    console.error('Get category report error:', error);
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+  } catch (error) {
+    return handleRouteError(error, 'reports:category');
   }
 }

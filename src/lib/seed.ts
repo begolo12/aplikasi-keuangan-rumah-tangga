@@ -1,4 +1,6 @@
-import { query, withTransaction } from './db';
+interface Queryable {
+  query: (text: string, values?: unknown[]) => Promise<{ rows: unknown[] }>;
+}
 
 export const DEFAULT_WALLETS = [
   { name: 'Dompet Tunai', type: 'cash', icon: 'money', color: 'emerald', balance: 0, is_default: true, sort_order: 1 },
@@ -31,32 +33,34 @@ export const DEFAULT_CATEGORIES = [
 /**
  * Seed standard wallets, categories, and settings for a newly registered user.
  */
-export async function seedUserData(userId: string, familyName: string = 'Keluarga Bahagia'): Promise<void> {
-  await withTransaction(async (client) => {
-    // 1. App settings
+export async function seedUserData(
+  client: Queryable,
+  userId: string,
+  familyName: string = 'Keluarga Bahagia'
+): Promise<void> {
+  // 1. App settings
+  await client.query(
+    `INSERT INTO app_settings (user_id, family_name, currency)
+     VALUES ($1, $2, 'IDR')
+     ON CONFLICT (user_id) DO NOTHING`,
+    [userId, familyName]
+  );
+
+  // 2. Wallets
+  for (const w of DEFAULT_WALLETS) {
     await client.query(
-      `INSERT INTO app_settings (user_id, family_name, currency)
-       VALUES ($1, $2, 'IDR')
-       ON CONFLICT (user_id) DO NOTHING`,
-      [userId, familyName]
+      `INSERT INTO wallets (user_id, name, type, balance, icon, color, is_default, sort_order)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+      [userId, w.name, w.type, w.balance, w.icon, w.color, w.is_default, w.sort_order]
     );
+  }
 
-    // 2. Wallets
-    for (const w of DEFAULT_WALLETS) {
-      await client.query(
-        `INSERT INTO wallets (user_id, name, type, balance, icon, color, is_default, sort_order)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-        [userId, w.name, w.type, w.balance, w.icon, w.color, w.is_default, w.sort_order]
-      );
-    }
-
-    // 3. Categories
-    for (const c of DEFAULT_CATEGORIES) {
-      await client.query(
-        `INSERT INTO categories (user_id, name, type, icon, color, is_default, sort_order)
-         VALUES ($1, $2, $3, $4, $5, TRUE, $6)`,
-        [userId, c.name, c.type, c.icon, c.color, c.sort_order]
-      );
-    }
-  });
+  // 3. Categories
+  for (const c of DEFAULT_CATEGORIES) {
+    await client.query(
+      `INSERT INTO categories (user_id, name, type, icon, color, is_default, sort_order)
+       VALUES ($1, $2, $3, $4, $5, TRUE, $6)`,
+      [userId, c.name, c.type, c.icon, c.color, c.sort_order]
+    );
+  }
 }

@@ -3,11 +3,11 @@ import bcrypt from 'bcryptjs';
 import { query } from '@/lib/db';
 import { loginSchema } from '@/lib/validations';
 import { createSessionToken, setSessionCookie } from '@/lib/auth';
+import { handleRouteError, readJsonBody } from '@/lib/apiHelpers';
 
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json();
-    const validated = loginSchema.parse(body);
+    const validated = loginSchema.parse(await readJsonBody(req));
 
     const users = await query<{
       id: string;
@@ -55,12 +55,7 @@ export async function POST(req: NextRequest) {
 
     setSessionCookie(res, token);
     return res;
-  } catch (error: any) {
-    if (error.name === 'ZodError') {
-      return NextResponse.json({ success: false, error: error.errors[0].message }, { status: 400 });
-    }
-    console.error('Login error:', error);
-    const clientMessage = process.env.NODE_ENV === 'production' ? 'Terjadi kesalahan pada server saat login' : (error.message || 'Login gagal');
-    return NextResponse.json({ success: false, error: clientMessage }, { status: 500 });
+  } catch (error) {
+    return handleRouteError(error, 'auth:login');
   }
 }

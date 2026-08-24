@@ -1,12 +1,12 @@
 'use client';
 
-import React from 'react';
 import {
   House,
   ListDashes,
   Vault,
   Receipt,
   Wallet,
+  HandCoins,
   ChartPieSlice,
   Gear,
   Plus,
@@ -37,6 +37,7 @@ export function SidebarNav({
     { id: 'transactions', label: 'Riwayat Transaksi', icon: ListDashes },
     { id: 'budget', label: 'Anggaran Bulanan', icon: Vault },
     { id: 'bills', label: 'Tagihan Rutin', icon: Receipt },
+    { id: 'debts', label: 'Hutang & Piutang', icon: HandCoins },
     { id: 'wallets', label: 'Pos Kas & Dompet', icon: Wallet },
     { id: 'reports', label: 'Laporan & Ekspor', icon: ChartPieSlice },
     { id: 'settings', label: 'Pengaturan & Backup', icon: Gear },
@@ -93,13 +94,21 @@ export function SidebarNav({
       <div className="space-y-4 pt-4 border-t border-border">
         {/* Keyboard shortcut guide */}
         <div className="bg-background/50 p-2.5 rounded-xl border border-border/60 text-[11px] text-text-muted space-y-1 hidden lg:block">
-          <div className="flex items-center gap-1 font-semibold text-text">
+          <div className="flex items-center gap-1 font-semibold text-text mb-1">
             <Keyboard size={14} />
             <span>Pintasan Keyboard</span>
           </div>
           <div className="flex justify-between">
-            <span>Transaksi Baru</span>
-            <kbd className="bg-surface px-1.5 rounded border text-[10px] font-mono">N</kbd>
+            <span>Pengeluaran</span>
+            <kbd className="bg-surface px-1.5 rounded border text-[10px] font-mono">E</kbd>
+          </div>
+          <div className="flex justify-between">
+            <span>Pemasukan</span>
+            <kbd className="bg-surface px-1.5 rounded border text-[10px] font-mono">I</kbd>
+          </div>
+          <div className="flex justify-between">
+            <span>Transfer</span>
+            <kbd className="bg-surface px-1.5 rounded border text-[10px] font-mono">T</kbd>
           </div>
           <div className="flex justify-between">
             <span>Tutup Dialog</span>

@@ -1,46 +1,39 @@
 import { NextRequest, NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
-import { query } from '@/lib/db';
+import { withTransaction } from '@/lib/db';
 import { registerSchema } from '@/lib/validations';
 import { createSessionToken, setSessionCookie } from '@/lib/auth';
 import { seedUserData } from '@/lib/seed';
+import { handleRouteError, BusinessError, readJsonBody } from '@/lib/apiHelpers';
 
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json();
-    const validated = registerSchema.parse(body);
+    const validated = registerSchema.parse(await readJsonBody(req));
+    const email = validated.email.toLowerCase();
 
-    // Check if email already exists
-    const existing = await query('SELECT id FROM users WHERE email = $1', [validated.email.toLowerCase()]);
-    if (existing.length > 0) {
-      return NextResponse.json(
-        { success: false, error: 'Email sudah terdaftar. Silakan gunakan email lain atau login.' },
-        { status: 400 }
+    // Cek email, insert user, dan seed default berjalan dalam SATU transaksi:
+    // gagal seed = gagal registrasi, tidak ada user setengah jadi.
+    const newUser = await withTransaction(async (client) => {
+      const existing = await client.query('SELECT id FROM users WHERE email = $1', [email]);
+      if (existing.rows.length > 0) {
+        throw new BusinessError('Email sudah terdaftar. Silakan gunakan email lain atau login.');
+      }
+
+      const salt = await bcrypt.genSalt(10);
+      const passwordHash = await bcrypt.hash(validated.password, salt);
+
+      const users = await client.query<{ id: string; name: string; email: string; family_name: string }>(
+        `INSERT INTO users (name, email, password_hash, family_name)
+         VALUES ($1, $2, $3, $4)
+         RETURNING id, name, email, family_name`,
+        [validated.name, email, passwordHash, validated.family_name || 'Keluarga Bahagia']
       );
-    }
 
-    // Hash password
-    const salt = await bcrypt.genSalt(10);
-    const passwordHash = await bcrypt.hash(validated.password, salt);
+      const created = users.rows[0];
+      await seedUserData(client, created.id, created.family_name);
+      return created;
+    });
 
-    // Insert user
-    const users = await query<{ id: string; name: string; email: string; family_name: string }>(
-      `INSERT INTO users (name, email, password_hash, family_name)
-       VALUES ($1, $2, $3, $4)
-       RETURNING id, name, email, family_name`,
-      [validated.name, validated.email.toLowerCase(), passwordHash, validated.family_name || 'Keluarga Bahagia']
-    );
-
-    const newUser = users[0];
-
-    // Seed default wallets and categories for this user
-    try {
-      await seedUserData(newUser.id, newUser.family_name);
-    } catch (seedErr) {
-      console.warn('Seed warning:', seedErr);
-    }
-
-    // Create session token
     const token = await createSessionToken({
       userId: newUser.id,
       email: newUser.email,
@@ -60,18 +53,13 @@ export async function POST(req: NextRequest) {
 
     setSessionCookie(res, token);
     return res;
-  } catch (error: any) {
-    if (error.name === 'ZodError') {
-      return NextResponse.json({ success: false, error: error.errors[0].message }, { status: 400 });
-    }
-    if (error.code === '23505') {
-      return NextResponse.json(
-        { success: false, error: 'Email sudah terdaftar. Silakan gunakan email lain atau login.' },
-        { status: 400 }
+  } catch (error) {
+    if ((error as { code?: string }).code === '23505') {
+      return handleRouteError(
+        new BusinessError('Email sudah terdaftar. Silakan gunakan email lain atau login.'),
+        'register'
       );
     }
-    console.error('Register error:', error);
-    const clientMessage = process.env.NODE_ENV === 'production' ? 'Terjadi kesalahan pada server saat registrasi' : (error.message || 'Registrasi gagal');
-    return NextResponse.json({ success: false, error: clientMessage }, { status: 500 });
+    return handleRouteError(error, 'register');
   }
 }

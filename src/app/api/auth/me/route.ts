@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthSession } from '@/lib/auth';
 import { query } from '@/lib/db';
-
+import { handleRouteError } from '@/lib/apiHelpers';
 export async function GET(req: NextRequest) {
   try {
     const session = await getAuthSession(req);
@@ -23,8 +23,7 @@ export async function GET(req: NextRequest) {
     }
 
     return NextResponse.json({ success: true, data: users[0] });
-  } catch (error: any) {
-    console.error('Auth me error:', error);
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+  } catch (error) {
+    return handleRouteError(error, 'auth:me');
   }
 }

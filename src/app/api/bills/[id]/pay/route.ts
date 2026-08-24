@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthSession } from '@/lib/auth';
 import { withTransaction } from '@/lib/db';
-import { payBillSchema } from '@/lib/validations';
+import { payBillSchema, uuidIdParam } from '@/lib/validations';
+import { handleRouteError, BusinessError, readJsonBody } from '@/lib/apiHelpers';
 import { formatRupiah } from '@/lib/formatters';
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -10,12 +11,13 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     if (!session) return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
 
     const { id } = await params;
-    const body = await req.json();
-    const validated = payBillSchema.parse(body);
+    uuidIdParam.parse(id);
+    const validated = payBillSchema.parse(await readJsonBody(req));
 
-    const paidDate = new Date(validated.paid_date);
-    const month = paidDate.getMonth() + 1;
-    const year = paidDate.getFullYear();
+    // Parse langsung dari string YYYY-MM-DD: aman dari pergeseran zona waktu.
+    const [yearPart, monthPart] = validated.paid_date.split('-');
+    const month = parseInt(monthPart, 10);
+    const year = parseInt(yearPart, 10);
 
     const result = await withTransaction(async (client) => {
       // 1. Fetch bill details
@@ -25,12 +27,19 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       );
 
       if (billRows.rows.length === 0) {
-        throw new Error('Tagihan tidak ditemukan.');
+        throw new BusinessError('Tagihan tidak ditemukan.', 404);
       }
 
       const bill = billRows.rows[0];
-      const amountToPay = validated.amount || parseFloat(bill.amount);
+      const billNominal = parseFloat(bill.amount);
+      const amountToPay = validated.amount || billNominal;
 
+      // Tolak overpay: pembayaran tidak boleh melebihi nominal tagihan.
+      if (validated.amount && validated.amount > billNominal) {
+        throw new BusinessError(
+          `Nominal pembayaran melebihi tagihan. (Tagihan: ${formatRupiah(billNominal)})`
+        );
+      }
       // 2. Check if already paid for this month
       const existingPay = await client.query(
         'SELECT id FROM bill_payments WHERE user_id = $1 AND bill_id = $2 AND month = $3 AND year = $4',
@@ -38,7 +47,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       );
 
       if (existingPay.rows.length > 0) {
-        throw new Error(`Tagihan "${bill.title}" sudah lunas untuk periode ${month}/${year}.`);
+        throw new BusinessError(`Tagihan "${bill.title}" sudah lunas untuk periode ${month}/${year}.`);
       }
 
       // 3. Lock and check wallet balance
@@ -48,22 +57,22 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       );
 
       if (walletRows.rows.length === 0) {
-        throw new Error('Dompet pembayaran tidak ditemukan.');
+        throw new BusinessError('Dompet pembayaran tidak ditemukan.', 404);
       }
 
       const wallet = walletRows.rows[0];
       const balance = parseFloat(wallet.balance);
 
       if (balance < amountToPay) {
-        throw new Error(
+        throw new BusinessError(
           `Saldo ${wallet.name} tidak mencukupi untuk membayar tagihan ini. (Tersedia: ${formatRupiah(balance)}, Tagihan: ${formatRupiah(amountToPay)})`
         );
       }
 
       // 4. Debit wallet balance
       await client.query(
-        'UPDATE wallets SET balance = balance - $1, updated_at = NOW() WHERE id = $2',
-        [amountToPay, validated.wallet_id]
+        'UPDATE wallets SET balance = balance - $1, updated_at = NOW() WHERE id = $2 AND user_id = $3',
+        [amountToPay, validated.wallet_id, session.userId]
       );
 
       // 5. Insert transaction record
@@ -93,11 +102,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     });
 
     return NextResponse.json({ success: true, message: 'Tagihan berhasil dibayar.', data: result });
-  } catch (error: any) {
-    if (error.name === 'ZodError') {
-      return NextResponse.json({ success: false, error: error.errors[0].message }, { status: 400 });
-    }
-    console.error('Pay bill error:', error);
-    return NextResponse.json({ success: false, error: error.message || 'Gagal memproses pembayaran' }, { status: 400 });
+  } catch (error) {
+    return handleRouteError(error, 'bills:pay');
   }
 }
