@@ -3,6 +3,17 @@
 Log eksekusi plan. Entri baru ditambahkan di bagian paling atas.
 Format entri lihat `AGENTS.md` bagian "Langkah 3 — Catat ke Changelog".
 
+## [2026-08-24] Redesain Total Hierarki Visual & Layout Dashboard Beranda
+
+**Plan**: `docs/plans/2026-08-24-redesain-hierarki-visual-dashboard-beranda.md`
+
+### Berubah
+- **Restrukturisasi Aksi Cepat (Quick Actions)**: Membagi menu aksi menjadi 2 kelompok proporsional tanpa ada item yang patah baris sendirian:
+  1. *3 Tombol Utama Transaksi (Hero Action Buttons)*: Pengeluaran, Pemasukan, dan Transfer kas langsung.
+  2. *6 Pintasan Modul Simetris*: Anggaran, Tagihan, Hutang, Aset, Laporan, dan Evaluasi.
+- **Redesain Kartu Saldo & Likuiditas (Balance Header)**: Mengubah label menjadi "Total Saldo Kas & Likuiditas", memperbesar tipografi angka saldo (`text-2xl sm:text-3xl font-extrabold`), dan menyatukan sub-kartu *Safe-to-Spend* berdesain *glassmorphism* yang rapi.
+- **Penyempurnaan Pos Kas & Ringkasan Arus Kas**: Mengharmonisasikan kartu dompet rekening dan ringkasan arus kas dengan kontras warna yang nyaman dan perataan angka tabular yang presisi.
+
 ## [2026-08-24] Audit Visual Komprehensif & Redesain Sidebar Modern Kelas Atas
 
 **Plan**: `docs/plans/2026-08-24-audit-visual-dan-redesain-sidebar-modern.md`
