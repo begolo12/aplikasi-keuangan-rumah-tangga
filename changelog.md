@@ -3,6 +3,19 @@
 Log eksekusi plan. Entri baru ditambahkan di bagian paling atas.
 Format entri lihat `AGENTS.md` bagian "Langkah 3 — Catat ke Changelog".
 
+## [2026-08-24] Sidebar Kompak Bertingkat dengan Section Head dan Sub-Menu
+
+**Plan**: `docs/plans/2026-08-24-sidebar-kompak-bertingkat-head-submenu.md`
+
+### Berubah
+- **Struktur Menu Bertingkat (Section Heads & Sub-Menu)**: Merestrukturisasi navigasi sidebar desktop pada [SidebarNav.tsx](file:///f:/APLIKASI-KEUANGAN-GANANG/src/components/layout/SidebarNav.tsx) ke dalam 5 kelompok logis:
+  1. **Utama**: Beranda & Riwayat Transaksi.
+  2. **Kas & Anggaran**: Pos Kas & Rekening, Anggaran Bulanan, Tagihan Rutin.
+  3. **Aset & Kewajiban**: Aset & Depresiasi, Hutang & Piutang.
+  4. **Laporan & Evaluasi**: Laporan & Ekspor, Evaluasi Arus Kas.
+  5. **Sistem**: Pengaturan & Backup.
+- **Densitas Tinggi & Ramping**: Memadatkan padding container (`p-3.5`), ukuran tinggi tombol menu (`py-1.5 px-2.5` dengan font `text-xs` dan ikon `17px`), serta kotak pintasan keyboard dan avatar profil sehingga muat 15+ sub-menu tanpa scroll panjang.
+
 ## [2026-08-24] Rebranding KasPribadi & Fitur Manajemen Aset dan Depresiasi
 
 **Plan**: `docs/plans/2026-08-24-fitur-kaspribadi-dan-manajemen-aset-depresiasi.md`
