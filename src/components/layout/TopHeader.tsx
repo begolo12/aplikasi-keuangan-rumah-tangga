@@ -1,7 +1,16 @@
 'use client';
 
-import React from 'react';
-import { CaretLeft, CaretRight, User, SignOut, Calendar } from '@phosphor-icons/react';
+import React, { useState, useRef, useEffect } from 'react';
+import {
+  CaretLeft,
+  CaretRight,
+  User,
+  SignOut,
+  Calendar,
+  Gear,
+  UserCircle,
+  CaretDown,
+} from '@phosphor-icons/react';
 import { INDONESIAN_MONTHS } from '@/lib/formatters';
 
 interface TopHeaderProps {
@@ -9,7 +18,9 @@ interface TopHeaderProps {
   currentYear: number;
   onPeriodChange: (month: number, year: number) => void;
   userName?: string;
+  userEmail?: string;
   familyName?: string;
+  onNavigateToSettings?: () => void;
   onLogout: () => void;
 }
 
@@ -18,9 +29,39 @@ export function TopHeader({
   currentYear,
   onPeriodChange,
   userName = 'Pengguna',
+  userEmail,
   familyName = 'Keluarga Bahagia',
+  onNavigateToSettings,
   onLogout,
 }: TopHeaderProps) {
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  // Close dropdown on click outside or escape key
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setIsMenuOpen(false);
+      }
+    };
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setIsMenuOpen(false);
+      }
+    };
+
+    if (isMenuOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+      document.addEventListener('keydown', handleKeyDown);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isMenuOpen]);
+
   const handlePrevMonth = () => {
     if (currentMonth === 1) {
       onPeriodChange(12, currentYear - 1);
@@ -35,6 +76,18 @@ export function TopHeader({
     } else {
       onPeriodChange(currentMonth + 1, currentYear);
     }
+  };
+
+  const handleOpenSettings = () => {
+    setIsMenuOpen(false);
+    if (onNavigateToSettings) {
+      onNavigateToSettings();
+    }
+  };
+
+  const handleLogoutClick = () => {
+    setIsMenuOpen(false);
+    onLogout();
   };
 
   return (
@@ -66,27 +119,85 @@ export function TopHeader({
           </button>
         </div>
 
-        {/* User Info & Actions */}
-        <div className="flex items-center gap-3">
-          <div className="hidden md:flex flex-col items-end text-right">
-            <span className="text-xs font-bold text-text leading-tight">{userName}</span>
-            <span className="text-[11px] text-text-muted leading-tight">{familyName}</span>
-          </div>
-
-          <div className="w-9 h-9 bg-primary/10 text-primary border border-primary/20 rounded-xl flex items-center justify-center font-bold text-xs shrink-0">
-            <User size={18} weight="bold" />
-          </div>
-
+        {/* User Profile Avatar & Dropdown Menu */}
+        <div className="relative" ref={menuRef}>
           <button
             type="button"
-            onClick={onLogout}
-            aria-label="Keluar dari aplikasi"
-            title="Keluar"
-            className="hidden md:flex items-center gap-1.5 min-h-[44px] px-3 py-1.5 text-xs font-semibold text-text-muted hover:text-expense hover:bg-expense/10 rounded-xl border border-transparent hover:border-expense/20 transition-all"
+            onClick={() => setIsMenuOpen(!isMenuOpen)}
+            aria-label="Buka menu profil dan pengaturan"
+            className="flex items-center gap-2 p-1 sm:p-1.5 hover:bg-surface rounded-2xl border border-transparent hover:border-border transition-all active:scale-95 min-h-[40px]"
           >
-            <SignOut size={16} />
-            <span>Keluar</span>
+            <div className="hidden md:flex flex-col items-end text-right">
+              <span className="text-xs font-bold text-text leading-tight">{userName}</span>
+              <span className="text-[11px] text-text-muted leading-tight">{familyName}</span>
+            </div>
+
+            <div className="w-9 h-9 bg-primary/10 text-primary border border-primary/20 rounded-xl flex items-center justify-center font-bold text-xs shrink-0 shadow-2xs">
+              <User size={18} weight="bold" />
+            </div>
+
+            <CaretDown
+              size={12}
+              weight="bold"
+              className={`text-text-muted transition-transform duration-200 ${isMenuOpen ? 'rotate-180' : ''}`}
+            />
           </button>
+
+          {/* Profile Dropdown Sheet / Popover */}
+          {isMenuOpen && (
+            <div className="absolute right-0 top-full mt-2 w-64 bg-surface border border-border rounded-2xl shadow-xl p-2.5 z-50 animate-scale-in origin-top-right space-y-2">
+              {/* User Identity Header */}
+              <div className="p-2.5 bg-surface-2 rounded-xl space-y-1">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-lg bg-primary text-white flex items-center justify-center font-bold text-xs">
+                    {userName.charAt(0).toUpperCase()}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs font-bold text-text truncate">{userName}</p>
+                    <p className="text-[10px] text-text-muted truncate">{familyName}</p>
+                  </div>
+                </div>
+                {userEmail && (
+                  <p className="text-[10px] text-text-muted truncate pt-1 border-t border-border/50">
+                    {userEmail}
+                  </p>
+                )}
+              </div>
+
+              {/* Action Menu List */}
+              <div className="space-y-1 pt-1">
+                <button
+                  type="button"
+                  onClick={handleOpenSettings}
+                  className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-text hover:bg-surface-2 rounded-xl transition-colors text-left"
+                >
+                  <Gear size={16} weight="duotone" className="text-primary" />
+                  <span>Pengaturan & Backup</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleOpenSettings}
+                  className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-text hover:bg-surface-2 rounded-xl transition-colors text-left"
+                >
+                  <UserCircle size={16} weight="duotone" className="text-teal-600" />
+                  <span>Edit Profil & Keluarga</span>
+                </button>
+              </div>
+
+              {/* Logout Button */}
+              <div className="pt-1 border-t border-border">
+                <button
+                  type="button"
+                  onClick={handleLogoutClick}
+                  className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-bold text-expense hover:bg-expense/10 rounded-xl transition-colors text-left"
+                >
+                  <SignOut size={16} weight="bold" />
+                  <span>Keluar dari Akun</span>
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </header>

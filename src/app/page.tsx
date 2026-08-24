@@ -301,6 +301,7 @@ export default function MainPage() {
       currentYear={currentYear}
       onPeriodChange={handlePeriodChange}
       userName={user.name}
+      userEmail={user.email}
       familyName={settings?.family_name || user.family_name}
       userId={user.id}
       onLogout={handleLogout}

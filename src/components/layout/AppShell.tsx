@@ -19,6 +19,7 @@ interface AppShellProps {
   onPeriodChange: (month: number, year: number) => void;
   userName?: string;
   familyName?: string;
+  userEmail?: string;
   userId: string;
   onLogout: () => void;
   onDataRefresh?: () => void;
@@ -34,6 +35,7 @@ export function AppShell({
   currentYear,
   onPeriodChange,
   userName,
+  userEmail,
   familyName,
   userId,
   onLogout,
@@ -88,7 +90,9 @@ export function AppShell({
           currentYear={currentYear}
           onPeriodChange={onPeriodChange}
           userName={userName}
+          userEmail={userEmail}
           familyName={familyName}
+          onNavigateToSettings={() => onTabChange('settings')}
           onLogout={onLogout}
         />
 

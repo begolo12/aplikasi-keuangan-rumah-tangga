@@ -3,6 +3,15 @@
 Log eksekusi plan. Entri baru ditambahkan di bagian paling atas.
 Format entri lihat `AGENTS.md` bagian "Langkah 3 — Catat ke Changelog".
 
+## [2026-08-24] Menu Profil, Pengaturan & Edit Akun di Top Header Mobile
+
+**Plan**: `docs/plans/2026-08-24-menu-profile-pengaturan-mobile.md`
+
+### Berubah
+- **Menu Dropdown Profil Header**: Menambahkan dropdown popover interaktif pada tombol avatar profil di [TopHeader.tsx](file:///f:/APLIKASI-KEUANGAN-GANANG/src/components/layout/TopHeader.tsx) yang mudah diakses di smartphone dan desktop.
+- **Navigasi Lengkap Profil**: Menyediakan badge identitas (nama pengguna, email, nama keluarga), tombol akses langsung ke "Pengaturan & Backup", tombol "Edit Profil & Keluarga", serta tombol "Keluar dari Akun" (logout).
+- **Penutupan Responsif**: Menambahkan deteksi klik di luar (outside click) dan tombol Escape untuk menutup menu secara mulus.
+
 ## [2026-08-24] Perbaikan Parsing Sesi Auth & Redirect Login
 
 **Plan**: `docs/plans/2026-08-24-perbaikan-auth-session-login-redirect.md`
