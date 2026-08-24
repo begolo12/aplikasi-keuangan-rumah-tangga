@@ -1,5 +1,4 @@
-'use client';
-
+import React, { useState, useRef, useEffect } from 'react';
 import {
   House,
   ListDashes,
@@ -12,13 +11,19 @@ import {
   Plus,
   SignOut,
   Keyboard,
+  CaretDown,
+  ArrowDownRight,
+  ArrowUpRight,
+  ArrowsLeftRight,
 } from '@phosphor-icons/react';
 import { NavTab } from './BottomNav';
+import { TransactionType } from '@/lib/types';
 
 interface SidebarNavProps {
   activeTab: NavTab;
   onTabChange: (tab: NavTab) => void;
   onOpenAddModal: () => void;
+  onOpenTypedModal?: (type: TransactionType) => void;
   userName?: string;
   familyName?: string;
   onLogout: () => void;
@@ -28,10 +33,43 @@ export function SidebarNav({
   activeTab,
   onTabChange,
   onOpenAddModal,
+  onOpenTypedModal,
   userName = 'Pengguna',
   familyName = 'Keluarga Bahagia',
   onLogout,
 }: SidebarNavProps) {
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setIsDropdownOpen(false);
+      }
+    };
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setIsDropdownOpen(false);
+    };
+
+    if (isDropdownOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+      document.addEventListener('keydown', handleKeyDown);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isDropdownOpen]);
+
+  const handleSelectType = (type: TransactionType) => {
+    setIsDropdownOpen(false);
+    if (onOpenTypedModal) {
+      onOpenTypedModal(type);
+    } else {
+      onOpenAddModal();
+    }
+  };
+
   const NAV_ITEMS: { id: NavTab; label: string; icon: React.ElementType }[] = [
     { id: 'dashboard', label: 'Beranda', icon: House },
     { id: 'transactions', label: 'Riwayat Transaksi', icon: ListDashes },
@@ -57,15 +95,104 @@ export function SidebarNav({
           </div>
         </div>
 
-        {/* Quick Add Button */}
-        <button
-          onClick={onOpenAddModal}
-          className="w-full h-11 bg-primary hover:bg-primary-hover text-primary-fg font-bold rounded-2xl flex items-center justify-center gap-2 shadow-sm active:scale-98 transition-all text-sm"
-        >
-          <Plus size={18} weight="bold" />
-          <span>Catat Transaksi</span>
-          <span className="ml-auto text-[10px] bg-white/20 px-1.5 py-0.5 rounded-md font-mono">N</span>
-        </button>
+        {/* Quick Add Button with Dropdown Popover */}
+        <div className="relative" ref={dropdownRef}>
+          <button
+            type="button"
+            onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+            aria-expanded={isDropdownOpen}
+            aria-haspopup="true"
+            className="w-full h-11 bg-primary hover:bg-primary-hover text-primary-fg font-bold rounded-2xl flex items-center justify-between px-3.5 shadow-sm active:scale-98 transition-all text-sm group"
+          >
+            <div className="flex items-center gap-2">
+              <Plus size={18} weight="bold" />
+              <span>Catat Transaksi</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="text-[10px] bg-white/20 px-1.5 py-0.5 rounded-md font-mono">N</span>
+              <CaretDown
+                size={14}
+                weight="bold"
+                className={`transition-transform duration-200 ${isDropdownOpen ? 'rotate-180' : ''}`}
+              />
+            </div>
+          </button>
+
+          {/* Dropdown Menu */}
+          {isDropdownOpen && (
+            <div className="absolute left-0 right-0 top-full mt-2 z-50 bg-surface border border-border rounded-2xl shadow-xl p-1.5 space-y-1 animate-in fade-in zoom-in-95 duration-150">
+              <div className="px-2.5 py-1 text-[10px] font-bold text-text-muted uppercase tracking-wider">
+                Pilih Jenis Transaksi
+              </div>
+
+              {/* Option 1: Pengeluaran */}
+              <button
+                type="button"
+                onClick={() => handleSelectType('expense')}
+                className="w-full flex items-center justify-between p-2 rounded-xl hover:bg-expense/10 text-left transition-colors group"
+              >
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className="w-8 h-8 rounded-lg bg-expense/10 text-expense flex items-center justify-center shrink-0 border border-expense/20">
+                    <ArrowDownRight size={17} weight="bold" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-xs font-bold text-text group-hover:text-expense transition-colors">
+                      Pengeluaran
+                    </p>
+                    <p className="text-[10px] text-text-muted truncate">Belanja & uang keluar</p>
+                  </div>
+                </div>
+                <kbd className="bg-surface-2 border border-border px-1.5 py-0.5 rounded text-[10px] font-mono text-text-muted">
+                  E
+                </kbd>
+              </button>
+
+              {/* Option 2: Pemasukan */}
+              <button
+                type="button"
+                onClick={() => handleSelectType('income')}
+                className="w-full flex items-center justify-between p-2 rounded-xl hover:bg-income/10 text-left transition-colors group"
+              >
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className="w-8 h-8 rounded-lg bg-income/10 text-income flex items-center justify-center shrink-0 border border-income/20">
+                    <ArrowUpRight size={17} weight="bold" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-xs font-bold text-text group-hover:text-income transition-colors">
+                      Pemasukan
+                    </p>
+                    <p className="text-[10px] text-text-muted truncate">Gaji, bonus & dividen</p>
+                  </div>
+                </div>
+                <kbd className="bg-surface-2 border border-border px-1.5 py-0.5 rounded text-[10px] font-mono text-text-muted">
+                  I
+                </kbd>
+              </button>
+
+              {/* Option 3: Transfer */}
+              <button
+                type="button"
+                onClick={() => handleSelectType('transfer')}
+                className="w-full flex items-center justify-between p-2 rounded-xl hover:bg-transfer/10 text-left transition-colors group"
+              >
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className="w-8 h-8 rounded-lg bg-transfer/10 text-transfer flex items-center justify-center shrink-0 border border-transfer/20">
+                    <ArrowsLeftRight size={17} weight="bold" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-xs font-bold text-text group-hover:text-transfer transition-colors">
+                      Transfer Dompet
+                    </p>
+                    <p className="text-[10px] text-text-muted truncate">Pindah saldo kas/bank</p>
+                  </div>
+                </div>
+                <kbd className="bg-surface-2 border border-border px-1.5 py-0.5 rounded text-[10px] font-mono text-text-muted">
+                  T
+                </kbd>
+              </button>
+            </div>
+          )}
+        </div>
 
         {/* Navigation Links */}
         <nav className="space-y-1">

@@ -74,6 +74,7 @@ export function AppShell({
         activeTab={activeTab}
         onTabChange={onTabChange}
         onOpenAddModal={onOpenAddModal}
+        onOpenTypedModal={onOpenTypedModal}
         userName={userName}
         familyName={familyName}
         onLogout={onLogout}

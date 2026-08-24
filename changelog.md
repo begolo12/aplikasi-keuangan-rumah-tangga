@@ -3,6 +3,15 @@
 Log eksekusi plan. Entri baru ditambahkan di bagian paling atas.
 Format entri lihat `AGENTS.md` bagian "Langkah 3 — Catat ke Changelog".
 
+## [2026-08-24] Fitur Dropdown Menu Catat Transaksi di Sidebar
+
+**Plan**: `docs/plans/2026-08-24-fitur-dropdown-catat-transaksi-sidebar.md`
+
+### Berubah
+- **Menu Dropdown Tombol Catat Transaksi**: Memperbarui [SidebarNav.tsx](file:///f:/APLIKASI-KEUANGAN-GANANG/src/components/layout/SidebarNav.tsx) dengan menambahkan popover dropdown interaktif pada tombol "+ Catat Transaksi". Menampilkan pilihan instan jenis transaksi: Pengeluaran (E), Pemasukan (I), dan Transfer Dompet (T).
+- **Deteksi Klik Luar & Keyboard Escape**: Dilengkapi dengan event listener outside click dan tombol Escape agar menu tertutup mulus ketika user mengeklik bagian lain layar.
+- **Penyambungan Prop Handler**: Meneruskan prop `onOpenTypedModal` dari [AppShell.tsx](file:///f:/APLIKASI-KEUANGAN-GANANG/src/components/layout/AppShell.tsx) ke [SidebarNav.tsx](file:///f:/APLIKASI-KEUANGAN-GANANG/src/components/layout/SidebarNav.tsx).
+
 ## [2026-08-24] Desain Kompak Mobile & Efisiensi Layar Minimal Scroll
 
 **Plan**: `docs/plans/2026-08-24-desain-kompak-mobile-minimal-scroll.md`
