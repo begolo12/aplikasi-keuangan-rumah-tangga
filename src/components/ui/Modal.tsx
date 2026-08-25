@@ -1,5 +1,18 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useSyncExternalStore } from 'react';
+import { createPortal } from 'react-dom';
 import { X } from '@phosphor-icons/react';
+
+function subscribe() {
+  return () => {};
+}
+
+function getSnapshot() {
+  return true;
+}
+
+function getServerSnapshot() {
+  return false;
+}
 
 interface ModalProps {
   isOpen: boolean;
@@ -10,6 +23,7 @@ interface ModalProps {
 }
 
 export function Modal({ isOpen, onClose, title, children, maxWidth = 'md' }: ModalProps) {
+  const mounted = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
   const containerRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -59,7 +73,7 @@ export function Modal({ isOpen, onClose, title, children, maxWidth = 'md' }: Mod
     };
   }, [isOpen, onClose]);
 
-  if (!isOpen) return null;
+  if (!isOpen || !mounted) return null;
 
   const ariaLabel = typeof title === 'string' ? title : undefined;
 
@@ -70,11 +84,11 @@ export function Modal({ isOpen, onClose, title, children, maxWidth = 'md' }: Mod
     xl: 'md:max-w-xl',
   };
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center">
+  const modalContent = (
+    <div className="fixed inset-0 z-[999] flex items-end md:items-center justify-center">
       {/* Backdrop */}
       <div
-        className="fixed inset-0 bg-black/40 backdrop-blur-sm transition-opacity animate-fade-in"
+        className="fixed inset-0 bg-black/60 backdrop-blur-sm transition-opacity animate-fade-in"
         onClick={onClose}
       />
 
@@ -84,7 +98,7 @@ export function Modal({ isOpen, onClose, title, children, maxWidth = 'md' }: Mod
         role="dialog"
         aria-modal="true"
         aria-label={ariaLabel}
-        className={`relative z-10 w-full ${maxWidthClasses[maxWidth]} max-h-[88dvh] md:max-h-[85vh] bg-surface rounded-t-3xl md:rounded-3xl shadow-xl flex flex-col overflow-hidden border border-border transition-transform animate-slide-up md:animate-scale-in`}
+        className={`relative z-10 w-full ${maxWidthClasses[maxWidth]} max-h-[88dvh] md:max-h-[85vh] bg-surface rounded-t-3xl md:rounded-3xl shadow-2xl flex flex-col overflow-hidden border border-border transition-transform animate-slide-up md:animate-scale-in`}
       >
         {/* Mobile Drag Indicator Handle */}
         <div className="md:hidden flex justify-center pt-3 pb-1 shrink-0">
@@ -105,10 +119,12 @@ export function Modal({ isOpen, onClose, title, children, maxWidth = 'md' }: Mod
         </div>
 
         {/* Modal Body */}
-        <div className="p-4 sm:p-6 pb-[max(env(safe-area-inset-bottom),2rem)] sm:pb-6 overflow-y-auto overflow-x-hidden flex-1 overscroll-contain">
+        <div className="p-4 sm:p-6 pb-[max(env(safe-area-inset-bottom),2.5rem)] sm:pb-6 overflow-y-auto overflow-x-hidden flex-1 overscroll-contain">
           {children}
         </div>
       </div>
     </div>
   );
+
+  return createPortal(modalContent, document.body);
 }
