@@ -469,7 +469,7 @@ export default function MainPage() {
 
       {/* Mobile Back Exit Toast */}
       {exitToast && (
-        <div className="fixed bottom-20 left-1/2 -translate-x-1/2 z-50 bg-text text-background px-4 py-2.5 rounded-2xl shadow-xl text-xs font-bold animate-fade-in flex items-center gap-2 pointer-events-none">
+        <div className="fixed bottom-[calc(5.5rem+env(safe-area-inset-bottom))] left-1/2 -translate-x-1/2 z-50 bg-text text-background px-4 py-2.5 rounded-2xl shadow-xl text-xs font-bold animate-fade-in flex items-center gap-2 pointer-events-none whitespace-nowrap">
           <span>Tekan sekali lagi untuk keluar dari aplikasi</span>
         </div>
       )}

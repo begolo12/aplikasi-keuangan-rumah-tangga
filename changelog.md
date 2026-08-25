@@ -3,6 +3,16 @@
 Log eksekusi plan. Entri baru ditambahkan di bagian paling atas.
 Format entri lihat `AGENTS.md` bagian "Langkah 3 — Catat ke Changelog".
 
+## [2026-08-25] Audit & Perbaikan Tampilan Handphone, Bottom Bar, dan Modal Overlap
+
+**Plan**: `docs/plans/2026-08-25-audit-perbaikan-tampilan-mobile-bottom-nav-dan-modal.md`
+
+### Berubah
+- **Modal Safe Area & Dynamic Viewport**: Menambahkan safe-area bottom padding (`pb-[max(env(safe-area-inset-bottom),2rem)]`) dan dynamic viewport height (`max-h-[88dvh]`) pada [Modal.tsx](file:///f:/APLIKASI-KEUANGAN-GANANG/src/components/ui/Modal.tsx) sehingga tombol aksi simpan (Simpan Pengeluaran, Pemasukan, Tagihan, Hutang, Aset, dll.) tidak lagi terpotong, mepet ke tepi bawah layar, atau tertutup bilah navigasi/keyboard pada HP.
+- **Perbaikan Z-Index Bottom Sheet "Lainnya"**: Menyesuaikan z-index More Bottom Sheet dan backdrop di [BottomNav.tsx](file:///f:/APLIKASI-KEUANGAN-GANANG/src/components/layout/BottomNav.tsx) menjadi `z-50` (sebelumnya `z-35` yang berada di bawah nav bar `z-40`, mengakibatkan tombol di baris bawah tertindih nav bar dan tidak bisa disentuh).
+- **Padding Konten Utama Aman**: Memperbarui padding bawah kontainer utama di [AppShell.tsx](file:///f:/APLIKASI-KEUANGAN-GANANG/src/components/layout/AppShell.tsx) menjadi `pb-[calc(6.5rem+env(safe-area-inset-bottom))]` agar seluruh daftar transaksi dan tombol terbawah halaman bebas dari tumpukan bottom nav bar.
+- **Penataan Elemen Mengambang**: Memperbarui posisi floating toast di [page.tsx](file:///f:/APLIKASI-KEUANGAN-GANANG/src/app/page.tsx) dan prompt pemasangan iOS di [IosInstallPrompt.tsx](file:///f:/APLIKASI-KEUANGAN-GANANG/src/components/layout/IosInstallPrompt.tsx) menggunakan kalkulasi `bottom-[calc(5.5rem+env(safe-area-inset-bottom))]` agar tidak saling bertabrakan.
+
 ## [2026-08-25] Perbaikan Kehalusan Animasi Transisi Tema
 
 **Plan**: `docs/plans/2026-08-25-tombol-switch-darkmode-dashboard-animasi.md` (revisi lanjutan)

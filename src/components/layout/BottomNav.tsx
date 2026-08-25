@@ -177,16 +177,15 @@ export function BottomNav({
 
       {/* More Sheet Overlay */}
       {isMoreOpen && (
-        <div className="md:hidden fixed inset-0 z-30 bg-black/40 backdrop-blur-xs" onClick={() => setIsMoreOpen(false)} />
+        <div className="md:hidden fixed inset-0 z-50 bg-black/40 backdrop-blur-xs animate-fade-in" onClick={() => setIsMoreOpen(false)} />
       )}
 
       {/* More Bottom Sheet */}
       <div
         ref={sheetRef}
-        className={`md:hidden fixed bottom-0 left-0 right-0 z-35 bg-surface border-t border-border rounded-t-3xl shadow-2xl transition-transform duration-300 ease-out pb-[max(env(safe-area-inset-bottom),1rem)] ${
-          isMoreOpen ? 'translate-y-0' : 'translate-y-full'
+        className={`md:hidden fixed bottom-0 left-0 right-0 z-50 bg-surface border-t border-border rounded-t-3xl shadow-2xl transition-transform duration-300 ease-out pb-[max(env(safe-area-inset-bottom),1.5rem)] ${
+          isMoreOpen ? 'translate-y-0' : 'translate-y-full pointer-events-none'
         }`}
-        style={{ zIndex: 35 }}
       >
         {/* Sheet Handle */}
         <div className="flex justify-center pt-3 pb-2">

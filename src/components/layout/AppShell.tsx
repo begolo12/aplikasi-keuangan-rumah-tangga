@@ -81,7 +81,7 @@ export function AppShell({
       />
 
       {/* Main Container Area */}
-      <div className="flex-1 flex flex-col min-w-0 pb-24 md:pb-8">
+      <div className="flex-1 flex flex-col min-w-0 pb-[calc(6.5rem+env(safe-area-inset-bottom))] md:pb-8">
         {/* Offline notification banner */}
         <OfflineBanner userId={userId} onSynced={onDataRefresh} />
 

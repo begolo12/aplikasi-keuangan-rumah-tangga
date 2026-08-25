@@ -84,7 +84,7 @@ export function Modal({ isOpen, onClose, title, children, maxWidth = 'md' }: Mod
         role="dialog"
         aria-modal="true"
         aria-label={ariaLabel}
-        className={`relative z-10 w-full ${maxWidthClasses[maxWidth]} max-h-[90vh] md:max-h-[85vh] bg-surface rounded-t-3xl md:rounded-3xl shadow-xl flex flex-col overflow-hidden border border-border transition-transform animate-slide-up md:animate-scale-in`}
+        className={`relative z-10 w-full ${maxWidthClasses[maxWidth]} max-h-[88dvh] md:max-h-[85vh] bg-surface rounded-t-3xl md:rounded-3xl shadow-xl flex flex-col overflow-hidden border border-border transition-transform animate-slide-up md:animate-scale-in`}
       >
         {/* Mobile Drag Indicator Handle */}
         <div className="md:hidden flex justify-center pt-3 pb-1 shrink-0">
@@ -92,7 +92,7 @@ export function Modal({ isOpen, onClose, title, children, maxWidth = 'md' }: Mod
         </div>
 
         {/* Modal Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-border shrink-0">
+        <div className="flex items-center justify-between px-5 sm:px-6 py-3.5 sm:py-4 border-b border-border shrink-0">
           <div className="text-base md:text-lg font-bold text-text">{title}</div>
           <button
             type="button"
@@ -105,7 +105,7 @@ export function Modal({ isOpen, onClose, title, children, maxWidth = 'md' }: Mod
         </div>
 
         {/* Modal Body */}
-        <div className="p-6 overflow-y-auto overflow-x-hidden flex-1 overscroll-contain">
+        <div className="p-4 sm:p-6 pb-[max(env(safe-area-inset-bottom),2rem)] sm:pb-6 overflow-y-auto overflow-x-hidden flex-1 overscroll-contain">
           {children}
         </div>
       </div>

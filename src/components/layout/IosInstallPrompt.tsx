@@ -34,7 +34,7 @@ export function IosInstallPrompt() {
   };
 
   return (
-    <div className="fixed bottom-20 left-4 right-4 z-40 bg-surface border border-border p-4 rounded-2xl shadow-xl animate-slide-up md:hidden">
+    <div className="fixed bottom-[calc(5.5rem+env(safe-area-inset-bottom))] left-4 right-4 z-40 bg-surface border border-border p-4 rounded-2xl shadow-xl animate-slide-up md:hidden">
       <div className="flex items-start justify-between">
         <div className="space-y-1 pr-2">
           <p className="text-xs font-bold text-text">Pasang KasKeluarga di iPhone Anda</p>
