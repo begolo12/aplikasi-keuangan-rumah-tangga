@@ -12,6 +12,7 @@ import {
   CaretDown,
 } from '@phosphor-icons/react';
 import { INDONESIAN_MONTHS } from '@/lib/formatters';
+import { ThemeToggle } from '@/components/ui/ThemeToggle';
 
 import { NavTab } from './BottomNav';
 
@@ -137,8 +138,12 @@ export function TopHeader({
           </div>
         )}
 
-        {/* User Profile Avatar & Dropdown Menu */}
-        <div className="relative" ref={menuRef}>
+        {/* Right Corner Actions: Theme Toggle & User Profile */}
+        <div className="flex items-center gap-1.5 sm:gap-2.5">
+          <ThemeToggle />
+
+          {/* User Profile Avatar & Dropdown Menu */}
+          <div className="relative" ref={menuRef}>
           <button
             type="button"
             onClick={() => setIsMenuOpen(!isMenuOpen)}
@@ -217,6 +222,7 @@ export function TopHeader({
             </div>
           )}
         </div>
+      </div>
       </div>
     </header>
   );

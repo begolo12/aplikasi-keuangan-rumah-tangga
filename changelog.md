@@ -3,6 +3,16 @@
 Log eksekusi plan. Entri baru ditambahkan di bagian paling atas.
 Format entri lihat `AGENTS.md` bagian "Langkah 3 — Catat ke Changelog".
 
+## [2026-08-25] Tombol Switch Dark Mode di Pojok Header & Animasi Transisi
+
+**Plan**: `docs/plans/2026-08-25-tombol-switch-darkmode-dashboard-animasi.md`
+
+### Berubah
+- **ThemeToggle Component**: Membuat komponen [ThemeToggle.tsx](file:///f:/APLIKASI-KEUANGAN-GANANG/src/components/ui/ThemeToggle.tsx) dengan knob meluncur halus, ikon Sun/Moon yang berotasi dan crossfade, serta dukungan View Transitions API untuk efek sapuan lingkaran (*circular reveal*).
+- **Penempatan Pojok Header**: Mengintegrasikan `ThemeToggle` pada [TopHeader.tsx](file:///f:/APLIKASI-KEUANGAN-GANANG/src/components/layout/TopHeader.tsx) di pojok kanan atas di samping menu profil, sehingga selalu dapat diakses di seluruh tab aplikasi.
+- **Sinkronisasi Multi-Arah**: Menghubungkan state tema antara switch di header dan segmented control di [SettingsView.tsx](file:///f:/APLIKASI-KEUANGAN-GANANG/src/components/settings/SettingsView.tsx) melalui event kustom `theme-changed`.
+- **CSS Keyframes & Animasi Global**: Menambahkan definisi keyframes `fadeIn`, `scaleIn`, `slideUp` dan aturan `@media (prefers-reduced-motion)` pada [globals.css](file:///f:/APLIKASI-KEUANGAN-GANANG/src/app/globals.css) untuk mengaktifkan animasi di modal, popover dropdown, dan notifikasi.
+
 ## [2026-08-25] Fitur Dark Mode & Tema Fleksibel (Terang / Gelap / Sistem)
 
 **Plan**: `docs/plans/2026-08-25-fitur-dark-mode.md`

@@ -39,7 +39,7 @@ export function SettingsView({ user, settings, onRefresh, onLogout }: SettingsVi
 
   useEffect(() => {
     let active = true;
-    Promise.resolve().then(() => {
+    const syncTheme = () => {
       if (!active) return;
       try {
         const saved = localStorage.getItem('theme');
@@ -51,9 +51,17 @@ export function SettingsView({ user, settings, onRefresh, onLogout }: SettingsVi
       } catch {
         setThemeMode('system');
       }
-    });
+    };
+
+    Promise.resolve().then(syncTheme);
+
+    window.addEventListener('theme-changed', syncTheme);
+    window.addEventListener('storage', syncTheme);
+
     return () => {
       active = false;
+      window.removeEventListener('theme-changed', syncTheme);
+      window.removeEventListener('storage', syncTheme);
     };
   }, []);
 
@@ -76,6 +84,7 @@ export function SettingsView({ user, settings, onRefresh, onLogout }: SettingsVi
           document.documentElement.classList.remove('dark');
         }
       }
+      window.dispatchEvent(new Event('theme-changed'));
     } catch {
       // Ignore localStorage errors in restricted environments
     }
