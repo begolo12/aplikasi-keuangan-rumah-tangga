@@ -64,6 +64,7 @@
     color: hsl(var(--color-text));
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
     padding-bottom: env(safe-area-inset-bottom);
+    transition: background-color 0.35s ease, color 0.35s ease;
   }
 }
 
@@ -152,16 +153,7 @@
 
 ::view-transition-new(root) {
   z-index: 9999;
-  animation: circleReveal 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.dark::view-transition-old(root) {
-  z-index: 9999;
-  animation: circleReveal 0.4s cubic-bezier(0.4, 0, 0.2, 1) reverse;
-}
-
-.dark::view-transition-new(root) {
-  z-index: 1;
+  animation: circleReveal 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 @keyframes circleReveal {

@@ -3,6 +3,15 @@
 Log eksekusi plan. Entri baru ditambahkan di bagian paling atas.
 Format entri lihat `AGENTS.md` bagian "Langkah 3 — Catat ke Changelog".
 
+## [2026-08-25] Perbaikan Kehalusan Animasi Transisi Tema
+
+**Plan**: `docs/plans/2026-08-25-tombol-switch-darkmode-dashboard-animasi.md` (revisi lanjutan)
+
+### Berubah
+- **Reveal Satu Arah Konsisten**: Menghapus selector ganda `.dark::view-transition-*` yang membuat arah dark→light memakai jalur animasi `reverse` berbeda dan terasa patah; kini light→dark maupun dark→light memakai satu animasi `circleReveal` identik.
+- **Easing & Durasi Baru**: Kurva `cubic-bezier(0.22, 1, 0.36, 1)` (ease-out quint) durasi 500ms dengan `animation-fill-mode: both` agar gerakan mengembang terasa lebih natural.
+- **Fallback Transisi Warna**: Menambahkan transisi `background-color`/`color` 350ms pada `body` untuk browser tanpa View Transitions API sehingga pergantian tema tetap lembut.
+
 ## [2026-08-25] Tombol Switch Dark Mode di Pojok Header & Animasi Transisi
 
 **Plan**: `docs/plans/2026-08-25-tombol-switch-darkmode-dashboard-animasi.md`
