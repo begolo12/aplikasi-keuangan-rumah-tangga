@@ -3,6 +3,16 @@
 Log eksekusi plan. Entri baru ditambahkan di bagian paling atas.
 Format entri lihat `AGENTS.md` bagian "Langkah 3 — Catat ke Changelog".
 
+## [2026-08-25] Fitur Dark Mode & Tema Fleksibel (Terang / Gelap / Sistem)
+
+**Plan**: `docs/plans/2026-08-25-fitur-dark-mode.md`
+
+### Berubah
+- **Anti-flash Script**: Menambahkan inline script evaluasi tema di `<head>` [layout.tsx](file:///f:/APLIKASI-KEUANGAN-GANANG/src/app/layout.tsx) untuk mencegah kedipan tema salah saat reload, serta menambahkan `suppressHydrationWarning` pada tag `<html>`.
+- **Pengaturan Tema di UI**: Menyediakan segmented control 3 opsi (Terang / Gelap / Sistem) pada [SettingsView.tsx](file:///f:/APLIKASI-KEUANGAN-GANANG/src/components/settings/SettingsView.tsx) dengan persistensi `localStorage` dan ikon intuitif (Sun, Moon, Desktop).
+- **Adaptasi Mode Sistem Real-time**: Menambahkan listener `matchMedia('(prefers-color-scheme: dark)')` saat mode sistem aktif sehingga tampilan otomatis menyesuaikan preferensi OS tanpa reload.
+- **Linting & Stability**: Mengisolasi setState tema ke microtask agar mematuhi aturan react-hooks tanpa cascading render.
+
 ## [2026-08-25] Upgrade UX, Alur Transaksi, Edit Transaksi & Perbaikan Visual
 
 **Plan**: `docs/plans/2026-08-25-upgrade-ux-dan-perbaikan-keseluruhan.md`

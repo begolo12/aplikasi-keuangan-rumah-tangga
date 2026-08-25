@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { User, AppSettings } from '@/lib/types';
 import { Button } from '../ui/Button';
 import { apiFetch, endpoints, ApiError } from '@/lib/apiFetch';
@@ -13,7 +13,13 @@ import {
   User as UserIcon,
   UsersThree,
   WarningCircle,
+  Sun,
+  Moon,
+  Desktop,
+  PaintBrushBroad,
 } from '@phosphor-icons/react';
+
+type ThemeMode = 'light' | 'dark' | 'system';
 
 interface SettingsViewProps {
   user: User;
@@ -28,6 +34,67 @@ export function SettingsView({ user, settings, onRefresh, onLogout }: SettingsVi
   const [isSaving, setIsSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+
+  const [themeMode, setThemeMode] = useState<ThemeMode>('system');
+
+  useEffect(() => {
+    let active = true;
+    Promise.resolve().then(() => {
+      if (!active) return;
+      try {
+        const saved = localStorage.getItem('theme');
+        if (saved === 'light' || saved === 'dark') {
+          setThemeMode(saved);
+        } else {
+          setThemeMode('system');
+        }
+      } catch {
+        setThemeMode('system');
+      }
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const handleThemeChange = (mode: ThemeMode) => {
+    setThemeMode(mode);
+    try {
+      if (mode === 'system') {
+        localStorage.removeItem('theme');
+        const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        if (isDark) {
+          document.documentElement.classList.add('dark');
+        } else {
+          document.documentElement.classList.remove('dark');
+        }
+      } else {
+        localStorage.setItem('theme', mode);
+        if (mode === 'dark') {
+          document.documentElement.classList.add('dark');
+        } else {
+          document.documentElement.classList.remove('dark');
+        }
+      }
+    } catch {
+      // Ignore localStorage errors in restricted environments
+    }
+  };
+
+  useEffect(() => {
+    if (themeMode !== 'system') return;
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+    const listener = (e: MediaQueryListEvent) => {
+      if (localStorage.getItem('theme')) return;
+      if (e.matches) {
+        document.documentElement.classList.add('dark');
+      } else {
+        document.documentElement.classList.remove('dark');
+      }
+    };
+    mediaQuery.addEventListener('change', listener);
+    return () => mediaQuery.removeEventListener('change', listener);
+  }, [themeMode]);
 
   const [isRestoring, setIsRestoring] = useState(false);
   const [restoreMessage, setRestoreMessage] = useState<string | null>(null);
@@ -190,7 +257,43 @@ export function SettingsView({ user, settings, onRefresh, onLogout }: SettingsVi
         </form>
       </div>
 
-      {/* Card 2: Backup & Restore JSON (Data Portability) */}
+      {/* Card 2: Tema & Tampilan */}
+      <div className="p-5 md:p-6 bg-surface border border-border rounded-3xl space-y-4 shadow-xs">
+        <h3 className="text-base font-bold text-text flex items-center gap-2">
+          <PaintBrushBroad size={20} className="text-primary" weight="duotone" />
+          <span>Tema & Tampilan</span>
+        </h3>
+        <p className="text-xs text-text-muted">
+          Pilih tema tampilan yang nyaman untuk mata Anda saat menggunakan aplikasi.
+        </p>
+
+        <div className="grid grid-cols-3 gap-2.5 max-w-md">
+          {[
+            { id: 'light' as const, label: 'Terang', icon: Sun },
+            { id: 'dark' as const, label: 'Gelap', icon: Moon },
+            { id: 'system' as const, label: 'Sistem', icon: Desktop },
+          ].map(({ id, label, icon: Icon }) => {
+            const isActive = themeMode === id;
+            return (
+              <button
+                key={id}
+                type="button"
+                onClick={() => handleThemeChange(id)}
+                className={`flex flex-col items-center justify-center gap-2 p-3.5 rounded-2xl border transition-all text-xs font-bold ${
+                  isActive
+                    ? 'bg-primary text-primary-fg border-primary shadow-xs'
+                    : 'bg-background hover:bg-surface-2 border-border text-text'
+                }`}
+              >
+                <Icon size={20} weight={isActive ? 'fill' : 'regular'} />
+                <span>{label}</span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Card 3: Backup & Restore JSON (Data Portability) */}
       <div className="p-5 md:p-6 bg-surface border border-border rounded-3xl space-y-4 shadow-xs">
         <h3 className="text-base font-bold text-text flex items-center gap-2">
           <DownloadSimple size={20} className="text-primary" weight="duotone" />
@@ -266,7 +369,7 @@ export function SettingsView({ user, settings, onRefresh, onLogout }: SettingsVi
         </div>
       </div>
 
-      {/* Card 3: Keluar Akun */}
+      {/* Card 4: Keluar Akun */}
       <div className="p-5 md:p-6 bg-surface border border-border rounded-3xl flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-xs">
         <div>
           <h4 className="text-sm font-bold text-text">Keluar dari Sesi Aplikasi</h4>
