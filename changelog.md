@@ -3,6 +3,20 @@
 Log eksekusi plan. Entri baru ditambahkan di bagian paling atas.
 Format entri lihat `AGENTS.md` bagian "Langkah 3 — Catat ke Changelog".
 
+## [2026-08-27] Audit & Perbaikan Sinkronisasi Anggaran Bulanan (Auto Carry-Forward & Live Real-Time Spent)
+
+**Plan**: `docs/plans/2026-08-27-audit-dan-perbaikan-sinkronisasi-anggaran-bulanan.md`
+
+### Berubah
+- **Mekanisme Auto Carry-Forward Anggaran Antar-Bulan**:
+  - Memperbarui query pada [budgets/route.ts](src/app/api/budgets/route.ts), [dashboard/bootstrap/route.ts](src/app/api/dashboard/bootstrap/route.ts), dan [reports/monthly/route.ts](src/app/api/reports/monthly/route.ts) menggunakan CTE `DISTINCT ON (category_id) ... ORDER BY category_id, year DESC, month DESC`.
+  - Anggaran belanja yang telah ditetapkan otomatis aktif dan terbawa ke bulan-bulan berikutnya tanpa perlu input ulang manual setiap awal bulan.
+  - Perhitungan `spent` (realisasi pengeluaran) dan `percentage` (%) dihitung secara dinamis dan presisi sesuai transaksi pengeluaran pada bulan dan tahun yang sedang dibuka pengguna.
+- **Sinkronisasi Metrik Terikat**:
+  - Menjamin perhitungan Dana Darurat ($4\times$), Cadangan Risiko ($10\%$), Proyeksi Pengeluaran Bulanan, dan Rasio DER/Likuiditas selalu sinkron dan konsisten di seluruh periode waktu.
+- **Verifikasi**:
+  - 103 assertion audit unit test + 37 pengujian E2E lulus 100%.
+
 ## [2026-08-27] Penghapusan Pintasan Cepat Keyboard Global
 
 **Plan**: `docs/plans/2026-08-27-hapus-pintasan-cepat-keyboard-global.md`

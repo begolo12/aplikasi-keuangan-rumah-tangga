@@ -19,23 +19,34 @@ export async function GET(req: NextRequest) {
     const month = parsed.month ?? now.getMonth() + 1;
     const year = parsed.year ?? now.getFullYear();
 
-    // Join kategori diikat pemiliknya agar FK silang tidak bisa menyelinap.
+    // Ambil anggaran aktif untuk setiap kategori dengan mekanisme auto carry-forward dari batas terakhir,
+    // serta hitung realisasi spent khusus untuk bulan & tahun yang diminta secara live.
     const budgets = await query<Budget>(
-      `SELECT
-        b.id, b.user_id, b.category_id, b.monthly_limit, b.month, b.year, b.created_at,
+      `WITH latest_budgets AS (
+        SELECT DISTINCT ON (category_id)
+          id, user_id, category_id, monthly_limit, month, year, created_at
+        FROM budgets
+        WHERE user_id = $1
+          AND (year < $3 OR (year = $3 AND month <= $2))
+        ORDER BY category_id, year DESC, month DESC
+      )
+      SELECT
+        b.id, b.user_id, b.category_id, b.monthly_limit, $2::smallint as month, $3::smallint as year, b.created_at,
         c.name as category_name, c.icon as category_icon, c.color as category_color,
         COALESCE(SUM(t.amount), 0)::NUMERIC as spent,
         (b.monthly_limit - COALESCE(SUM(t.amount), 0))::NUMERIC as remaining,
-        ROUND((COALESCE(SUM(t.amount), 0) / b.monthly_limit * 100)::NUMERIC, 1)::FLOAT as percentage
-      FROM budgets b
+        CASE 
+          WHEN b.monthly_limit > 0 THEN ROUND((COALESCE(SUM(t.amount), 0) / b.monthly_limit * 100)::NUMERIC, 1)::FLOAT 
+          ELSE 0 
+        END as percentage
+      FROM latest_budgets b
       JOIN categories c ON b.category_id = c.id AND c.user_id = b.user_id
       LEFT JOIN transactions t ON t.category_id = b.category_id
         AND t.type = 'expense'
         AND t.user_id = b.user_id
-        AND EXTRACT(MONTH FROM t.date) = b.month
-        AND EXTRACT(YEAR FROM t.date) = b.year
-      WHERE b.user_id = $1 AND b.month = $2 AND b.year = $3
-      GROUP BY b.id, b.user_id, b.category_id, b.monthly_limit, b.month, b.year, b.created_at, c.name, c.icon, c.color
+        AND EXTRACT(MONTH FROM t.date) = $2
+        AND EXTRACT(YEAR FROM t.date) = $3
+      GROUP BY b.id, b.user_id, b.category_id, b.monthly_limit, b.created_at, c.name, c.icon, c.color
       ORDER BY percentage DESC, b.monthly_limit DESC`,
       [session.userId, month, year]
     );

@@ -69,14 +69,21 @@ export async function GET(req: NextRequest) {
       query<{ count: string }>(
         `SELECT COUNT(*)::text as count
          FROM (
+           WITH latest_budgets AS (
+             SELECT DISTINCT ON (category_id)
+               id, user_id, category_id, monthly_limit, month, year
+             FROM budgets
+             WHERE user_id = $1
+               AND (year < $3 OR (year = $3 AND month <= $2))
+             ORDER BY category_id, year DESC, month DESC
+           )
            SELECT b.id, b.monthly_limit, COALESCE(SUM(t.amount), 0) as spent
-           FROM budgets b
+           FROM latest_budgets b
            LEFT JOIN transactions t ON t.category_id = b.category_id
              AND t.type = 'expense'
              AND t.user_id = b.user_id
-             AND EXTRACT(MONTH FROM t.date) = b.month
-             AND EXTRACT(YEAR FROM t.date) = b.year
-           WHERE b.user_id = $1 AND b.month = $2 AND b.year = $3
+             AND EXTRACT(MONTH FROM t.date) = $2
+             AND EXTRACT(YEAR FROM t.date) = $3
            GROUP BY b.id, b.monthly_limit
            HAVING COALESCE(SUM(t.amount), 0) > b.monthly_limit
          ) over_budgets`,
