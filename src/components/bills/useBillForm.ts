@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, type FormEvent } from 'react';
-import { Wallet, Category } from '@/lib/types';
+import { Wallet, Category, RecurringType } from '@/lib/types';
 import { ApiError, apiFetch, endpoints } from '@/lib/apiFetch';
 
 interface UseBillFormOptions {
@@ -12,21 +12,31 @@ interface UseBillFormOptions {
 
 export function useBillForm({ wallets, categories, onSuccess }: UseBillFormOptions) {
   const [isAddOpen, setIsAddOpen] = useState(false);
+  const [type, setType] = useState<RecurringType>('expense');
   const [title, setTitle] = useState('');
   const [amount, setAmount] = useState(0);
   const [dueDay, setDueDay] = useState(1);
   const [categoryId, setCategoryId] = useState('');
   const [walletId, setWalletId] = useState('');
+  const [autoRecord, setAutoRecord] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const openAddModal = () => {
+  const openAddModal = (initialType: RecurringType = 'expense') => {
+    setType(initialType);
     setTitle('');
     setAmount(0);
     setDueDay(5);
+    setAutoRecord(false);
     setError(null);
-    if (categories.length > 0) setCategoryId(categories[0].id);
-    if (wallets.length > 0) setWalletId(wallets[0].id);
+    const matchingCategories = categories.filter((c) => c.type === initialType);
+    if (matchingCategories.length > 0) {
+      setCategoryId(matchingCategories[0].id);
+    } else if (categories.length > 0) {
+      setCategoryId(categories[0].id);
+    }
+    const defaultWallet = wallets.find((w) => w.is_default) || wallets[0];
+    if (defaultWallet) setWalletId(defaultWallet.id);
     setIsAddOpen(true);
   };
 
@@ -35,7 +45,7 @@ export function useBillForm({ wallets, categories, onSuccess }: UseBillFormOptio
   const handleAddSubmit = async (e: FormEvent) => {
     e.preventDefault();
     if (amount <= 0) {
-      setError('Nominal tagihan harus lebih dari 0.');
+      setError('Nominal harus lebih dari 0.');
       return;
     }
 
@@ -45,11 +55,13 @@ export function useBillForm({ wallets, categories, onSuccess }: UseBillFormOptio
       await apiFetch(endpoints.bills, {
         method: 'POST',
         json: {
-          title,
+          type,
+          title: title.trim(),
           amount,
           due_day: dueDay,
           category_id: categoryId || null,
           wallet_id: walletId || null,
+          auto_record: autoRecord,
         },
       });
       onSuccess();
@@ -63,6 +75,8 @@ export function useBillForm({ wallets, categories, onSuccess }: UseBillFormOptio
 
   return {
     isAddOpen,
+    type,
+    setType,
     title,
     setTitle,
     amount,
@@ -73,6 +87,8 @@ export function useBillForm({ wallets, categories, onSuccess }: UseBillFormOptio
     setCategoryId,
     walletId,
     setWalletId,
+    autoRecord,
+    setAutoRecord,
     isLoading,
     error,
     setError,

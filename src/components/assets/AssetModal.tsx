@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Asset, AssetCategory, DepreciationMethod } from '@/lib/types';
+import { Asset, AssetCategory, DepreciationMethod, Wallet } from '@/lib/types';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { formatRupiah } from '@/lib/formatters';
@@ -28,8 +28,15 @@ interface AssetModalProps {
     useful_life_years: number;
     salvage_value: number;
     notes?: string | null;
+    wallet_id?: string | null;
+    record_purchase_transaction?: boolean;
+    schedule_tax_amount?: number | null;
+    schedule_tax_due_day?: number | null;
+    schedule_maintenance_amount?: number | null;
+    schedule_maintenance_due_day?: number | null;
   }) => Promise<void>;
   initialData?: Asset | null;
+  wallets?: Wallet[];
 }
 
 const CATEGORIES: { id: AssetCategory; label: string; icon: React.ElementType }[] = [
@@ -45,9 +52,10 @@ interface AssetFormProps {
   onClose: () => void;
   onSubmit: AssetModalProps['onSubmit'];
   initialData?: Asset | null;
+  wallets?: Wallet[];
 }
 
-function AssetForm({ onClose, onSubmit, initialData }: AssetFormProps) {
+function AssetForm({ onClose, onSubmit, initialData, wallets = [] }: AssetFormProps) {
   const [name, setName] = useState(initialData?.name || '');
   const [category, setCategory] = useState<AssetCategory>(initialData?.category || 'kendaraan');
   const [purchaseDate, setPurchaseDate] = useState(
@@ -55,6 +63,9 @@ function AssetForm({ onClose, onSubmit, initialData }: AssetFormProps) {
   );
   const [purchasePrice, setPurchasePrice] = useState(
     initialData?.purchase_price !== undefined ? String(initialData.purchase_price) : ''
+  );
+  const [currentValue, setCurrentValue] = useState(
+    initialData?.current_value !== undefined ? String(initialData.current_value) : ''
   );
   const [depreciationMethod, setDepreciationMethod] = useState<DepreciationMethod>(
     initialData?.depreciation_method || 'straight_line'
@@ -66,11 +77,22 @@ function AssetForm({ onClose, onSubmit, initialData }: AssetFormProps) {
     initialData?.salvage_value !== undefined ? String(initialData.salvage_value) : '0'
   );
   const [notes, setNotes] = useState(initialData?.notes || '');
+
+  // Integrasi otomatis kas & jadwal rutin
+  const defaultW = wallets.find((w) => w.is_default) || wallets[0];
+  const [walletId, setWalletId] = useState(defaultW?.id || '');
+  const [recordPurchase, setRecordPurchase] = useState(!initialData); // default true untuk aset baru
+  const [scheduleTax, setScheduleTax] = useState(false);
+  const [taxAmount, setTaxAmount] = useState(category === 'kendaraan' ? 500000 : 300000);
+  const [scheduleMaintenance, setScheduleMaintenance] = useState(false);
+  const [maintenanceAmount, setMaintenanceAmount] = useState(250000);
+
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // Live simulation calculation
   const priceNum = parseFloat(purchasePrice) || 0;
+  const marketNum = parseFloat(currentValue) > 0 ? parseFloat(currentValue) : priceNum;
   const salvageNum = parseFloat(salvageValue) || 0;
   const yearsNum = Math.max(1, parseInt(usefulLifeYears) || 5);
 
@@ -100,6 +122,11 @@ function AssetForm({ onClose, onSubmit, initialData }: AssetFormProps) {
     simBookValue = Math.max(salvageNum, priceNum - simAccumDepr);
   }
 
+  // Analisis Plus (+) / Minus (-)
+  const marketDiffPurchase = marketNum - priceNum;
+  const marketDiffBook = marketNum - simBookValue;
+  const isGain = marketDiffPurchase >= 0;
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
@@ -128,10 +155,17 @@ function AssetForm({ onClose, onSubmit, initialData }: AssetFormProps) {
         category,
         purchase_date: purchaseDate,
         purchase_price: priceNum,
+        current_value: marketNum,
         depreciation_method: depreciationMethod,
         useful_life_years: depreciationMethod === 'none' ? 1 : yearsNum,
         salvage_value: depreciationMethod === 'none' ? 0 : salvageNum,
         notes: notes.trim() || null,
+        wallet_id: walletId || null,
+        record_purchase_transaction: !initialData && recordPurchase,
+        schedule_tax_amount: !initialData && scheduleTax ? taxAmount : null,
+        schedule_tax_due_day: 15,
+        schedule_maintenance_amount: !initialData && scheduleMaintenance ? maintenanceAmount : null,
+        schedule_maintenance_due_day: 20,
       });
       onClose();
     } catch (err) {
@@ -215,11 +249,35 @@ function AssetForm({ onClose, onSubmit, initialData }: AssetFormProps) {
             required
             min="1"
             value={purchasePrice}
-            onChange={(e) => setPurchasePrice(e.target.value)}
+            onChange={(e) => {
+              setPurchasePrice(e.target.value);
+              if (!currentValue) setCurrentValue(e.target.value);
+            }}
             placeholder="0"
             className="w-full h-11 px-3.5 bg-background border border-border rounded-xl text-sm font-bold focus:ring-2 focus:ring-primary focus:outline-none"
           />
         </div>
+      </div>
+
+      {/* Input: Taksiran Harga Pasaran Sekarang */}
+      <div className="space-y-1 p-3 bg-surface-2 rounded-2xl border border-primary/20">
+        <div className="flex items-center justify-between">
+          <label className="block text-xs font-bold text-text">
+            Taksiran Harga Pasaran Saat Ini (Rp)
+          </label>
+          <span className="text-[10px] font-semibold text-primary">Untuk Cek Plus / Minus</span>
+        </div>
+        <input
+          type="number"
+          min="0"
+          value={currentValue}
+          onChange={(e) => setCurrentValue(e.target.value)}
+          placeholder={purchasePrice || "Contoh: 18000000"}
+          className="w-full h-11 px-3.5 bg-background border border-border rounded-xl text-sm font-extrabold text-primary focus:ring-2 focus:ring-primary focus:outline-none"
+        />
+        <p className="text-[10px] text-text-muted">
+          Perkiraan harga jual/pasar barang saat ini di marketplace atau pasaran umum.
+        </p>
       </div>
 
       {/* Metode Penyusutan */}
@@ -267,26 +325,154 @@ function AssetForm({ onClose, onSubmit, initialData }: AssetFormProps) {
         </div>
       )}
 
-      {/* Live Calculation Preview Card */}
+      {/* Live Calculation & Plus/Minus Preview Card */}
       {priceNum > 0 && (
-        <div className="p-3 bg-primary/5 border border-primary/20 rounded-2xl space-y-2">
-          <div className="flex items-center gap-1.5 text-primary text-xs font-bold">
-            <Calculator size={16} weight="duotone" />
-            <span>Simulasi Nilai Buku Real-Time:</span>
+        <div className="p-3.5 bg-surface-2 border border-border rounded-2xl space-y-2.5">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-1.5 text-text font-bold text-xs">
+              <Calculator size={16} weight="duotone" className="text-primary" />
+              <span>Perbandingan Nilai & Evaluasi Plus / Minus:</span>
+            </div>
+
+            <span
+              className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full border ${
+                isGain
+                  ? 'bg-income/10 text-income border-income/20'
+                  : 'bg-expense/10 text-expense border-expense/20'
+              }`}
+            >
+              {isGain
+                ? `Plus (+${formatRupiah(marketDiffPurchase)})`
+                : `Minus (${formatRupiah(marketDiffPurchase)})`}
+            </span>
           </div>
-          <div className="grid grid-cols-2 gap-2 text-xs">
-            <div className="p-2 bg-surface rounded-xl border border-border">
-              <span className="text-text-muted text-[10px] block">Estimasi Nilai Sekarang:</span>
-              <span className="font-extrabold text-primary whitespace-nowrap tabular-nums">
+
+          <div className="grid grid-cols-3 gap-2 text-xs">
+            <div className="p-2 bg-surface rounded-xl border border-border/70">
+              <span className="text-text-muted text-[10px] block">Harga Beli Awal:</span>
+              <span className="font-bold text-text whitespace-nowrap tabular-nums">
+                {formatRupiah(priceNum)}
+              </span>
+            </div>
+
+            <div className="p-2 bg-surface rounded-xl border border-border/70">
+              <span className="text-text-muted text-[10px] block">Nilai Buku Susut:</span>
+              <span className="font-bold text-text whitespace-nowrap tabular-nums">
                 {formatRupiah(simBookValue)}
               </span>
             </div>
-            <div className="p-2 bg-surface rounded-xl border border-border">
-              <span className="text-text-muted text-[10px] block">Beban Susut / Bulan:</span>
-              <span className="font-extrabold text-expense whitespace-nowrap tabular-nums">
-                {depreciationMethod === 'none' ? 'Rp 0' : formatRupiah(simMonthlyDepr)}
+
+            <div className={`p-2 rounded-xl border ${isGain ? 'bg-income/5 border-income/20' : 'bg-expense/5 border-expense/20'}`}>
+              <span className="text-text-muted text-[10px] block">Taksiran Pasar:</span>
+              <span className={`font-extrabold whitespace-nowrap tabular-nums ${isGain ? 'text-income' : 'text-expense'}`}>
+                {formatRupiah(marketNum)}
               </span>
             </div>
+          </div>
+
+          <p className="text-[10px] text-text-muted">
+            {isGain
+              ? `Taksiran pasar saat ini bernilai lebih tinggi Rp ${new Intl.NumberFormat('id-ID').format(marketDiffPurchase)} (+${Math.round((marketDiffPurchase / priceNum) * 100)}%) dibandingkan harga beli awal.`
+              : `Aset ini terdepresiasi sebesar Rp ${new Intl.NumberFormat('id-ID').format(Math.abs(marketDiffPurchase))} (${Math.round((Math.abs(marketDiffPurchase) / priceNum) * 100)}%) dari harga perolehan awal.`}
+          </p>
+        </div>
+      )}
+
+      {/* Integrasi Pembelian Kas & Jadwal Rutin (Hanya untuk Aset Baru) */}
+      {!initialData && wallets.length > 0 && (
+        <div className="p-3.5 bg-surface-2 rounded-2xl border border-border space-y-3">
+          <span className="text-xs font-bold text-text block">
+            Otomatisasi Kas & Jadwal Pengeluaran Rutin
+          </span>
+
+          {/* Opsi 1: Catat transaksi kas */}
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                id="recordPurchase"
+                checked={recordPurchase}
+                onChange={(e) => setRecordPurchase(e.target.checked)}
+                className="w-4 h-4 text-primary rounded border-border focus:ring-primary"
+              />
+              <label htmlFor="recordPurchase" className="text-xs font-semibold text-text cursor-pointer">
+                Catat pengeluaran kas pembelian ({formatRupiah(priceNum)}) dari dompet
+              </label>
+            </div>
+
+            {recordPurchase && (
+              <div className="pl-6">
+                <select
+                  value={walletId}
+                  onChange={(e) => setWalletId(e.target.value)}
+                  className="w-full h-10 px-3 bg-background border border-border rounded-xl text-xs font-medium focus:ring-2 focus:ring-primary focus:outline-none"
+                >
+                  {wallets.map((w) => (
+                    <option key={w.id} value={w.id}>
+                      {w.name} (Saldo: {formatRupiah(w.balance)})
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+          </div>
+
+          {/* Opsi 2: Jadwal Pajak Rutin */}
+          <div className="space-y-1.5 pt-1 border-t border-border/50">
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                id="scheduleTax"
+                checked={scheduleTax}
+                onChange={(e) => setScheduleTax(e.target.checked)}
+                className="w-4 h-4 text-primary rounded border-border focus:ring-primary"
+              />
+              <label htmlFor="scheduleTax" className="text-xs font-semibold text-text cursor-pointer">
+                Jadwalkan Pajak Rutin (Pajak STNK / PBB)
+              </label>
+            </div>
+
+            {scheduleTax && (
+              <div className="pl-6">
+                <input
+                  type="number"
+                  min="0"
+                  value={taxAmount}
+                  onChange={(e) => setTaxAmount(parseFloat(e.target.value) || 0)}
+                  placeholder="Estimasi pajak (Rp)"
+                  className="w-full h-10 px-3 bg-background border border-border rounded-xl text-xs font-bold text-primary focus:ring-2 focus:ring-primary focus:outline-none"
+                />
+              </div>
+            )}
+          </div>
+
+          {/* Opsi 3: Jadwal Servis Rutin */}
+          <div className="space-y-1.5 pt-1 border-t border-border/50">
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                id="scheduleMaintenance"
+                checked={scheduleMaintenance}
+                onChange={(e) => setScheduleMaintenance(e.target.checked)}
+                className="w-4 h-4 text-primary rounded border-border focus:ring-primary"
+              />
+              <label htmlFor="scheduleMaintenance" className="text-xs font-semibold text-text cursor-pointer">
+                Jadwalkan Servis / Perawatan Rutin
+              </label>
+            </div>
+
+            {scheduleMaintenance && (
+              <div className="pl-6">
+                <input
+                  type="number"
+                  min="0"
+                  value={maintenanceAmount}
+                  onChange={(e) => setMaintenanceAmount(parseFloat(e.target.value) || 0)}
+                  placeholder="Estimasi biaya servis (Rp)"
+                  className="w-full h-10 px-3 bg-background border border-border rounded-xl text-xs font-bold text-primary focus:ring-2 focus:ring-primary focus:outline-none"
+                />
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -316,7 +502,7 @@ function AssetForm({ onClose, onSubmit, initialData }: AssetFormProps) {
   );
 }
 
-export function AssetModal({ isOpen, onClose, onSubmit, initialData }: AssetModalProps) {
+export function AssetModal({ isOpen, onClose, onSubmit, initialData, wallets = [] }: AssetModalProps) {
   return (
     <Modal
       isOpen={isOpen}
@@ -328,6 +514,7 @@ export function AssetModal({ isOpen, onClose, onSubmit, initialData }: AssetModa
           onClose={onClose}
           onSubmit={onSubmit}
           initialData={initialData}
+          wallets={wallets}
         />
       )}
     </Modal>

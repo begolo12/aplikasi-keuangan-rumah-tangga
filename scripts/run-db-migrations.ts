@@ -31,17 +31,40 @@ async function main() {
       `CREATE UNIQUE INDEX IF NOT EXISTS idx_trx_idempotency ON transactions(idempotency_key) WHERE idempotency_key IS NOT NULL;`
     );
 
-    // 2. Strict-zero balance constraint in wallets
-    console.log('2. Ensuring wallets_balance_nonnegative constraint...');
-    await client.query(`UPDATE wallets SET balance = 0 WHERE balance < 0;`);
+    // 2. Allow negative balance in wallets (overdraft support)
+    console.log('2. Removing wallets_balance_nonnegative constraint to allow negative balance...');
     await client.query(`
       DO $$
       BEGIN
-        IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'wallets_balance_nonnegative') THEN
-          ALTER TABLE wallets ADD CONSTRAINT wallets_balance_nonnegative CHECK (balance >= 0);
+        IF EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'wallets_balance_nonnegative') THEN
+          ALTER TABLE wallets DROP CONSTRAINT wallets_balance_nonnegative;
         END IF;
       END
       $$;
+    `);
+
+    // 2a. Add reconciliation columns to wallets
+    console.log('2a. Adding reconciliation columns to wallets...');
+    await client.query(`
+      ALTER TABLE wallets
+      ADD COLUMN IF NOT EXISTS reconciled_at TIMESTAMPTZ,
+      ADD COLUMN IF NOT EXISTS last_reconciled_balance NUMERIC(15,2);
+    `);
+
+    // 2b. Add type and auto_record and asset_id to recurring_bills
+    console.log('2b. Adding type, auto_record and asset_id to recurring_bills...');
+    await client.query(`
+      ALTER TABLE recurring_bills 
+      ADD COLUMN IF NOT EXISTS type VARCHAR(20) NOT NULL DEFAULT 'expense',
+      ADD COLUMN IF NOT EXISTS auto_record BOOLEAN NOT NULL DEFAULT FALSE,
+      ADD COLUMN IF NOT EXISTS asset_id UUID REFERENCES assets(id) ON DELETE SET NULL;
+    `);
+
+    // 2c. Add asset_id to transactions
+    console.log('2c. Adding asset_id to transactions...');
+    await client.query(`
+      ALTER TABLE transactions 
+      ADD COLUMN IF NOT EXISTS asset_id UUID REFERENCES assets(id) ON DELETE SET NULL;
     `);
 
     // 3. Ensure debts & debt_payments tables
@@ -81,7 +104,7 @@ async function main() {
     `);
 
     // 4. Ensure assets table for Asset Management & Depreciation
-    console.log('4. Ensuring assets table and indexes...');
+    console.log('4. Ensuring assets table, disposal columns and indexes...');
     await client.query(`
       CREATE TABLE IF NOT EXISTS assets (
         id                   UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -95,11 +118,22 @@ async function main() {
         useful_life_years    SMALLINT NOT NULL DEFAULT 5 CHECK (useful_life_years > 0),
         salvage_value        NUMERIC(15,2) NOT NULL DEFAULT 0 CHECK (salvage_value >= 0),
         notes                TEXT,
+        is_sold              BOOLEAN NOT NULL DEFAULT FALSE,
+        sold_date            DATE,
+        selling_price        NUMERIC(15,2),
+        gain_loss            NUMERIC(15,2),
         created_at           TIMESTAMPTZ NOT NULL DEFAULT NOW(),
         updated_at           TIMESTAMPTZ NOT NULL DEFAULT NOW()
       );
+      ALTER TABLE assets
+      ADD COLUMN IF NOT EXISTS is_sold BOOLEAN NOT NULL DEFAULT FALSE,
+      ADD COLUMN IF NOT EXISTS sold_date DATE,
+      ADD COLUMN IF NOT EXISTS selling_price NUMERIC(15,2),
+      ADD COLUMN IF NOT EXISTS gain_loss NUMERIC(15,2);
+
       CREATE INDEX IF NOT EXISTS idx_assets_user ON assets(user_id);
       CREATE INDEX IF NOT EXISTS idx_assets_user_category ON assets(user_id, category);
+      CREATE INDEX IF NOT EXISTS idx_assets_user_sold ON assets(user_id, is_sold);
     `);
 
     // 5. Index optimizations

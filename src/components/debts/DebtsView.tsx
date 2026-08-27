@@ -1,8 +1,9 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Debt, DebtType, Wallet } from '@/lib/types';
+import { Debt, DebtType, Wallet, MonthlySummary as MonthlySummaryType, Budget } from '@/lib/types';
 import { DebtItem } from './DebtItem';
+import { DebtCalculatorModal } from './DebtCalculatorModal';
 import { Button } from '../ui/Button';
 import { Modal } from '../ui/Modal';
 import { AmountInput } from '../ui/AmountInput';
@@ -15,19 +16,31 @@ import {
   ArrowDownRight,
   ArrowUpRight,
   MagnifyingGlass,
+  Calculator,
 } from '@phosphor-icons/react';
 
 interface DebtsViewProps {
   debts: Debt[];
   wallets: Wallet[];
+  summary?: MonthlySummaryType | null;
+  budgets?: Budget[];
   onRefresh: () => void;
 }
 
-export function DebtsView({ debts, wallets, onRefresh }: DebtsViewProps) {
+export function DebtsView({
+  debts,
+  wallets,
+  summary = null,
+  budgets = [],
+  onRefresh,
+}: DebtsViewProps) {
   const [activeType, setActiveType] = useState<DebtType>('payable');
   const [statusFilter, setStatusFilter] = useState<'all' | 'unpaid' | 'paid'>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [listError, setListError] = useState<string | null>(null);
+
+  // Calculator Modal State
+  const [isCalcOpen, setIsCalcOpen] = useState(false);
 
   // Add Modal State
   const [isAddOpen, setIsAddOpen] = useState(false);
@@ -182,19 +195,30 @@ export function DebtsView({ debts, wallets, onRefresh }: DebtsViewProps) {
         <div>
           <h2 className="text-xl sm:text-2xl font-bold text-text">Hutang & Piutang</h2>
           <p className="text-xs sm:text-sm text-text-muted">
-            Pantau kewajiban hutang keluarga dan hak tagih piutang secara terstruktur.
+            Pantau kewajiban hutang keluarga, hak tagih piutang, dan simulasi kelayakan hutang (KPI).
           </p>
         </div>
 
-        <Button
-          variant="primary"
-          size="md"
-          leftIcon={<Plus size={18} weight="bold" />}
-          onClick={() => openAddModal(activeType)}
-          className="self-start sm:self-center shadow-xs"
-        >
-          Catat {activeType === 'payable' ? 'Hutang' : 'Piutang'} Baru
-        </Button>
+        <div className="flex items-center gap-2 flex-wrap self-start sm:self-center">
+          <Button
+            variant="outline"
+            size="md"
+            leftIcon={<Calculator size={18} weight="bold" className="text-primary" />}
+            onClick={() => setIsCalcOpen(true)}
+          >
+            Kalkulator & Insight Hutang
+          </Button>
+
+          <Button
+            variant="primary"
+            size="md"
+            leftIcon={<Plus size={18} weight="bold" />}
+            onClick={() => openAddModal(activeType)}
+            className="shadow-xs"
+          >
+            Catat {activeType === 'payable' ? 'Hutang' : 'Piutang'} Baru
+          </Button>
+        </div>
       </div>
 
       {/* Segmented Tab: Hutang (Payable) vs Piutang (Receivable) */}
@@ -523,6 +547,17 @@ export function DebtsView({ debts, wallets, onRefresh }: DebtsViewProps) {
           </form>
         </Modal>
       )}
+
+      {/* Debt Calculator Modal */}
+      <DebtCalculatorModal
+        isOpen={isCalcOpen}
+        onClose={() => setIsCalcOpen(false)}
+        summary={summary}
+        debts={debts}
+        budgets={budgets}
+        wallets={wallets}
+        onSuccess={onRefresh}
+      />
     </div>
   );
 }

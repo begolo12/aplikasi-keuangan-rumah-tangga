@@ -63,7 +63,7 @@ export async function GET(req: NextRequest) {
            COALESCE(SUM(b.amount), 0)::text as total_pending_amount
          FROM recurring_bills b
          LEFT JOIN bill_payments bp ON bp.bill_id = b.id AND bp.month = $2 AND bp.year = $3 AND bp.user_id = b.user_id
-         WHERE b.user_id = $1 AND b.is_active = TRUE AND bp.id IS NULL`,
+         WHERE b.user_id = $1 AND b.is_active = TRUE AND COALESCE(b.type, 'expense') = 'expense' AND bp.id IS NULL`,
         [uid, month, year]
       ).catch(() => [{ count: '0', total_pending_amount: '0' }]),
       query<{ count: string }>(

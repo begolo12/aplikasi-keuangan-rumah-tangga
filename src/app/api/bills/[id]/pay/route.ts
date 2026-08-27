@@ -50,42 +50,48 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         throw new BusinessError(`Tagihan "${bill.title}" sudah lunas untuk periode ${month}/${year}.`);
       }
 
-      // 3. Lock and check wallet balance
+      // 3. Lock wallet
       const walletRows = await client.query(
         'SELECT id, name, balance FROM wallets WHERE id = $1 AND user_id = $2 FOR UPDATE',
         [validated.wallet_id, session.userId]
       );
 
       if (walletRows.rows.length === 0) {
-        throw new BusinessError('Dompet pembayaran tidak ditemukan.', 404);
+        throw new BusinessError('Dompet pembayaran/penerimaan tidak ditemukan.', 404);
       }
 
-      const wallet = walletRows.rows[0];
-      const balance = parseFloat(wallet.balance);
+      const isIncome = bill.type === 'income';
 
-      if (balance < amountToPay) {
-        throw new BusinessError(
-          `Saldo ${wallet.name} tidak mencukupi untuk membayar tagihan ini. (Tersedia: ${formatRupiah(balance)}, Tagihan: ${formatRupiah(amountToPay)})`
+      // 4. Mutasi saldo dompet (saldo diizinkan minus)
+      if (isIncome) {
+        await client.query(
+          'UPDATE wallets SET balance = balance + $1, updated_at = NOW() WHERE id = $2 AND user_id = $3',
+          [amountToPay, validated.wallet_id, session.userId]
+        );
+      } else {
+        await client.query(
+          'UPDATE wallets SET balance = balance - $1, updated_at = NOW() WHERE id = $2 AND user_id = $3',
+          [amountToPay, validated.wallet_id, session.userId]
         );
       }
 
-      // 4. Debit wallet balance
-      await client.query(
-        'UPDATE wallets SET balance = balance - $1, updated_at = NOW() WHERE id = $2 AND user_id = $3',
-        [amountToPay, validated.wallet_id, session.userId]
-      );
-
       // 5. Insert transaction record
+      const trxType = isIncome ? 'income' : 'expense';
+      const defaultDesc = isIncome
+        ? `Pemasukan rutin: ${bill.title} (${month}/${year})`
+        : `Pembayaran tagihan/rutin: ${bill.title} (${month}/${year})`;
+
       await client.query(
         `INSERT INTO transactions (
           user_id, type, amount, category_id, wallet_id, description, date
-        ) VALUES ($1, 'expense', $2, $3, $4, $5, $6)`,
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7)`,
         [
           session.userId,
+          trxType,
           amountToPay,
           bill.category_id || null,
           validated.wallet_id,
-          `Pembayaran tagihan: ${bill.title} (${month}/${year})`,
+          defaultDesc,
           validated.paid_date,
         ]
       );

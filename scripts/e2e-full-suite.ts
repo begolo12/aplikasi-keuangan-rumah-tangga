@@ -133,8 +133,8 @@ async function runE2ESuite() {
     const payload = await verifySessionToken(sessionToken);
     assert('Verifikasi JWT Session token mengembalikan klaim user yang sesuai', payload?.userId === userId && payload?.email === testEmail);
 
-    // ── 3. WALLETS CRUD & STRICT-ZERO GUARD ─────────────────────────────────────
-    console.log('\n[3] Manajemen Dompet & Proteksi Saldo Anti-Minus (Strict-Zero)');
+    // ── 3. WALLETS CRUD & SALDO MINUS (OVERDRAFT SUPPORT) ───────────────────────
+    console.log('\n[3] Manajemen Dompet & Dukungan Saldo Minus (Overdraft)');
     const mainWallet = seededWallets[0]; // Tunai
     const secondaryWallet = seededWallets[1]; // Rekening Utama
 
@@ -143,21 +143,15 @@ async function runE2ESuite() {
     const updatedWallet = await query<{ balance: string }>('SELECT balance FROM wallets WHERE id = $1', [mainWallet.id]);
     assert('Isi saldo dompet berhasil bertambah', parseFloat(updatedWallet[0].balance) === 5000000);
 
-    // Attempt invalid negative balance transaction
-    let negativeBalanceBlocked = false;
-    try {
-      await withTransaction(async (client) => {
-        const check = await client.query('SELECT balance FROM wallets WHERE id = $1 FOR UPDATE', [mainWallet.id]);
-        const currentBal = parseFloat(check.rows[0].balance);
-        if (currentBal < 10000000) {
-          throw new Error('Saldo dompet tidak mencukupi.');
-        }
-        await client.query('UPDATE wallets SET balance = balance - 10000000 WHERE id = $1', [mainWallet.id]);
-      });
-    } catch {
-      negativeBalanceBlocked = true;
-    }
-    assert('Proteksi strict-zero berhasil menolak penarikan melebihi saldo', negativeBalanceBlocked);
+    // Penarikan melebihi saldo menghasilkan saldo minus (overdraft diizinkan)
+    await withTransaction(async (client) => {
+      await client.query('UPDATE wallets SET balance = balance - 6000000 WHERE id = $1', [mainWallet.id]);
+    });
+    const minusBal = await query<{ balance: string }>('SELECT balance FROM wallets WHERE id = $1', [mainWallet.id]);
+    assert('Saldo dompet dapat bernilai minus (-Rp 1.000.000)', parseFloat(minusBal[0].balance) === -1000000);
+
+    // Kembalikan saldo ke Rp 5.000.000 untuk pengujian transaksi berikutnya
+    await query('UPDATE wallets SET balance = 5000000 WHERE id = $1', [mainWallet.id]);
 
     // ── 4. TRANSACTIONS & TRANSFERS ─────────────────────────────────────────────
     console.log('\n[4] Transaksi Pemasukan, Pengeluaran & Transfer Antar Dompet');
@@ -517,6 +511,42 @@ async function runE2ESuite() {
       [assetId]
     );
     assert('Pembaruan data aset berhasil', parseFloat(updatedAsset[0].current_value) === 23000000 && updatedAsset[0].notes === 'BPKB lengkap di laci');
+
+    // ── 11b. REKONSILIASI SALDO RIIL & TRANSAKSI RUTIN OTOMATIS ───────────────
+    console.log('\n[11b] Rekonsiliasi Saldo Riil & Transaksi Rutin Otomatis');
+    
+    // Rekonsiliasi dompet: Saldo sistem disamakan dengan saldo riil Rp 4.000.000 (Selisih -Rp 347.500)
+    await withTransaction(async (client) => {
+      const wCur = await client.query<{ balance: string }>('SELECT balance FROM wallets WHERE id = $1', [mainWallet.id]);
+      const curBal = parseFloat(wCur.rows[0].balance);
+      const targetActual = 4000000;
+      const diff = targetActual - curBal;
+
+      await client.query(
+        `INSERT INTO transactions (user_id, type, amount, wallet_id, description, date)
+         VALUES ($1, 'expense', $2, $3, 'Penyesuaian Rekonsiliasi Saldo', $4)`,
+        [userId, Math.abs(diff), mainWallet.id, todayStr]
+      );
+      await client.query(
+        `UPDATE wallets SET balance = $1, reconciled_at = NOW(), last_reconciled_balance = $1 WHERE id = $2`,
+        [targetActual, mainWallet.id]
+      );
+    });
+
+    const wRecon = await query<{ balance: string; reconciled_at: string; last_reconciled_balance: string }>(
+      'SELECT balance, reconciled_at, last_reconciled_balance FROM wallets WHERE id = $1',
+      [mainWallet.id]
+    );
+    assert('Rekonsiliasi saldo dompet berhasil menyinkronkan saldo riil Rp 4.000.000', parseFloat(wRecon[0].balance) === 4000000 && Boolean(wRecon[0].reconciled_at));
+
+    // Transaksi rutin otomatis: Pemasukan Pasti Gaji Rp 8.000.000
+    const autoBillRes = await query<{ id: string }>(
+      `INSERT INTO recurring_bills (user_id, type, title, amount, due_day, wallet_id, auto_record, is_active)
+       VALUES ($1, 'income', 'Gaji Bulanan PT Maju', 8000000, 25, $2, TRUE, TRUE)
+       RETURNING id`,
+      [userId, secondaryWallet.id]
+    );
+    assert('Pemasukan rutin pasti berhasil dibuat', Boolean(autoBillRes[0]?.id));
 
     // ── 12. CLEANUP TEST USER DATA ──────────────────────────────────────────────
     console.log('\n[12] Pembersihan Data Pengujian (Teardown)');

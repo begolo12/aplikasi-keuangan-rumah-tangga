@@ -65,8 +65,8 @@ export async function GET(req: NextRequest) {
         ).catch(() => []),
         query(
           `SELECT
-             b.id, b.user_id, b.title, b.amount, b.due_day, b.category_id,
-             b.wallet_id, b.is_active, b.created_at,
+             b.id, b.user_id, COALESCE(b.type, 'expense') as type, b.title, b.amount, b.due_day, b.category_id,
+             b.wallet_id, COALESCE(b.auto_record, FALSE) as auto_record, b.is_active, b.created_at,
              c.name as category_name,
              w.name as wallet_name,
              bp.id as payment_id, bp.paid_date,
@@ -100,7 +100,7 @@ export async function GET(req: NextRequest) {
            FROM recurring_bills b
            LEFT JOIN bill_payments bp
              ON bp.bill_id = b.id AND bp.month = $2 AND bp.year = $3 AND bp.user_id = b.user_id
-           WHERE b.user_id = $1 AND b.is_active = TRUE AND bp.id IS NULL`,
+           WHERE b.user_id = $1 AND b.is_active = TRUE AND COALESCE(b.type, 'expense') = 'expense' AND bp.id IS NULL`,
           [uid, month, year]
         ).catch(() => [{ count: '0', total_pending_amount: '0' }]),
         query(
@@ -154,6 +154,7 @@ export async function GET(req: NextRequest) {
     interface BillRow {
       id: string;
       user_id: string;
+      type: 'expense' | 'income';
       title: string;
       amount: string;
       due_day: number;
@@ -161,6 +162,7 @@ export async function GET(req: NextRequest) {
       category_name: string | null;
       wallet_id: string | null;
       wallet_name: string | null;
+      auto_record: boolean;
       is_active: boolean;
       is_paid: boolean;
       paid_date: string | null;
@@ -185,6 +187,7 @@ export async function GET(req: NextRequest) {
       return {
         id: b.id,
         user_id: b.user_id,
+        type: b.type === 'income' ? 'income' : 'expense',
         title: b.title,
         amount: parseFloat(b.amount),
         due_day: b.due_day,
@@ -192,6 +195,7 @@ export async function GET(req: NextRequest) {
         category_name: b.category_name,
         wallet_id: b.wallet_id,
         wallet_name: b.wallet_name,
+        auto_record: Boolean(b.auto_record),
         is_active: b.is_active,
         is_paid: isPaid,
         paid_date: b.paid_date,

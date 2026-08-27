@@ -403,21 +403,28 @@ export default function MainPage() {
         <DebtsView
           debts={debts}
           wallets={wallets}
+          summary={summary}
+          budgets={budgets}
           onRefresh={refetch}
         />
       ) : activeTab === 'budget' ? (
         <BudgetView
           budgets={budgets}
           categories={categories}
+          wallets={wallets}
+          totalExpense={summary.total_expense}
           currentMonth={currentMonth}
           currentYear={currentYear}
           onRefresh={refetch}
+          onNavigateToWallets={() => handleTabChange('wallets')}
         />
       ) : activeTab === 'bills' ? (
         <BillsView
           bills={bills}
           wallets={wallets}
           categories={categories}
+          currentMonth={currentMonth}
+          currentYear={currentYear}
           onRefresh={refetch}
         />
       ) : activeTab === 'wallets' ? (
@@ -431,6 +438,7 @@ export default function MainPage() {
           summary={summary}
           currentMonth={currentMonth}
           currentYear={currentYear}
+          onPeriodChange={handlePeriodChange}
         />
       ) : activeTab === 'evaluation' ? (
         <EvaluationView
@@ -438,6 +446,8 @@ export default function MainPage() {
           currentMonth={currentMonth}
           currentYear={currentYear}
           debts={debts}
+          budgets={budgets}
+          wallets={wallets}
         />
       ) : activeTab === 'assets' ? (
         <AssetsView

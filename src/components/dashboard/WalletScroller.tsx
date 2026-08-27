@@ -54,9 +54,12 @@ export function WalletScroller({ wallets, onAddWallet, onTransfer }: WalletScrol
 
             <div>
               <p className="text-[11px] text-text-muted font-medium truncate">{wallet.name}</p>
-              <p className="text-sm sm:text-base font-extrabold text-text mt-0.5 whitespace-nowrap tabular-nums">
+              <p className={`text-sm sm:text-base font-extrabold mt-0.5 whitespace-nowrap tabular-nums ${wallet.balance < 0 ? 'text-expense' : 'text-text'}`}>
                 {formatRupiah(wallet.balance)}
               </p>
+              {wallet.balance < 0 && (
+                <span className="text-[9px] font-bold text-expense block">Minus</span>
+              )}
             </div>
           </div>
         ))}

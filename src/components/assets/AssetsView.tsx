@@ -1,11 +1,13 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Asset, AssetCategory, DepreciationMethod } from '@/lib/types';
+import { Asset, AssetCategory, DepreciationMethod, Wallet } from '@/lib/types';
 import { apiFetch, endpoints } from '@/lib/apiFetch';
 import { formatRupiah, formatDate } from '@/lib/formatters';
 import { Button } from '../ui/Button';
 import { AssetModal } from './AssetModal';
+import { AssetScheduleModal } from './AssetScheduleModal';
+import { SellAssetModal } from './SellAssetModal';
 import { DashboardSkeleton } from '../ui/LoadingSkeleton';
 import {
   Package,
@@ -23,6 +25,9 @@ import {
   Coins,
   ShieldCheck,
   CalendarCheck,
+  CalendarPlus,
+  CurrencyDollar,
+  CheckCircle,
 } from '@phosphor-icons/react';
 
 interface AssetsViewProps {
@@ -57,6 +62,7 @@ const METHOD_MAP: Record<DepreciationMethod, { label: string; tag: string }> = {
 
 export function AssetsView({ onRefreshParent }: AssetsViewProps) {
   const [assets, setAssets] = useState<Asset[]>([]);
+  const [wallets, setWallets] = useState<Wallet[]>([]);
   const [summary, setSummary] = useState<AssetsApiResponse['summary']>({
     total_assets_count: 0,
     total_purchase_value: 0,
@@ -70,14 +76,31 @@ export function AssetsView({ onRefreshParent }: AssetsViewProps) {
 
   // Filters
   const [selectedCategory, setSelectedCategory] = useState<AssetCategory | 'all'>('all');
+  const [statusFilter, setStatusFilter] = useState<'active' | 'sold' | 'all'>('active');
   const [searchQuery, setSearchQuery] = useState('');
 
   // Modal states
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingAsset, setEditingAsset] = useState<Asset | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [scheduleAsset, setScheduleAsset] = useState<Asset | null>(null);
+  const [isScheduleOpen, setIsScheduleOpen] = useState(false);
+  const [sellingAsset, setSellingAsset] = useState<Asset | null>(null);
+  const [isSellOpen, setIsSellOpen] = useState(false);
 
   const abortRef = useRef<AbortController | null>(null);
+
+  useEffect(() => {
+    let isMounted = true;
+    apiFetch<Wallet[]>(endpoints.wallets)
+      .then((res) => {
+        if (isMounted) setWallets(res || []);
+      })
+      .catch(() => {});
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -89,6 +112,7 @@ export function AssetsView({ onRefreshParent }: AssetsViewProps) {
       try {
         let url = endpoints.assets;
         const params = new URLSearchParams();
+        if (statusFilter !== 'all') params.append('status', statusFilter);
         if (selectedCategory !== 'all') params.append('category', selectedCategory);
         if (searchQuery.trim()) params.append('search', searchQuery.trim());
         const qs = params.toString();
@@ -112,7 +136,7 @@ export function AssetsView({ onRefreshParent }: AssetsViewProps) {
       controller.abort();
       abortRef.current = null;
     };
-  }, [selectedCategory, searchQuery, reloadKey]);
+  }, [selectedCategory, statusFilter, searchQuery, reloadKey]);
 
   const handleCreateOrUpdate = async (data: {
     name: string;
@@ -232,15 +256,46 @@ export function AssetsView({ onRefreshParent }: AssetsViewProps) {
         </div>
       </div>
 
-      {/* Category Filter Pills & Search */}
+      {/* Filter Status (Aset Aktif vs Terjual) & Category Filter Pills & Search */}
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2">
         <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0 no-scrollbar">
+          {/* Status Segmented */}
+          <div className="flex items-center gap-1 bg-surface-2 p-1 rounded-xl border border-border shrink-0">
+            <button
+              type="button"
+              onClick={() => setStatusFilter('active')}
+              className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all ${
+                statusFilter === 'active' ? 'bg-primary text-white shadow-2xs' : 'text-text-muted hover:text-text'
+              }`}
+            >
+              Aset Aktif
+            </button>
+            <button
+              type="button"
+              onClick={() => setStatusFilter('sold')}
+              className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all ${
+                statusFilter === 'sold' ? 'bg-primary text-white shadow-2xs' : 'text-text-muted hover:text-text'
+              }`}
+            >
+              Sudah Terjual
+            </button>
+            <button
+              type="button"
+              onClick={() => setStatusFilter('all')}
+              className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all ${
+                statusFilter === 'all' ? 'bg-primary text-white shadow-2xs' : 'text-text-muted hover:text-text'
+              }`}
+            >
+              Semua
+            </button>
+          </div>
+
           <button
             type="button"
             onClick={() => setSelectedCategory('all')}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all ${
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all shrink-0 ${
               selectedCategory === 'all'
-                ? 'bg-primary text-white shadow-2xs'
+                ? 'bg-text text-background shadow-2xs'
                 : 'bg-surface border border-border text-text-muted hover:text-text'
             }`}
           >
@@ -254,9 +309,9 @@ export function AssetsView({ onRefreshParent }: AssetsViewProps) {
                 key={catKey}
                 type="button"
                 onClick={() => setSelectedCategory(catKey)}
-                className={`px-2.5 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all flex items-center gap-1 ${
+                className={`px-2.5 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all flex items-center gap-1 shrink-0 ${
                   isSel
-                    ? 'bg-primary text-white shadow-2xs font-bold'
+                    ? 'bg-text text-background shadow-2xs font-bold'
                     : 'bg-surface border border-border text-text-muted hover:text-text'
                 }`}
               >
@@ -312,8 +367,12 @@ export function AssetsView({ onRefreshParent }: AssetsViewProps) {
 
             const purchasePrice = asset.purchase_price || 0;
             const bookValue = asset.book_value !== undefined ? asset.book_value : purchasePrice;
+            const marketValue = asset.current_value > 0 ? asset.current_value : bookValue;
             const accumDepr = asset.accumulated_depreciation || 0;
             const monthlyDepr = asset.monthly_depreciation || 0;
+
+            const marketDiffPurchase = asset.market_diff_purchase !== undefined ? asset.market_diff_purchase : (marketValue - purchasePrice);
+            const isGain = marketDiffPurchase >= 0;
 
             const deprPercent = purchasePrice > 0
               ? Math.min(100, Math.round((accumDepr / purchasePrice) * 100))
@@ -343,8 +402,16 @@ export function AssetsView({ onRefreshParent }: AssetsViewProps) {
                         <h4 className="text-xs sm:text-sm font-bold text-text truncate max-w-full">
                           {asset.name}
                         </h4>
-                        <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-md border ${methodMeta.tag}`}>
-                          {methodMeta.label}
+                        <span
+                          className={`text-[9px] font-extrabold px-1.5 py-0.5 rounded-md border ${
+                            isGain
+                              ? 'bg-income/10 text-income border-income/20'
+                              : 'bg-expense/10 text-expense border-expense/20'
+                          }`}
+                        >
+                          {isGain
+                            ? `Plus (+${formatRupiah(marketDiffPurchase)})`
+                            : `Minus (${formatRupiah(marketDiffPurchase)})`}
                         </span>
                       </div>
                       <p className="text-[10px] text-text-muted mt-0.5">
@@ -354,6 +421,32 @@ export function AssetsView({ onRefreshParent }: AssetsViewProps) {
                   </div>
 
                   <div className="flex items-center gap-1 shrink-0">
+                    {!asset.is_sold && (
+                      <>
+                        <button
+                          onClick={() => {
+                            setSellingAsset(asset);
+                            setIsSellOpen(true);
+                          }}
+                          title="Jual Aset (Terima Kas & Matikan Jadwal)"
+                          className="px-2 py-1 bg-primary/10 hover:bg-primary/20 border border-primary/30 rounded-lg text-[10px] font-bold text-primary flex items-center gap-1 transition-colors"
+                        >
+                          <CurrencyDollar size={13} weight="bold" />
+                          <span>Jual Aset</span>
+                        </button>
+                        <button
+                          onClick={() => {
+                            setScheduleAsset(asset);
+                            setIsScheduleOpen(true);
+                          }}
+                          title="Jadwalkan Pajak, Servis & Biaya Insidental"
+                          className="px-2 py-1 bg-surface-2 hover:bg-surface-3 border border-border/70 rounded-lg text-[10px] font-bold text-text-muted hover:text-primary flex items-center gap-1 transition-colors"
+                        >
+                          <CalendarPlus size={13} weight="bold" />
+                          <span>Jadwal / Biaya</span>
+                        </button>
+                      </>
+                    )}
                     <button
                       onClick={() => openEdit(asset)}
                       title="Ubah Data Aset"
@@ -372,20 +465,27 @@ export function AssetsView({ onRefreshParent }: AssetsViewProps) {
                   </div>
                 </div>
 
-                {/* Values & Progress */}
+                {/* Values & Progress: 3 Columns (Harga Beli, Nilai Buku, Taksiran Pasar) */}
                 <div className="p-2.5 bg-surface-2 rounded-xl space-y-2 border border-border/50">
-                  <div className="grid grid-cols-2 gap-2 text-xs">
+                  <div className="grid grid-cols-3 gap-1.5 text-xs">
                     <div>
-                      <span className="text-[10px] text-text-muted block">Harga Perolehan Awal:</span>
-                      <span className="font-bold text-text whitespace-nowrap tabular-nums">
+                      <span className="text-[9px] sm:text-[10px] text-text-muted block">Harga Beli:</span>
+                      <span className="font-bold text-text whitespace-nowrap tabular-nums text-[11px] sm:text-xs">
                         {formatRupiah(purchasePrice)}
                       </span>
                     </div>
 
                     <div>
-                      <span className="text-[10px] text-text-muted block">Nilai Buku Sekarang:</span>
-                      <span className="font-extrabold text-primary whitespace-nowrap tabular-nums">
+                      <span className="text-[9px] sm:text-[10px] text-text-muted block">Nilai Buku:</span>
+                      <span className="font-bold text-text-muted whitespace-nowrap tabular-nums text-[11px] sm:text-xs">
                         {formatRupiah(bookValue)}
+                      </span>
+                    </div>
+
+                    <div>
+                      <span className="text-[9px] sm:text-[10px] text-text-muted block">Taksiran Pasar:</span>
+                      <span className={`font-extrabold whitespace-nowrap tabular-nums text-[11px] sm:text-xs ${isGain ? 'text-income' : 'text-expense'}`}>
+                        {formatRupiah(marketValue)}
                       </span>
                     </div>
                   </div>
@@ -393,7 +493,7 @@ export function AssetsView({ onRefreshParent }: AssetsViewProps) {
                   {asset.depreciation_method !== 'none' && (
                     <div className="space-y-1 pt-1 border-t border-border/40 text-[10px]">
                       <div className="flex items-center justify-between text-text-muted">
-                        <span>Penyusutan: <span className="font-semibold text-expense">-{formatRupiah(accumDepr)}</span></span>
+                        <span>Penyusutan Buku: <span className="font-semibold text-expense">-{formatRupiah(accumDepr)}</span></span>
                         <span>{deprPercent}% Terdepresiasi</span>
                       </div>
                       <div className="w-full h-1.5 bg-background rounded-full overflow-hidden">
@@ -403,7 +503,7 @@ export function AssetsView({ onRefreshParent }: AssetsViewProps) {
                         />
                       </div>
                       <div className="flex items-center justify-between text-text-muted pt-0.5">
-                        <span>Beban per bulan:</span>
+                        <span>Beban susut bulanan:</span>
                         <span className="font-semibold text-purple-600 dark:text-purple-400 whitespace-nowrap tabular-nums">
                           {formatRupiah(monthlyDepr)} / bln
                         </span>
@@ -429,6 +529,37 @@ export function AssetsView({ onRefreshParent }: AssetsViewProps) {
         onClose={() => setIsModalOpen(false)}
         onSubmit={handleCreateOrUpdate}
         initialData={editingAsset}
+        wallets={wallets}
+      />
+
+      {/* Asset Schedule & Incidental Modal */}
+      <AssetScheduleModal
+        isOpen={isScheduleOpen}
+        onClose={() => {
+          setIsScheduleOpen(false);
+          setScheduleAsset(null);
+        }}
+        asset={scheduleAsset}
+        wallets={wallets}
+        onSuccess={() => {
+          setReloadKey((k) => k + 1);
+          onRefreshParent?.();
+        }}
+      />
+
+      {/* Sell Asset Modal */}
+      <SellAssetModal
+        isOpen={isSellOpen}
+        onClose={() => {
+          setIsSellOpen(false);
+          setSellingAsset(null);
+        }}
+        asset={sellingAsset}
+        wallets={wallets}
+        onSuccess={() => {
+          setReloadKey((k) => k + 1);
+          onRefreshParent?.();
+        }}
       />
     </div>
   );

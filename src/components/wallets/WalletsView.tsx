@@ -7,9 +7,19 @@ import { CategoryIcon, AVAILABLE_COLORS } from '../ui/CategoryIcon';
 import { Button } from '../ui/Button';
 import { Modal } from '../ui/Modal';
 import { AmountInput } from '../ui/AmountInput';
+import { ReconcileModal } from './ReconcileModal';
 import { useWalletForm } from './useWalletForm';
 import { ApiError, apiFetch, endpoints } from '@/lib/apiFetch';
-import { Plus, Trash, PencilSimple, ArrowsLeftRight, Wallet as WalletIcon } from '@phosphor-icons/react';
+import {
+  Plus,
+  Trash,
+  PencilSimple,
+  ArrowsLeftRight,
+  Wallet as WalletIcon,
+  ArrowsClockwise,
+  CheckCircle,
+  Scales,
+} from '@phosphor-icons/react';
 
 const COLOR_NAMES: Record<string, string> = {
   emerald: 'Hijau Emerald',
@@ -33,6 +43,8 @@ interface WalletsViewProps {
 
 export function WalletsView({ wallets, onRefresh, onOpenTransfer, onAddWallet }: WalletsViewProps) {
   const [listError, setListError] = useState<string | null>(null);
+  const [selectedReconcileWallet, setSelectedReconcileWallet] = useState<Wallet | null>(null);
+  const [isReconcileOpen, setIsReconcileOpen] = useState(false);
 
   const {
     isAddOpen,
@@ -57,6 +69,10 @@ export function WalletsView({ wallets, onRefresh, onOpenTransfer, onAddWallet }:
 
   const handleFirstWallet = onAddWallet ?? openAddModal;
 
+  const handleOpenReconcile = (w: Wallet) => {
+    setSelectedReconcileWallet(w);
+    setIsReconcileOpen(true);
+  };
 
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -214,12 +230,39 @@ export function WalletsView({ wallets, onRefresh, onOpenTransfer, onAddWallet }:
             </div>
 
             <div className="pt-2 border-t border-border/60 flex items-center justify-between">
-              <span className="text-xs text-text-muted">Saldo Saat Ini</span>
-              <span className="text-lg font-extrabold text-text">{formatRupiah(wallet.balance)}</span>
+              <div className="space-y-0.5">
+                <span className="text-[11px] text-text-muted block">Saldo Tercatat</span>
+                <span className={`text-base sm:text-lg font-extrabold ${wallet.balance < 0 ? 'text-expense' : 'text-text'}`}>
+                  {formatRupiah(wallet.balance)}
+                </span>
+                {wallet.balance < 0 && (
+                  <span className="block text-[10px] font-bold text-expense">
+                    (Minus / Overdraft)
+                  </span>
+                )}
+              </div>
+
+              <button
+                type="button"
+                onClick={() => handleOpenReconcile(wallet)}
+                className="px-2.5 py-1.5 bg-surface-2 hover:bg-surface-3 border border-border/70 rounded-xl text-xs font-bold text-text-muted hover:text-primary flex items-center gap-1 transition-all active:scale-95 shadow-2xs"
+                title="Cek & Samakan Saldo Rekening Riil"
+              >
+                <ArrowsClockwise size={14} weight="bold" className="text-primary" />
+                <span>Rekonsiliasi</span>
+              </button>
             </div>
           </div>
         ))}
       </div>
+
+      {/* Reconcile Modal */}
+      <ReconcileModal
+        isOpen={isReconcileOpen}
+        onClose={() => setIsReconcileOpen(false)}
+        wallet={selectedReconcileWallet}
+        onSuccess={onRefresh}
+      />
 
       {/* Add / Edit Wallet Modal */}
       <Modal

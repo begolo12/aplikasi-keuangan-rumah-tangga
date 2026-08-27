@@ -4,10 +4,10 @@ import React, { useState } from 'react';
 import { Modal } from '../ui/Modal';
 import { AmountInput } from '../ui/AmountInput';
 import { Button } from '../ui/Button';
-import { Wallet, Category, Transaction, TransactionType } from '@/lib/types';
+import { Wallet, Category, Transaction, TransactionType, AssetCategory } from '@/lib/types';
 import { enqueueOfflineMutation } from '@/lib/offlineQueue';
 import { formatRupiah } from '@/lib/formatters';
-import { WifiSlash, PencilSimple, Plus } from '@phosphor-icons/react';
+import { WifiSlash, PencilSimple, Plus, Package } from '@phosphor-icons/react';
 
 interface TransactionModalProps {
   isOpen: boolean;
@@ -57,6 +57,9 @@ function TransactionForm({
     editingTransaction?.category_id || defaultCat?.id || ''
   );
   const [description, setDescription] = useState(editingTransaction?.description || '');
+  const [createAsset, setCreateAsset] = useState(false);
+  const [assetName, setAssetName] = useState('');
+  const [assetCategory, setAssetCategory] = useState<AssetCategory>('kendaraan');
   const [date, setDate] = useState(
     () => editingTransaction?.date || new Date().toISOString().split('T')[0]
   );
@@ -112,6 +115,9 @@ function TransactionForm({
       category_id: type === 'transfer' ? null : categoryId || null,
       wallet_id: walletId,
       to_wallet_id: type === 'transfer' ? toWalletId : null,
+      create_asset: type === 'expense' && createAsset,
+      asset_name: type === 'expense' && createAsset ? (assetName.trim() || description.trim() || 'Aset Baru') : null,
+      asset_category: type === 'expense' && createAsset ? assetCategory : null,
       description: description.trim() || null,
       date,
     };
@@ -280,8 +286,11 @@ function TransactionForm({
       {/* Wallet Balance Hint */}
       {selectedSourceWallet && (
         <div className="text-[11px] text-text-muted flex items-center justify-between px-1">
-          <span>Saldo Tersedia ({selectedSourceWallet.name}):</span>
-          <span className="font-bold text-text tabular-nums">{formatRupiah(selectedSourceWallet.balance)}</span>
+          <span>Saldo ({selectedSourceWallet.name}):</span>
+          <span className={`font-bold tabular-nums ${selectedSourceWallet.balance < 0 ? 'text-expense' : 'text-text'}`}>
+            {formatRupiah(selectedSourceWallet.balance)}
+            {selectedSourceWallet.balance < 0 && ' (Minus)'}
+          </span>
         </div>
       )}
 
@@ -339,7 +348,10 @@ function TransactionForm({
           id="tx-desc"
           type="text"
           value={description}
-          onChange={(e) => setDescription(e.target.value)}
+          onChange={(e) => {
+            setDescription(e.target.value);
+            if (!assetName) setAssetName(e.target.value);
+          }}
           placeholder="Contoh: Belanja mingguan pasar pagi"
           className="w-full h-11 px-4 bg-background border border-border rounded-xl text-sm font-medium focus:ring-2 focus:ring-primary focus:outline-none placeholder:text-text-muted/40"
         />
@@ -350,7 +362,10 @@ function TransactionForm({
             <button
               key={note}
               type="button"
-              onClick={() => setDescription(note)}
+              onClick={() => {
+                setDescription(note);
+                if (!assetName) setAssetName(note);
+              }}
               className="px-2 py-0.5 text-[11px] bg-background hover:bg-surface-2 border border-border rounded-lg text-text-muted hover:text-text transition-colors"
             >
               {note}
@@ -358,6 +373,57 @@ function TransactionForm({
           ))}
         </div>
       </div>
+
+      {/* Opsi Otomatisasi: Catat sebagai Aset Baru (Hanya saat Pengeluaran Baru) */}
+      {type === 'expense' && !isEditing && (
+        <div className="p-3 bg-surface-2 rounded-2xl border border-primary/20 space-y-2.5">
+          <div className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              id="txCreateAsset"
+              checked={createAsset}
+              onChange={(e) => setCreateAsset(e.target.checked)}
+              className="w-4 h-4 text-primary rounded border-border focus:ring-primary"
+            />
+            <label htmlFor="txCreateAsset" className="text-xs font-bold text-text flex items-center gap-1 cursor-pointer">
+              <Package size={15} weight="fill" className="text-primary" />
+              <span>Catat transaksi ini ke Daftar Aset & Depresiasi</span>
+            </label>
+          </div>
+
+          {createAsset && (
+            <div className="space-y-2 pt-1 pl-6">
+              <div>
+                <label className="block text-[10px] font-semibold text-text-muted">Nama Aset</label>
+                <input
+                  type="text"
+                  required={createAsset}
+                  value={assetName}
+                  onChange={(e) => setAssetName(e.target.value)}
+                  placeholder="Contoh: Honda Vario 160, MacBook Air"
+                  className="w-full h-10 px-3 bg-background border border-border rounded-xl text-xs font-bold focus:ring-2 focus:ring-primary focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-semibold text-text-muted">Kategori Aset</label>
+                <select
+                  value={assetCategory}
+                  onChange={(e) => setAssetCategory(e.target.value as AssetCategory)}
+                  className="w-full h-10 px-3 bg-background border border-border rounded-xl text-xs font-medium focus:ring-2 focus:ring-primary focus:outline-none"
+                >
+                  <option value="kendaraan">Kendaraan</option>
+                  <option value="elektronik">Elektronik & Gadget</option>
+                  <option value="properti">Properti & Bangunan</option>
+                  <option value="perhiasan_emas">Emas & Perhiasan</option>
+                  <option value="alat_usaha">Peralatan Usaha</option>
+                  <option value="lainnya">Lainnya</option>
+                </select>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Submit Button */}
       <Button

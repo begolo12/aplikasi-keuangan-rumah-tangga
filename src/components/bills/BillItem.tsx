@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { RecurringBill } from '@/lib/types';
 import { formatRupiah } from '@/lib/formatters';
-import { CheckCircle, WarningCircle, Clock, Trash, Receipt } from '@phosphor-icons/react';
+import { CheckCircle, WarningCircle, Clock, Trash, Receipt, ArrowDownLeft, ArrowUpRight, Lightning } from '@phosphor-icons/react';
 
 interface BillItemProps {
   bill: RecurringBill;
@@ -15,34 +15,40 @@ export function BillItem({ bill, onPay, onDelete }: BillItemProps) {
   const [showConfirm, setShowConfirm] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
+  const isIncome = bill.type === 'income';
+
   const getStatusBadge = () => {
     switch (bill.status) {
       case 'paid':
         return (
           <span className="flex items-center gap-1 text-[11px] font-bold text-income bg-income/10 px-2.5 py-1 rounded-full border border-income/20">
             <CheckCircle size={14} weight="fill" />
-            <span>Lunas</span>
+            <span>{isIncome ? 'Sudah Masuk' : 'Lunas'}</span>
           </span>
         );
       case 'due_today':
         return (
-          <span className="flex items-center gap-1 text-[11px] font-bold text-expense bg-expense/10 px-2.5 py-1 rounded-full border border-expense/20 animate-pulse">
+          <span className={`flex items-center gap-1 text-[11px] font-bold px-2.5 py-1 rounded-full border animate-pulse ${
+            isIncome ? 'text-income bg-income/10 border-income/20' : 'text-expense bg-expense/10 border-expense/20'
+          }`}>
             <WarningCircle size={14} weight="fill" />
-            <span>Jatuh Tempo Hari Ini</span>
+            <span>Jadwal Hari Ini</span>
           </span>
         );
       case 'overdue':
         return (
-          <span className="flex items-center gap-1 text-[11px] font-bold text-expense bg-expense/10 px-2.5 py-1 rounded-full border border-expense/20">
+          <span className={`flex items-center gap-1 text-[11px] font-bold px-2.5 py-1 rounded-full border ${
+            isIncome ? 'text-amber-600 bg-amber-500/10 border-amber-500/20' : 'text-expense bg-expense/10 border-expense/20'
+          }`}>
             <WarningCircle size={14} weight="fill" />
-            <span>Menunggak</span>
+            <span>{isIncome ? 'Belum Tercatat' : 'Menunggak'}</span>
           </span>
         );
       case 'due_soon':
         return (
           <span className="flex items-center gap-1 text-[11px] font-bold text-amber-600 dark:text-amber-400 bg-amber-500/10 px-2.5 py-1 rounded-full border border-amber-500/20">
             <Clock size={14} weight="bold" />
-            <span>Jatuh Tempo {bill.days_until_due} Hari Lagi</span>
+            <span>{bill.days_until_due} Hari Lagi</span>
           </span>
         );
       default:
@@ -59,7 +65,7 @@ export function BillItem({ bill, onPay, onDelete }: BillItemProps) {
     <div
       className={`p-3.5 sm:p-4 md:p-5 bg-surface border rounded-3xl flex flex-col md:flex-row md:items-center justify-between gap-3 sm:gap-4 transition-all shadow-xs min-w-0 ${
         bill.status === 'overdue' || bill.status === 'due_today'
-          ? 'border-expense/40 shadow-expense/5'
+          ? isIncome ? 'border-income/40 shadow-income/5' : 'border-expense/40 shadow-expense/5'
           : 'border-border hover:border-primary/30'
       }`}
     >
@@ -68,21 +74,35 @@ export function BillItem({ bill, onPay, onDelete }: BillItemProps) {
           className={`w-11 h-11 sm:w-12 sm:h-12 rounded-2xl flex items-center justify-center shrink-0 border ${
             bill.is_paid
               ? 'bg-income/10 text-income border-income/20'
+              : isIncome
+              ? 'bg-income/10 text-income border-income/20'
               : bill.status === 'overdue' || bill.status === 'due_today'
               ? 'bg-expense/10 text-expense border-expense/20'
               : 'bg-primary/10 text-primary border-primary/20'
           }`}
         >
-          <Receipt size={22} weight="duotone" />
+          {isIncome ? <ArrowDownLeft size={22} weight="bold" /> : <Receipt size={22} weight="duotone" />}
         </div>
 
         <div className="space-y-1 min-w-0 flex-1">
           <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
             <h4 className="text-xs sm:text-sm md:text-base font-bold text-text truncate max-w-full">{bill.title}</h4>
+            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md border ${
+              isIncome ? 'bg-income/10 text-income border-income/20' : 'bg-expense/10 text-expense border-expense/20'
+            }`}>
+              {isIncome ? 'Pemasukan Pasti' : 'Pengeluaran Pasti'}
+            </span>
+            {bill.auto_record && (
+              <span className="text-[10px] font-semibold text-primary bg-primary/10 px-1.5 py-0.5 rounded-md flex items-center gap-0.5">
+                <Lightning size={12} weight="fill" /> Auto
+              </span>
+            )}
             {getStatusBadge()}
           </div>
           <p className="text-xs text-text-muted">
-            Nominal: <span className="font-extrabold text-text whitespace-nowrap tabular-nums">{formatRupiah(bill.amount)}</span>
+            Nominal: <span className={`font-extrabold whitespace-nowrap tabular-nums ${isIncome ? 'text-income' : 'text-text'}`}>
+              {formatRupiah(bill.amount)}
+            </span>
             {bill.category_name && ` • ${bill.category_name}`}
           </p>
         </div>
@@ -92,9 +112,11 @@ export function BillItem({ bill, onPay, onDelete }: BillItemProps) {
         {!bill.is_paid && (
           <button
             onClick={() => onPay(bill)}
-            className="min-h-[40px] px-3.5 sm:px-4 py-2 bg-primary hover:bg-primary-hover text-primary-fg text-xs font-bold rounded-xl active:scale-95 transition-all shadow-xs"
+            className={`min-h-[40px] px-3.5 sm:px-4 py-2 text-white text-xs font-bold rounded-xl active:scale-95 transition-all shadow-xs ${
+              isIncome ? 'bg-income hover:opacity-90' : 'bg-primary hover:bg-primary-hover'
+            }`}
           >
-            Bayar Sekarang
+            {isIncome ? 'Catat Masuk Kas' : 'Bayar Sekarang'}
           </button>
         )}
 
@@ -123,8 +145,8 @@ export function BillItem({ bill, onPay, onDelete }: BillItemProps) {
         ) : (
           <button
             onClick={() => setShowConfirm(true)}
-            title="Hapus Tagihan"
-            aria-label={`Hapus tagihan ${bill.title}`}
+            title="Hapus Jadwal Rutin"
+            aria-label={`Hapus ${bill.title}`}
             className="min-w-[40px] min-h-[40px] flex items-center justify-center text-text-muted hover:text-expense hover:bg-expense/10 rounded-xl transition-colors"
           >
             <Trash size={18} />

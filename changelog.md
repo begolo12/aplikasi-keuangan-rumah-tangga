@@ -3,7 +3,131 @@
 Log eksekusi plan. Entri baru ditambahkan di bagian paling atas.
 Format entri lihat `AGENTS.md` bagian "Langkah 3 — Catat ke Changelog".
 
-## [2026-08-25] Audit & Perbaikan Tampilan Handphone, Bottom Bar, dan Modal Overlap
+## [2026-08-27] Fitur Otomatisasi Pembelian Aset, Jadwal Pajak, dan Perawatan Rutin/Insidental
+
+**Plan**: `docs/plans/2026-08-27-fitur-otomatisasi-pembelian-aset-jadwal-pajak-dan-maintenance.md`
+
+### Berubah
+- **Sinkronisasi Atomik Pembelian Aset & Transaksi Kas**:
+  - Menambahkan kolom `asset_id` (foreign key) pada tabel `transactions` dan `recurring_bills`.
+  - Pada [TransactionModal.tsx](src/components/transactions/TransactionModal.tsx), saat mencatat pengeluaran pembelian barang berharga, terdapat opsi centang **"Catat transaksi ini ke Daftar Aset & Depresiasi"** yang secara atomik mendaftarkan aset baru.
+  - Pada [AssetModal.tsx](src/components/assets/AssetModal.tsx), terdapat opsi **"Catat pengeluaran kas pembelian dari dompet"** sehingga mutasi kas dan pencatatan aset langsung sinkron tanpa perlu input ganda.
+- **Jadwal Pajak, Servis Rutin & Biaya Insidental Aset**:
+  - Membuat modal [AssetScheduleModal.tsx](src/components/assets/AssetScheduleModal.tsx) di [AssetsView.tsx](src/components/assets/AssetsView.tsx) dengan tombol aksi cepat **"Jadwal / Biaya"** pada setiap kartu aset.
+  - Mendukung pembuatan **Jadwal Pajak Rutin** (Pajak STNK / PBB) dan **Servis Berkala** yang otomatis terjadwal ke daftar **Pengeluaran Pasti Rutin (`recurring_bills`)** dan terhitung dalam Rencana Anggaran.
+  - Mendukung pencatatan **Biaya Insidental (Perbaikan/Kerusakan Tak Terduga)** yang langsung memotong saldo kas dompet dan menautkan riwayat biaya ke aset terkait.
+- **Verifikasi**:
+  - 89 assertion audit unit test + 37 pengujian E2E lulus 100%.
+
+## [2026-08-27] Fitur Taksiran Harga Pasar Aset & Analisis Plus / Minus Depresiasi
+
+**Plan**: `docs/plans/2026-08-27-fitur-taksiran-harga-pasar-aset-dan-analisis-plus-minus.md`
+
+### Berubah
+- **Inputan Taksiran Harga Pasar Terkini**:
+  - Menambahkan input field "Taksiran Harga Pasaran Saat Ini (Rp)" pada formulir aset [AssetModal.tsx](src/components/assets/AssetModal.tsx) untuk mencatat estimasi nilai jual/pasar riil saat ini (misal taksiran pasar motor, laptop, emas, properti).
+- **Perhitungan & Analisis Plus (+) vs Minus (-)**:
+  - Memperbarui fungsi `calculateAssetDepreciation` pada [assets/route.ts](src/app/api/assets/route.ts) untuk menghitung selisih antara Taksiran Pasar terhadap Harga Beli Awal (`market_diff_purchase`) dan terhadap Nilai Buku Akuntansi (`market_diff_book`).
+  - Menghitung persentase perubahan nilai serta menentukan status apakah aset mengalami kenaikan nilai/apresiasi (**Plus**) atau penurunan nilai/depresiasi (**Minus**).
+- **Visualisasi Pada Kartu Aset**:
+  - Setiap kartu aset pada [AssetsView.tsx](src/components/assets/AssetsView.tsx) kini menyajikan 3 metrik perbandingan: **Harga Beli Awal**, **Nilai Buku Susut**, dan **Taksiran Pasar**, lengkap dengan badge status `Plus (+Rp X)` atau `Minus (-Rp X)`.
+- **Verifikasi**:
+  - 89 assertion audit unit test + 37 pengujian E2E lulus 100%.
+
+## [2026-08-27] Laporan Khusus Cashflow, Indikator Surplus/Defisit, dan Status Efisiensi Rencana
+
+**Plan**: `docs/plans/2026-08-27-fitur-laporan-cashflow-status-surplus-defisit-dan-efisiensi-rencana.md`
+
+### Berubah
+- **Indikator Status Surplus vs Defisit Instan**:
+  - Memperbarui [MonthlySummary.tsx](src/components/dashboard/MonthlySummary.tsx) dengan badge kontras tinggi "Kondisi Surplus" vs "Kondisi Defisit" pada tampilan mobile dan desktop sehingga status keuangan bulan berjalan langsung terbaca sekilas.
+- **Indikator Efisiensi vs Inefisiensi Rencana Anggaran**:
+  - Memperbarui [ExpenseProjectionCard.tsx](src/components/budget/ExpenseProjectionCard.tsx) dengan status "Efisien (Hemat X%)" vs "Inefisien (Boros/Overbudget X%)" yang membandingkan proyeksi akhir bulan terhadap rencana awal.
+- **Modul Laporan Khusus Cashflow (Cashflow Statement)**:
+  - Membuat komponen [CashflowStatement.tsx](src/components/reports/CashflowStatement.tsx) yang terintegrasi pada [ReportsView.tsx](src/components/reports/ReportsView.tsx) via sub-tab navigasi.
+  - Tampilan **Handphone (Mobile)** dibuat ringkas (*clean & glanceable 3-column strip*) memuat Total Kas Masuk, Total Kas Keluar, dan Arus Kas Bersih.
+  - Tampilan **PC (Desktop Full Data)** menyajikan tabel lengkap rekonsiliasi kas: Saldo Awal Periode, Arus Kas Operasional Masuk/Keluar, Mutasi Transfer Internal, Kenaikan/Penurunan Bersih, dan Saldo Akhir Periode.
+- **Verifikasi**:
+  - 86 assertion audit unit test + 35 pengujian E2E lulus 100%.
+
+## [2026-08-27] Fitur Proyeksi Pengeluaran Bulanan (Monthly Expense Projection)
+
+**Plan**: `docs/plans/2026-08-27-fitur-proyeksi-pengeluaran-bulanan.md`
+
+### Berubah
+- **Kalkulasi Proyeksi Pengeluaran (Realisasi + Sisa Estimasi)**:
+  - Membuat fungsi helper `calculateExpenseProjection` pada [ExpenseProjectionCard.tsx](src/components/budget/ExpenseProjectionCard.tsx) untuk menghitung proyeksi total biaya akhir bulan ($\text{Realisasi Terkini} + \text{Sisa Kebutuhan Riil}$) dan membandingkannya dengan Rencana Anggaran Awal.
+  - Menghitung potensi penghematan/surplus biaya jika biaya berjalan tidak sebesar rencana awal (contoh: rencana Rp 1,5 jt, realisasi Rp 1 jt + sisa Rp 300 rb = proyeksi Rp 1,3 jt / hemat Rp 200 rb).
+- **Komponen Visual & Penyesuaian Interaktif**:
+  - Membuat komponen [ExpenseProjectionCard.tsx](src/components/budget/ExpenseProjectionCard.tsx) di menu Anggaran ([BudgetView.tsx](src/components/budget/BudgetView.tsx)) lengkap dengan rincian 4 metrik, progress bar bertingkat, dan form inline untuk menyesuaikan perkiraan sisa biaya riil.
+  - Menambahkan indikator proyeksi akhir bulan pada [ReportsView.tsx](src/components/reports/ReportsView.tsx).
+- **Verifikasi**:
+  - 86 assertion audit unit test + 35 pengujian E2E lulus 100%.
+
+## [2026-08-27] Fitur Rekonsiliasi Saldo Rekening Riil (Real Account Reconciliation)
+
+**Plan**: `docs/plans/2026-08-27-fitur-rekonsiliasi-saldo-rekening-riil.md`
+
+### Berubah
+- **Skema & API Rekonsiliasi Dompet**:
+  - Menambahkan kolom `reconciled_at` (timestamp) dan `last_reconciled_balance` (numeric) pada tabel `wallets`.
+  - Membuat endpoint API [wallets/[id]/reconcile/route.ts](src/app/api/wallets/[id]/reconcile/route.ts) untuk membandingkan saldo sistem dengan saldo riil bank/kas fisik, menghitung selisih, dan membuat transaksi penyesuaian otomatis (`income` jika saldo fisik lebih banyak, `expense` jika saldo fisik lebih sedikit karena lupa catat).
+- **Modal Rekonsiliasi & Analisis Selisih**:
+  - Membuat komponen [ReconcileModal.tsx](src/components/wallets/ReconcileModal.tsx) dengan deteksi selisih otomatis, analisis penyebab (kelebihan pemasukan/bunga vs lupa catat belanja/biaya admin), dan sakelar penyesuaian otomatis (*auto-adjust*).
+  - Menambahkan tombol aksi cepat "Rekonsiliasi" pada setiap kartu pos kas di [WalletsView.tsx](src/components/wallets/WalletsView.tsx).
+- **Verifikasi**:
+  - 80 assertion audit unit test + 35 pengujian E2E lulus 100%.
+
+## [2026-08-27] Resume Rencana Keuangan: Cadangan Biaya 4 Bulan dan Cadangan Risiko 10%
+
+**Plan**: `docs/plans/2026-08-27-fitur-resume-rencana-cadangan-4-bulan-dan-resiko-10-persen.md`
+
+### Berubah
+- **Perhitungan Rencana Keamanan & Cadangan Risiko**:
+  - Mengimplementasikan helper kalkulasi `calculateFinancialSafetyPlan` pada [FinancialSafetyPlanCard.tsx](src/components/budget/FinancialSafetyPlanCard.tsx) yang menghitung:
+    1. Cadangan Biaya 4 Bulan ($4 \times \text{Anggaran}$).
+    2. Cadangan Risiko 10% ($10\% \times \text{Cadangan 4 Bulan} = 0.4 \times \text{Anggaran}$).
+    3. Total Syarat Minimum Dana Keamanan ($4.4 \times \text{Anggaran Bulanan}$).
+    4. Saldo cadangan saat ini, progres persentase, dan nominal kekurangan.
+- **Aturan KPI Penambahan Pengeluaran (Budget Expansion Guard)**:
+  - Menerapkan aturan wajib: Pengguna harus memiliki uang cadangan minimal sebesar total syarat keamanan ($4.4 \times \text{Anggaran}$) sebelum boleh menambah pos pengeluaran atau menaikkan limit anggaran baru.
+  - Pada form penetapan anggaran [BudgetView.tsx](src/components/budget/BudgetView.tsx), sistem menampilkan badge status "Terkunci: Wajib Punya Cadangan Dulu" serta pesan peringatan risiko jika syarat minimum belum tercapai.
+- **Visualisasi Komprehensif di Modul Anggaran & Evaluasi**:
+  - Menampilkan kartu visual [FinancialSafetyPlanCard.tsx](src/components/budget/FinancialSafetyPlanCard.tsx) di menu Anggaran dengan rincian 4 metrik, progres bar, dan rekomendasi aksi finansial.
+  - Memperbarui [EvaluationView.tsx](src/components/evaluation/EvaluationView.tsx) agar skor kesehatan dan rasio cadangan mengacu pada ambang batas 4.4x anggaran.
+- **Verifikasi**:
+  - 78 assertion audit unit test + 35 pengujian E2E lulus 100%.
+
+## [2026-08-27] Fitur Saldo Minus, Laporan Bulanan, Dana Darurat 4x Anggaran, Otomatisasi Transaksi Rutin, dan Kalkulator Insight Hutang
+
+**Plan**: `docs/plans/2026-08-27-fitur-saldo-minus-laporan-dana-darurat-otomatisasi-dan-kalkulator-hutang.md`
+
+### Berubah
+- **Dukungan Saldo Minus (Overdraft)**:
+  - Melepas batasan database constraint `wallets_balance_nonnegative` dari tabel `wallets` pada migrasi live DB.
+  - Memperbarui validasi Zod [validations.ts](src/lib/validations.ts) agar `walletSchema.balance` menerima nilai negatif.
+  - Menghapus pembatasan error "Saldo tidak mencukupi" pada rute [transactions/route.ts](src/app/api/transactions/route.ts), [transactions/[id]/route.ts](src/app/api/transactions/[id]/route.ts), [debts/[id]/pay/route.ts](src/app/api/debts/[id]/pay/route.ts), dan [bills/[id]/pay/route.ts](src/app/api/bills/[id]/pay/route.ts) sehingga dompet kas dapat bernilai minus saat pengeluaran melampaui saldo.
+  - Menambahkan styling visual saldo minus dengan aksen teks merah dan label indikator minus/overdraft pada [WalletsView.tsx](src/components/wallets/WalletsView.tsx), [WalletScroller.tsx](src/components/dashboard/WalletScroller.tsx), [BalanceHeader.tsx](src/components/dashboard/BalanceHeader.tsx), dan [TransactionModal.tsx](src/components/transactions/TransactionModal.tsx).
+- **KPI Dana Darurat (Aturan Wajib 4x Anggaran)**:
+  - Mengimplementasikan aturan KPI keamanan keuangan di mana target Dana Darurat dihitung 4 × Total Anggaran Bulanan.
+  - Membuat komponen visual [EmergencyFundCard.tsx](src/components/budget/EmergencyFundCard.tsx) di menu Anggaran ([BudgetView.tsx](src/components/budget/BudgetView.tsx)) dengan indikator status otomatis "Keuangan Aman" (jika saldo dana darurat >= 4x anggaran) vs "Keuangan Belum Aman" (jika belum mencapai 4x anggaran), progres bar, dan nominal kekurangan yang harus dikumpulkan.
+  - Memperbarui modul Evaluasi Finansial [EvaluationView.tsx](src/components/evaluation/EvaluationView.tsx) agar skor kesehatan dan rekomendasi keuangan mengadopsi standar KPI 4x anggaran.
+- **Transaksi Rutin & Pasti Otomatis (Pemasukan & Pengeluaran Pasti)**:
+  - Memperluas tabel `recurring_bills` dengan kolom `type` (`expense` | `income`) dan `auto_record` (boolean) untuk membedakan Pemasukan Pasti (Gaji, Bonus, dll) dan Pengeluaran Pasti (Listrik, Air, Wi-Fi, Cicilan Hutang).
+  - Membuat endpoint API [bills/auto-process/route.ts](src/app/api/bills/auto-process/route.ts) untuk eksekusi otomatis 1-klik seluruh transaksi rutin periode aktif.
+  - Memperbarui [BillsView.tsx](src/components/bills/BillsView.tsx), [BillItem.tsx](src/components/bills/BillItem.tsx), dan [useBillForm.ts](src/components/bills/useBillForm.ts) dengan filter tab (Semua, Pengeluaran Pasti, Pemasukan Pasti), tombol "Catat Otomatis", dan modal transaksi rutin fleksibel.
+- **Kalkulator & Simulator Hutang dengan Insight Keamanan Finansial (KPI)**:
+  - Membuat komponen modal [DebtCalculatorModal.tsx](src/components/debts/DebtCalculatorModal.tsx) di [DebtsView.tsx](src/components/debts/DebtsView.tsx) untuk menghitung simulasi cicilan pinjaman (pokok, tenor, suku bunga/margin).
+  - Menyediakan analisis kesimpulan KPI: menghitung rasio Debt-to-Income (DTI / DSR), sisa arus kas bulanan pasca cicilan, serta dampak terhadap target Dana Darurat 4x Anggaran dengan badge status "Keuangan Aman", "Perlu Waspada", atau "Sangat Berisiko / Defisit".
+  - Menyediakan tombol 1-klik untuk menyimpan pinjaman langsung ke daftar hutang aktif sekaligus menjadwalkan cicilan rutin ke daftar pengeluaran pasti.
+- **Penyempurnaan Laporan Bulanan (ReportsView)**:
+  - Menambahkan navigasi pemilih periode bulan & tahun pada [ReportsView.tsx](src/components/reports/ReportsView.tsx) sehingga pengguna leluasa memeriksa laporan tiap bulan.
+  - Menambahkan tabel Riwayat Perbandingan 4 Bulan Terakhir untuk memantau tren pemasukan, pengeluaran, dan arus kas bersih antar-bulan.
+  - Memastikan ekspor CSV dan visualisasi grafik terhubung dengan bulan yang dipilih.
+
+### Dampak
+- Saldo dompet kini dapat bernilai minus (misal akun kas/rekening overdraft), tidak ada lagi pemblokiran transaksi akibat saldo tidak cukup.
+- Seluruh 71 unit test audit dan 35 pengujian E2E lulus tanpa error.
 
 **Plan**: `docs/plans/2026-08-25-audit-perbaikan-tampilan-mobile-bottom-nav-dan-modal.md`
 

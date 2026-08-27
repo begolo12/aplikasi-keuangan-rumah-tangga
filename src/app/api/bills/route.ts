@@ -23,7 +23,8 @@ export async function GET(req: NextRequest) {
     // Join metadata diikat pemiliknya agar FK silang tak bisa menampilkan nama user lain.
     const bills = await query<Record<string, unknown>>(
       `SELECT
-        b.id, b.user_id, b.title, b.amount, b.due_day, b.category_id, b.wallet_id, b.is_active, b.created_at,
+        b.id, b.user_id, COALESCE(b.type, 'expense') as type, b.title, b.amount, b.due_day, 
+        b.category_id, b.wallet_id, COALESCE(b.auto_record, FALSE) as auto_record, b.is_active, b.created_at,
         c.name as category_name,
         w.name as wallet_name,
         bp.id as payment_id,
@@ -42,6 +43,8 @@ export async function GET(req: NextRequest) {
       is_paid: boolean;
       due_day: number;
       amount: string;
+      type?: 'expense' | 'income';
+      auto_record?: boolean;
       [key: string]: unknown;
     }
 
@@ -58,6 +61,8 @@ export async function GET(req: NextRequest) {
 
       return {
         ...(b as unknown as RecurringBill),
+        type: b.type === 'income' ? 'income' : 'expense',
+        auto_record: Boolean(b.auto_record),
         amount: parseFloat(b.amount),
         days_until_due: daysUntilDue,
         status,
@@ -94,16 +99,18 @@ export async function POST(req: NextRequest) {
         if (ownedWallet.rows.length === 0) throw new BusinessError('Dompet tidak ditemukan pada akun Anda.');
       }
       const rows = await client.query<RecurringBill>(
-        `INSERT INTO recurring_bills (user_id, title, amount, due_day, category_id, wallet_id, is_active)
-         VALUES ($1, $2, $3, $4, $5, $6, $7)
+        `INSERT INTO recurring_bills (user_id, type, title, amount, due_day, category_id, wallet_id, auto_record, is_active)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
          RETURNING *`,
         [
           session.userId,
+          validated.type,
           validated.title,
           validated.amount,
           validated.due_day,
           validated.category_id || null,
           validated.wallet_id || null,
+          validated.auto_record,
           validated.is_active,
         ]
       );

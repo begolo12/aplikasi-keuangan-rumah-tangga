@@ -32,12 +32,14 @@ export async function GET(req: NextRequest) {
         c.name as category_name, c.icon as category_icon, c.color as category_color,
         t.wallet_id, w.name as wallet_name, w.icon as wallet_icon,
         t.to_wallet_id, tw.name as to_wallet_name,
+        t.asset_id, a.name as asset_name,
         t.description, t.date, t.created_at, t.updated_at,
         COUNT(*) OVER() AS total_count
       FROM transactions t
       LEFT JOIN categories c ON t.category_id = c.id AND c.user_id = t.user_id
       LEFT JOIN wallets w ON t.wallet_id = w.id AND w.user_id = t.user_id
       LEFT JOIN wallets tw ON t.to_wallet_id = tw.id AND tw.user_id = t.user_id
+      LEFT JOIN assets a ON t.asset_id = a.id AND a.user_id = t.user_id
       WHERE t.user_id = $1
     `;
 
@@ -154,16 +156,7 @@ export async function POST(req: NextRequest) {
       const totalDebit =
         validated.type === 'transfer' ? validated.amount + (validated.admin_fee || 0) : validated.amount;
 
-      // Invarian strict-zero untuk expense dan transfer.
-      if (
-        (validated.type === 'expense' || validated.type === 'transfer') &&
-        parseFloat(sourceWallet.balance) < totalDebit
-      ) {
-        throw new BusinessError(
-          `Saldo ${sourceWallet.name} tidak mencukupi. (Tersedia: ${formatRupiah(sourceWallet.balance)}, Dibutuhkan: ${formatRupiah(totalDebit)})`
-        );
-      }
-
+      // Saldo dompet diizinkan bernilai minus (overdraft / cashflow defisit).
       if (validated.type === 'expense') {
         await client.query('UPDATE wallets SET balance = balance - $1, updated_at = NOW() WHERE id = $2 AND user_id = $3', [
           validated.amount,
@@ -189,10 +182,37 @@ export async function POST(req: NextRequest) {
         ]);
       }
 
+      let linkedAssetId = validated.asset_id || null;
+
+      // Jika opsi create_asset aktif pada pengeluaran pembelian barang, otomatis buat aset
+      if (validated.type === 'expense' && validated.create_asset && validated.asset_name) {
+        const assetCat = validated.asset_category || 'kendaraan';
+        const initialMethod = assetCat === 'properti' || assetCat === 'perhiasan_emas' ? 'none' : 'straight_line';
+        const insAsset = await client.query(
+          `INSERT INTO assets (
+            user_id, name, category, purchase_date, purchase_price, current_value,
+            depreciation_method, useful_life_years, salvage_value, notes
+          ) VALUES ($1, $2, $3, $4, $5, $5, $6, 5, 0, $7)
+          RETURNING id`,
+          [
+            session.userId,
+            validated.asset_name.trim(),
+            assetCat,
+            validated.date,
+            validated.amount,
+            initialMethod,
+            validated.description || 'Pembelian aset tercatat otomatis dari transaksi kas',
+          ]
+        );
+        if (insAsset.rows.length > 0) {
+          linkedAssetId = insAsset.rows[0].id;
+        }
+      }
+
       const insertedTrx = await client.query(
         `INSERT INTO transactions (
-          user_id, type, amount, admin_fee, category_id, wallet_id, to_wallet_id, description, date, idempotency_key
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+          user_id, type, amount, admin_fee, category_id, wallet_id, to_wallet_id, asset_id, description, date, idempotency_key
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
         RETURNING *`,
         [
           session.userId,
@@ -202,6 +222,7 @@ export async function POST(req: NextRequest) {
           validated.category_id || null,
           validated.wallet_id,
           validated.to_wallet_id || null,
+          linkedAssetId,
           validated.description || null,
           validated.date,
           idempotencyKey,

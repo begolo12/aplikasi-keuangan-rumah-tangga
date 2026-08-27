@@ -7,6 +7,7 @@
 import {
   transactionSchema,
   walletSchema,
+  reconcileWalletSchema,
   categorySchema,
   budgetSchema,
   recurringBillSchema,
@@ -21,10 +22,13 @@ import {
   debtQuerySchema,
   assetSchema,
   assetQuerySchema,
+  sellAssetSchema,
 } from '../src/lib/validations';
 import { formatRupiah, formatCompactRupiah, formatDate } from '../src/lib/formatters';
 import { createSessionToken, verifySessionToken } from '../src/lib/auth';
 import { calculateAssetDepreciation } from '../src/app/api/assets/route';
+import { calculateFinancialSafetyPlan } from '../src/components/budget/FinancialSafetyPlanCard';
+import { calculateExpenseProjection } from '../src/components/budget/ExpenseProjectionCard';
 
 let passed = 0;
 let failed = 0;
@@ -50,8 +54,11 @@ const r1 = transactionSchema.safeParse({
   amount: 50000,
   wallet_id: validUuid1,
   date: '2026-08-24',
+  create_asset: true,
+  asset_name: 'Motor NMax',
+  asset_category: 'kendaraan',
 });
-assert('pengeluaran valid diterima', r1.success);
+assert('pengeluaran valid dengan opsi create_asset diterima', r1.success && r1.data.create_asset === true);
 
 const r2 = transactionSchema.safeParse({
   type: 'expense',
@@ -189,8 +196,21 @@ assert('wallet nama kosong ditolak', !w2.success);
 const w3 = walletSchema.safeParse({ name: 'X', type: 'kripto' });
 assert('wallet type di luar enum ditolak', !w3.success);
 
-const w4 = walletSchema.safeParse({ name: 'X', type: 'bank', balance: -10 });
-assert('wallet saldo awal negatif ditolak', !w4.success);
+const w4 = walletSchema.safeParse({ name: 'X', type: 'bank', balance: -50000 });
+assert('wallet saldo awal negatif diterima (dukung saldo minus / overdraft)', w4.success && w4.data.balance === -50000);
+
+const rec1 = reconcileWalletSchema.safeParse({
+  actual_balance: 5500000,
+  notes: 'Sesuai mutasi BCA',
+  auto_adjust: true,
+});
+assert('reconcileWalletSchema valid diterima', rec1.success && rec1.data.actual_balance === 5500000);
+
+const rec2 = reconcileWalletSchema.safeParse({
+  actual_balance: -200000,
+  auto_adjust: true,
+});
+assert('reconcileWalletSchema saldo riil minus diterima', rec2.success && rec2.data.actual_balance === -200000);
 
 const c1 = categorySchema.safeParse({ name: 'Makan', type: 'expense', icon: 'fork-knife' });
 assert('kategori valid dengan color default', c1.success && c1.data.color === 'gray');
@@ -202,12 +222,23 @@ assert('kategori ikon kosong ditolak', !c2.success);
 console.log('\n[7] recurringBillSchema, payBillSchema & settingsSchema');
 
 const rb1 = recurringBillSchema.safeParse({
+  type: 'expense',
   title: 'Listrik PLN',
   amount: 250000,
   due_day: 20,
+  auto_record: true,
   is_active: true,
 });
 assert('recurringBill valid dengan default diterima', rb1.success);
+
+const rb1b = recurringBillSchema.safeParse({
+  type: 'income',
+  title: 'Gaji Bulanan',
+  amount: 8000000,
+  due_day: 25,
+  auto_record: true,
+});
+assert('recurringBill pemasukan pasti valid diterima', rb1b.success && rb1b.data.type === 'income');
 
 const rb2 = recurringBillSchema.safeParse({
   title: 'Listrik',
@@ -313,8 +344,14 @@ const as1 = assetSchema.safeParse({
   depreciation_method: 'straight_line',
   useful_life_years: 5,
   salvage_value: 5000000,
+  record_purchase_transaction: true,
+  wallet_id: validUuid1,
+  schedule_tax_amount: 450000,
+  schedule_tax_due_day: 15,
+  schedule_maintenance_amount: 200000,
+  schedule_maintenance_due_day: 20,
 });
-assert('asset kendaraan valid diterima', as1.success);
+assert('asset kendaraan dengan opsi integrasi kas & jadwal rutin diterima', as1.success && as1.data.record_purchase_transaction === true && as1.data.schedule_tax_amount === 450000);
 
 const as2 = assetSchema.safeParse({
   name: '',
@@ -341,13 +378,28 @@ const as4 = assetSchema.safeParse({
 });
 assert('asset properti tanpa depresiasi diterima', as4.success && as4.data.depreciation_method === 'none');
 
-const asq1 = assetQuerySchema.safeParse({ category: 'kendaraan', search: 'Vario' });
-assert('asset query valid diterima', asq1.success && asq1.data.category === 'kendaraan');
+const asq1 = assetQuerySchema.safeParse({ category: 'kendaraan', search: 'Vario', status: 'sold' });
+assert('asset query dengan status sold valid diterima', asq1.success && asq1.data.status === 'sold');
 
-// Test kalkulasi depresiasi garis lurus
+const sas1 = sellAssetSchema.safeParse({
+  selling_price: 18000000,
+  sold_date: '2026-08-27',
+  wallet_id: validUuid1,
+  notes: 'Terjual ke kawan',
+});
+assert('sellAssetSchema valid diterima', sas1.success && sas1.data.selling_price === 18000000);
+
+const sas2 = sellAssetSchema.safeParse({
+  selling_price: -100,
+  wallet_id: validUuid1,
+});
+assert('sellAssetSchema harga jual negatif ditolak', !sas2.success);
+
+// Test kalkulasi depresiasi garis lurus & taksiran harga pasar (plus / minus)
 const deprCalc = calculateAssetDepreciation({
   purchase_date: new Date(Date.now() - 1000 * 60 * 60 * 24 * 365).toISOString().split('T')[0], // 1 tahun lalu
   purchase_price: 24000000,
+  current_value: 20000000, // Taksiran pasar 20jt
   depreciation_method: 'straight_line',
   useful_life_years: 4,
   salvage_value: 0,
@@ -355,6 +407,57 @@ const deprCalc = calculateAssetDepreciation({
 assert('straight-line annual depr dihitung benar (Rp 6.000.000 / thn)', deprCalc.annual_depreciation === 6000000);
 assert('straight-line monthly depr dihitung benar (Rp 500.000 / bln)', deprCalc.monthly_depreciation === 500000);
 assert('nilai buku terhitung berkurang dari harga perolehan', deprCalc.book_value < 24000000 && deprCalc.book_value > 0);
+assert('selisih pasar terhadap harga beli terhitung minus 4.000.000 (rugi/susut)', deprCalc.market_diff_purchase === -4000000);
+assert('selisih pasar terhadap nilai buku terhitung plus 2.000.000 (pasar di atas buku)', deprCalc.market_diff_book === 2000000);
+assert('is_market_gain bernilai false karena pasar di bawah harga beli awal', deprCalc.is_market_gain === false);
+
+// ── Validasi calculateFinancialSafetyPlan ──────────────────────────────────
+console.log('\n[10b] calculateFinancialSafetyPlan (4 Bulan + 10% Risiko)');
+
+const dummyBudgets = [
+  { id: validUuid1, user_id: validUuid1, category_id: validUuid1, monthly_limit: 3000000, spent: 1000000, remaining: 2000000, percentage: 33.3, month: 8, year: 2026, created_at: '' },
+  { id: validUuid2, user_id: validUuid1, category_id: validUuid2, monthly_limit: 2000000, spent: 500000, remaining: 1500000, percentage: 25, month: 8, year: 2026, created_at: '' },
+]; // total monthly_budget = 5.000.000
+
+const dummyWalletsUnsafe = [
+  { id: validUuid1, user_id: validUuid1, name: 'Dompet', type: 'cash' as const, balance: 10000000, icon: '', color: '', is_default: true, sort_order: 0, created_at: '', updated_at: '' },
+]; // current_cash = 10.000.000 (kurang dari 22.000.000)
+
+const planUnsafe = calculateFinancialSafetyPlan(dummyBudgets, dummyWalletsUnsafe);
+assert('cadangan 4 bulan terhitung akurat (Rp 20.000.000)', planUnsafe.reserve_4_months === 20000000);
+assert('cadangan risiko 10% terhitung akurat (Rp 2.000.000)', planUnsafe.risk_buffer_10_pct === 2000000);
+assert('total syarat minimum terhitung 4.4x anggaran (Rp 22.000.000)', planUnsafe.total_min_required === 22000000);
+assert('can_expand_expense = false saat uang cadangan di bawah 4.4x anggaran', planUnsafe.can_expand_expense === false);
+assert('gap_needed terhitung akurat (Rp 12.000.000)', planUnsafe.gap_needed === 12000000);
+
+const dummyWalletsSafe = [
+  { id: validUuid1, user_id: validUuid1, name: 'Rekening', type: 'bank' as const, balance: 25000000, icon: '', color: '', is_default: true, sort_order: 0, created_at: '', updated_at: '' },
+]; // current_cash = 25.000.000 >= 22.000.000
+const planSafe = calculateFinancialSafetyPlan(dummyBudgets, dummyWalletsSafe);
+assert('can_expand_expense = true saat uang cadangan >= 4.4x anggaran', planSafe.can_expand_expense === true);
+assert('gap_needed = 0 saat syarat minimum terpenuhi', planSafe.gap_needed === 0);
+
+// ── Validasi calculateExpenseProjection ────────────────────────────────────
+console.log('\n[10c] calculateExpenseProjection (Rencana 1.5jt, Realisasi 1jt, Sisa 300rb -> Proyeksi 1.3jt)');
+
+const dummyProjectionBudgets = [
+  { id: validUuid1, user_id: validUuid1, category_id: validUuid1, monthly_limit: 1500000, spent: 1000000, remaining: 500000, percentage: 66.7, month: 8, year: 2026, created_at: '' },
+]; // rencana = 1.500.000
+
+const projResult = calculateExpenseProjection(
+  dummyProjectionBudgets,
+  1000000, // realisasi = 1.000.000
+  8,
+  2026,
+  300000 // sisa estimasi disesuaikan = 300.000
+);
+
+assert('rencana anggaran terbaca 1.500.000', projResult.planned_budget === 1500000);
+assert('realisasi terbaca 1.000.000', projResult.current_spent === 1000000);
+assert('sisa estimasi terbaca 300.000', projResult.remaining_estimated === 300000);
+assert('proyeksi akhir bulan terhitung 1.300.000 (1jt + 300rb)', projResult.projected_total === 1300000);
+assert('potensi hemat terhitung 200.000 (1.5jt - 1.3jt)', projResult.projected_savings === 200000);
+assert('persentase hemat terhitung ~13%', projResult.savings_percentage === 13);
 
 // ── Validasi Auth Token & Session ───────────────────────────────────────────
 console.log('\n[11] auth session & JWT token');

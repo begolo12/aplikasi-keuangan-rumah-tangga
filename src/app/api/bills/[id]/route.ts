@@ -37,15 +37,17 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       await assertRefsOwned(client, session.userId, validated.category_id, validated.wallet_id);
       const rows = await client.query(
         `UPDATE recurring_bills
-         SET title = $1, amount = $2, due_day = $3, category_id = $4, wallet_id = $5, is_active = $6
-         WHERE id = $7 AND user_id = $8
+         SET type = $1, title = $2, amount = $3, due_day = $4, category_id = $5, wallet_id = $6, auto_record = $7, is_active = $8
+         WHERE id = $9 AND user_id = $10
          RETURNING *`,
         [
+          validated.type,
           validated.title,
           validated.amount,
           validated.due_day,
           validated.category_id || null,
           validated.wallet_id || null,
+          validated.auto_record,
           validated.is_active,
           id,
           session.userId,

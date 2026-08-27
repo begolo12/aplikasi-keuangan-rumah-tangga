@@ -52,24 +52,13 @@ export async function POST(req: NextRequest, context: RouteContext) {
 
       const wallet = walletRes.rows[0];
 
-      // 3. Mutasi saldo dompet
+      // 3. Mutasi saldo dompet (saldo diizinkan minus)
       if (debt.type === 'payable') {
         // Bayar hutang: saldo dompet berkurang
-        if (wallet.balance < validated.amount) {
-          throw new BusinessError(
-            `Saldo dompet ${wallet.name} tidak mencukupi (Saldo: Rp ${wallet.balance.toLocaleString('id-ID')}, Dibutuhkan: Rp ${validated.amount.toLocaleString('id-ID')}).`,
-            400
-          );
-        }
-
-        const updateWallet = await client.query(
-          `UPDATE wallets SET balance = balance - $1, updated_at = NOW() WHERE id = $2 AND user_id = $3 AND balance >= $1 RETURNING balance::float AS balance`,
+        await client.query(
+          `UPDATE wallets SET balance = balance - $1, updated_at = NOW() WHERE id = $2 AND user_id = $3`,
           [validated.amount, validated.wallet_id, user.userId]
         );
-
-        if (updateWallet.rows.length === 0) {
-          throw new BusinessError('Gagal memotong saldo dompet. Saldo tidak mencukupi.', 400);
-        }
       } else {
         // Terima piutang: saldo dompet bertambah
         await client.query(

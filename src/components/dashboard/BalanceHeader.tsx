@@ -42,7 +42,7 @@ export function BalanceHeader({
             </div>
 
             <div className="flex items-center gap-2.5 sm:gap-3 flex-wrap">
-              <h1 className="text-2xl sm:text-3xl md:text-4xl font-extrabold tracking-tight whitespace-nowrap tabular-nums">
+              <h1 className={`text-2xl sm:text-3xl md:text-4xl font-extrabold tracking-tight whitespace-nowrap tabular-nums ${totalBalance < 0 ? 'text-red-200' : 'text-white'}`}>
                 {showBalance ? formatRupiah(totalBalance) : '••••••••••••'}
               </h1>
               <button

@@ -225,20 +225,47 @@ async function initializeSchema(req: NextRequest): Promise<NextResponse> {
 
     // ---- Migrasi inkremental (idempoten) ----
 
-    // Invarian strict-zero di level database: saldo dompet tidak boleh minus.
-    await client.query(`UPDATE wallets SET balance = 0 WHERE balance < 0;`);
+    // Dukung saldo minus (overdraft): lepas batasan non-negatif jika sebelumnya ada.
     await client.query(`
       DO $$
       BEGIN
-        IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'wallets_balance_nonnegative') THEN
-          ALTER TABLE wallets ADD CONSTRAINT wallets_balance_nonnegative CHECK (balance >= 0);
+        IF EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'wallets_balance_nonnegative') THEN
+          ALTER TABLE wallets DROP CONSTRAINT wallets_balance_nonnegative;
         END IF;
       END
       $$;
     `);
 
-    // Kunci idempotency untuk transaksi dari offline queue.
-    await client.query(`ALTER TABLE transactions ADD COLUMN IF NOT EXISTS idempotency_key UUID;`);
+    // Kolom penjualan aset di tabel assets
+    await client.query(`
+      ALTER TABLE assets
+      ADD COLUMN IF NOT EXISTS is_sold BOOLEAN NOT NULL DEFAULT FALSE,
+      ADD COLUMN IF NOT EXISTS sold_date DATE,
+      ADD COLUMN IF NOT EXISTS selling_price NUMERIC(15,2),
+      ADD COLUMN IF NOT EXISTS gain_loss NUMERIC(15,2);
+    `);
+
+    // Kolom rekonsiliasi saldo riil pada tabel wallets
+    await client.query(`
+      ALTER TABLE wallets
+      ADD COLUMN IF NOT EXISTS reconciled_at TIMESTAMPTZ,
+      ADD COLUMN IF NOT EXISTS last_reconciled_balance NUMERIC(15,2);
+    `);
+
+    // Kolom type dan auto_record serta asset_id untuk recurring_bills (transaksi rutin pemasukan & pengeluaran pasti)
+    await client.query(`
+      ALTER TABLE recurring_bills 
+      ADD COLUMN IF NOT EXISTS type VARCHAR(20) NOT NULL DEFAULT 'expense',
+      ADD COLUMN IF NOT EXISTS auto_record BOOLEAN NOT NULL DEFAULT FALSE,
+      ADD COLUMN IF NOT EXISTS asset_id UUID REFERENCES assets(id) ON DELETE SET NULL;
+    `);
+
+    // Kolom asset_id dan idempotency_key pada transactions
+    await client.query(`
+      ALTER TABLE transactions 
+      ADD COLUMN IF NOT EXISTS asset_id UUID REFERENCES assets(id) ON DELETE SET NULL,
+      ADD COLUMN IF NOT EXISTS idempotency_key UUID;
+    `);
     await client.query(
       `CREATE UNIQUE INDEX IF NOT EXISTS idx_trx_idempotency ON transactions(idempotency_key) WHERE idempotency_key IS NOT NULL;`
     );
@@ -250,7 +277,7 @@ async function initializeSchema(req: NextRequest): Promise<NextResponse> {
 
   return NextResponse.json({
     success: true,
-    message: 'Skema database siap. Migrasi (constraint saldo, idempotency key, indeks) diterapkan.',
+    message: 'Skema database siap. Migrasi (saldo minus, recurring type/auto_record, idempotency key, indeks) diterapkan.',
   });
 }
 

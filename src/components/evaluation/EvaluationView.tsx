@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { MonthlySummary as MonthlySummaryType, Debt, Asset } from '@/lib/types';
+import { MonthlySummary as MonthlySummaryType, Debt, Asset, Budget, Wallet } from '@/lib/types';
 import { apiFetch, endpoints } from '@/lib/apiFetch';
 import { formatRupiah, INDONESIAN_MONTHS } from '@/lib/formatters';
 import { DashboardSkeleton } from '../ui/LoadingSkeleton';
@@ -23,6 +23,8 @@ interface EvaluationViewProps {
   currentMonth: number;
   currentYear: number;
   debts?: Debt[];
+  budgets?: Budget[];
+  wallets?: Wallet[];
 }
 
 interface PrevSummary {
@@ -36,6 +38,8 @@ export function EvaluationView({
   currentMonth,
   currentYear,
   debts = [],
+  budgets = [],
+  wallets = [],
 }: EvaluationViewProps) {
   const [assets, setAssets] = useState<Asset[]>([]);
   const [isLoadingAssets, setIsLoadingAssets] = useState(true);
@@ -108,9 +112,22 @@ export function EvaluationView({
   // Net Worth = Total Cash + Assets Book Value + Receivables - Payables
   const netWorth = totalCash + totalAssetBookValue + totalReceivableRemaining - totalPayableRemaining;
 
-  // Emergency Fund Ratio (Months of average expense covered)
-  const expenseBenchmark = monthlyExpense > 0 ? monthlyExpense : 1000000;
-  const emergencyFundMonths = Math.round((totalCash / expenseBenchmark) * 10) / 10;
+  // Emergency Fund & Risk Buffer KPI: Wajib 4 Bulan Biaya + 10% Cadangan Risiko (4.4x Anggaran)
+  const totalBudgetFromLimits = budgets.reduce((sum, b) => sum + (b.monthly_limit || 0), 0);
+  const expenseBenchmark = totalBudgetFromLimits > 0 ? totalBudgetFromLimits : monthlyExpense > 0 ? monthlyExpense : 1000000;
+  const reserve4Months = expenseBenchmark * 4;
+  const riskBuffer10Pct = reserve4Months * 0.1;
+  const totalMinSafetyRequired = reserve4Months + riskBuffer10Pct; // 4.4x
+  
+  // Saldo tabungan/kas dana darurat
+  const savingsWallets = wallets.filter((w) => w.type === 'savings');
+  const currentEmergencyFund = savingsWallets.length > 0 
+    ? Math.max(0, savingsWallets.reduce((s, w) => s + (w.balance || 0), 0))
+    : Math.max(0, totalCash);
+    
+  const emergencyFundMonths = Math.round((currentEmergencyFund / expenseBenchmark) * 10) / 10;
+  const safetyPlanProgressPct = totalMinSafetyRequired > 0 ? Math.min(100, Math.round((currentEmergencyFund / totalMinSafetyRequired) * 100)) : 0;
+  const isSafetyPlanMet = currentEmergencyFund >= totalMinSafetyRequired;
 
   // Savings Rate %
   const savingsRate = monthlyIncome > 0
@@ -133,10 +150,11 @@ export function EvaluationView({
     score += 10;
   }
 
-  // Emergency fund factor (+15 if >= 3 months, +10 if >= 1 month, -10 if 0)
-  if (emergencyFundMonths >= 3) score += 15;
-  else if (emergencyFundMonths >= 1) score += 8;
-  else if (totalCash <= 0) score -= 15;
+  // Emergency fund factor (Aturan 4 Bulan + 10% Risiko: +20 if >= 4.4x, +10 if >= 2x, -20 if < 1x)
+  if (isSafetyPlanMet) score += 20;
+  else if (emergencyFundMonths >= 2) score += 10;
+  else if (emergencyFundMonths >= 1) score += 5;
+  else score -= 20;
 
   // Savings rate factor (+10 if >= 20%)
   if (savingsRate >= 20) score += 10;
@@ -185,17 +203,18 @@ export function EvaluationView({
     });
   }
 
-  if (emergencyFundMonths < 3) {
+  if (!isSafetyPlanMet) {
+    const gap = totalMinSafetyRequired - currentEmergencyFund;
     insights.push({
       type: 'warning',
-      title: 'Dana Darurat Masih di Bawah Target Ideal',
-      desc: `Cadangan kas Anda saat ini dapat menopang kebutuhan sekitar ${emergencyFundMonths} bulan. Target ideal keuangan keluarga adalah minimal 3 hingga 6 bulan pengeluaran.`,
+      title: 'Cadangan Dana Belum Mencapai Target Keamanan (4 Bulan Biaya + 10% Risiko)',
+      desc: `Aturan KPI keuangan keluarga mensyaratkan memiliki cadangan minimal sebesar ${formatRupiah(totalMinSafetyRequired)} (Cadangan 4 Bulan ${formatRupiah(reserve4Months)} + Cadangan Risiko 10% ${formatRupiah(riskBuffer10Pct)}). Saat ini baru terkumpul ${formatRupiah(currentEmergencyFund)} (${safetyPlanProgressPct}% / setara ${emergencyFundMonths} bulan). Anda wajib memenuhi kekurangan ${formatRupiah(gap)} sebelum menambah pos pengeluaran lain.`,
     });
   } else {
     insights.push({
       type: 'success',
-      title: 'Ketahanan Dana Darurat Kokoh',
-      desc: `Cadangan kas Anda mampu menutupi kebutuhan hidup selama ${emergencyFundMonths} bulan jika terjadi situasi tak terduga.`,
+      title: 'Target Cadangan Keamanan 4.4x Anggaran Terpenuhi (Keuangan Sangat Aman)',
+      desc: `Cadangan kas Anda (${formatRupiah(currentEmergencyFund)}) telah memenuhi standar KPI 4 bulan biaya + 10% risiko (${formatRupiah(totalMinSafetyRequired)}). Anda memiliki kelonggaran yang aman untuk ekspansi anggaran atau menambah pos pengeluaran baru.`,
     });
   }
 
@@ -309,16 +328,18 @@ export function EvaluationView({
 
       {/* 4 Financial Ratios Grid */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5">
-        {/* Ratio 1: Dana Darurat */}
+        {/* Ratio 1: Dana Darurat & Cadangan Risiko (4.4x Anggaran) */}
         <div className="p-3 bg-surface border border-border rounded-2xl space-y-1 shadow-2xs">
           <div className="flex items-center gap-1.5 text-text-muted text-xs font-semibold">
-            <Vault size={16} className="text-income shrink-0" weight="duotone" />
-            <span className="truncate">Ketahanan Kas</span>
+            <Vault size={16} className={isSafetyPlanMet ? 'text-primary shrink-0' : 'text-expense shrink-0'} weight="duotone" />
+            <span className="truncate">Cadangan (4 Bulan + 10%)</span>
           </div>
-          <p className="text-sm sm:text-base font-extrabold text-text tabular-nums">
-            {emergencyFundMonths} <span className="text-xs font-semibold text-text-muted">Bulan</span>
+          <p className={`text-sm sm:text-base font-extrabold tabular-nums ${isSafetyPlanMet ? 'text-primary' : 'text-expense'}`}>
+            {emergencyFundMonths}x <span className="text-xs font-semibold text-text-muted">({safetyPlanProgressPct}%)</span>
           </p>
-          <p className="text-[10px] text-text-muted">Ideal: Minimal 3 - 6 Bulan</p>
+          <p className="text-[10px] text-text-muted">
+            {isSafetyPlanMet ? 'Target 4.4x Anggaran Terpenuhi' : 'Wajib Capai 4.4x Anggaran'}
+          </p>
         </div>
 
         {/* Ratio 2: Savings Rate */}

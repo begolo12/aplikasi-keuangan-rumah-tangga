@@ -34,33 +34,11 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
           [amount, trx.wallet_id, session.userId]
         );
       } else if (trx.type === 'income') {
-        const wRows = await client.query(
-          'SELECT balance, name FROM wallets WHERE id = $1 AND user_id = $2 FOR UPDATE',
-          [trx.wallet_id, session.userId]
-        );
-        if (wRows.rows.length === 0) {
-          throw new BusinessError('Dompet transaksi tidak ditemukan.', 404);
-        }
-        if (parseFloat(wRows.rows[0].balance) < amount) {
-          throw new BusinessError(`Tidak dapat menghapus pemasukan: Saldo ${wRows.rows[0].name} akan menjadi negatif.`);
-        }
         await client.query(
           'UPDATE wallets SET balance = balance - $1, updated_at = NOW() WHERE id = $2 AND user_id = $3',
           [amount, trx.wallet_id, session.userId]
         );
       } else if (trx.type === 'transfer') {
-        const toWRows = await client.query(
-          'SELECT balance, name FROM wallets WHERE id = $1 AND user_id = $2 FOR UPDATE',
-          [trx.to_wallet_id, session.userId]
-        );
-        if (toWRows.rows.length === 0) {
-          throw new BusinessError('Dompet tujuan transfer tidak ditemukan.', 404);
-        }
-        if (parseFloat(toWRows.rows[0].balance) < amount) {
-          throw new BusinessError(
-            `Tidak dapat membatalkan transfer: Saldo ${toWRows.rows[0].name} telah terpakai dan tidak mencukupi untuk ditarik kembali.`
-          );
-        }
         await client.query(
           'UPDATE wallets SET balance = balance + $1, updated_at = NOW() WHERE id = $2 AND user_id = $3',
           [amount + adminFee, trx.wallet_id, session.userId]
@@ -143,21 +121,11 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
           [oldAmount, oldTrx.wallet_id, session.userId]
         );
       } else if (oldTrx.type === 'income') {
-        const wOld = locked.rows.find((r: { id: string }) => r.id === oldTrx.wallet_id);
-        if (wOld && parseFloat(wOld.balance) < oldAmount) {
-          throw new BusinessError(`Tidak dapat mengubah: Saldo ${wOld.name} akan menjadi negatif.`);
-        }
         await client.query(
           'UPDATE wallets SET balance = balance - $1, updated_at = NOW() WHERE id = $2 AND user_id = $3',
           [oldAmount, oldTrx.wallet_id, session.userId]
         );
       } else if (oldTrx.type === 'transfer') {
-        const toOld = locked.rows.find((r: { id: string }) => r.id === oldTrx.to_wallet_id);
-        if (toOld && parseFloat(toOld.balance) < oldAmount) {
-          throw new BusinessError(
-            `Tidak dapat membatalkan transfer sebelumnya: Saldo ${toOld.name} telah terpakai dan tidak mencukupi untuk ditarik kembali.`
-          );
-        }
         await client.query(
           'UPDATE wallets SET balance = balance + $1, updated_at = NOW() WHERE id = $2 AND user_id = $3',
           [oldAmount + oldAdminFee, oldTrx.wallet_id, session.userId]
@@ -189,17 +157,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       const totalDebit =
         validated.type === 'transfer' ? validated.amount + (validated.admin_fee || 0) : validated.amount;
 
-      // Invarian strict-zero untuk expense dan transfer baru
-      if (
-        (validated.type === 'expense' || validated.type === 'transfer') &&
-        parseFloat(sourceWallet.balance) < totalDebit
-      ) {
-        throw new BusinessError(
-          `Saldo ${sourceWallet.name} tidak mencukupi untuk pembaruan transaksi. (Tersedia: ${parseFloat(sourceWallet.balance).toLocaleString('id-ID')}, Dibutuhkan: ${totalDebit.toLocaleString('id-ID')})`
-        );
-      }
-
-      // 3. Terapkan efek saldo transaksi baru
+      // 3. Terapkan efek saldo transaksi baru (saldo diizinkan minus)
       if (validated.type === 'expense') {
         await client.query(
           'UPDATE wallets SET balance = balance - $1, updated_at = NOW() WHERE id = $2 AND user_id = $3',
