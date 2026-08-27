@@ -124,6 +124,27 @@ export interface ColdMoneyInfo {
   recommendations: string[];
 }
 
+export interface FinancialRatiosResult {
+  der_ratio: number; // Debt to Equity Ratio (%)
+  dar_ratio: number; // Debt to Asset Ratio (%)
+  dsr_ratio: number; // Debt Service Ratio (%)
+  liquidity_months: number; // Liquidity / Emergency reserve (Months)
+  savings_ratio: number; // Savings Rate (%)
+  oer_ratio: number; // Operating Expense Ratio (%)
+  health_score: number; // 0 - 100
+  condition_status: 'excellent' | 'good' | 'warning' | 'critical';
+  condition_title: string;
+  verdict_summary: string;
+  ratio_details: {
+    name: string;
+    value: string;
+    ideal: string;
+    status: 'safe' | 'warning' | 'danger';
+    description: string;
+  }[];
+  action_recommendations: string[];
+}
+
 export interface ExpenseProjection {
   planned_budget: number; // Rencana Anggaran Awal (mis. 1.500.000)
   current_spent: number; // Realisasi sampai hari ini (mis. 1.000.000)

@@ -9,6 +9,7 @@ import { CashflowChart } from './CashflowChart';
 import { CashflowStatement } from './CashflowStatement';
 import { BalanceSheetReport } from './BalanceSheetReport';
 import { IncomeStatementReport } from './IncomeStatementReport';
+import { FinancialRatiosReport } from './FinancialRatiosReport';
 import { ColdMoneyCard } from './ColdMoneyCard';
 import { Button } from '../ui/Button';
 import { formatRupiah, INDONESIAN_MONTHS } from '@/lib/formatters';
@@ -30,6 +31,7 @@ import {
   Scales,
   Coins,
   BookOpen,
+  ChartDonut,
 } from '@phosphor-icons/react';
 
 interface CategoryDatum {
@@ -68,7 +70,7 @@ export function ReportsView({
   currentYear: initialYear,
   onPeriodChange,
 }: ReportsViewProps) {
-  const [selectedTab, setSelectedTab] = useState<'overview' | 'cashflow' | 'balancesheet' | 'incomestatement'>('overview');
+  const [selectedTab, setSelectedTab] = useState<'overview' | 'cashflow' | 'balancesheet' | 'incomestatement' | 'ratios'>('overview');
   const [selectedMonth, setSelectedMonth] = useState(initialMonth);
   const [selectedYear, setSelectedYear] = useState(initialYear);
   const [reloadKey, setReloadKey] = useState(0);
@@ -273,8 +275,8 @@ export function ReportsView({
         </div>
       </div>
 
-      {/* Sub-Tab Switcher: 4 Pilar Laporan Keuangan */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 p-1 bg-surface border border-border rounded-2xl shadow-xs gap-1">
+      {/* Sub-Tab Switcher: 5 Pilar Laporan Keuangan */}
+      <div className="grid grid-cols-2 sm:grid-cols-5 p-1 bg-surface border border-border rounded-2xl shadow-xs gap-1">
         <button
           type="button"
           onClick={() => setSelectedTab('overview')}
@@ -285,7 +287,7 @@ export function ReportsView({
           }`}
         >
           <ChartPieSlice size={15} weight="bold" />
-          <span className="truncate">Ringkasan & Kategori</span>
+          <span className="truncate">Ringkasan</span>
         </button>
 
         <button
@@ -298,7 +300,7 @@ export function ReportsView({
           }`}
         >
           <Scales size={15} weight="bold" />
-          <span className="truncate">Arus Kas (Cashflow)</span>
+          <span className="truncate">Arus Kas</span>
         </button>
 
         <button
@@ -311,7 +313,7 @@ export function ReportsView({
           }`}
         >
           <Coins size={15} weight="bold" />
-          <span className="truncate">Neraca Keuangan</span>
+          <span className="truncate">Neraca (Harta/Hutang)</span>
         </button>
 
         <button
@@ -325,6 +327,19 @@ export function ReportsView({
         >
           <BookOpen size={15} weight="bold" />
           <span className="truncate">Laba Rugi (P&L)</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setSelectedTab('ratios')}
+          className={`col-span-2 sm:col-span-1 py-2 px-2 text-xs font-bold rounded-xl flex items-center justify-center gap-1.5 transition-all truncate ${
+            selectedTab === 'ratios'
+              ? 'bg-primary text-white shadow-xs'
+              : 'text-text-muted hover:text-text'
+          }`}
+        >
+          <ChartDonut size={15} weight="bold" />
+          <span className="truncate">Rasio (DER dll)</span>
         </button>
       </div>
 
@@ -349,6 +364,17 @@ export function ReportsView({
         <IncomeStatementReport
           summary={reportSummary}
           assets={assets}
+          selectedMonth={selectedMonth}
+          selectedYear={selectedYear}
+          onExportCsv={handleExportCsv}
+        />
+      ) : selectedTab === 'ratios' ? (
+        <FinancialRatiosReport
+          summary={reportSummary}
+          wallets={wallets}
+          debts={debts}
+          assets={assets}
+          budgets={budgets}
           selectedMonth={selectedMonth}
           selectedYear={selectedYear}
           onExportCsv={handleExportCsv}

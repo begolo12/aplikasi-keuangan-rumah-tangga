@@ -30,6 +30,7 @@ import { calculateAssetDepreciation } from '../src/app/api/assets/route';
 import { calculateFinancialSafetyPlan } from '../src/components/budget/FinancialSafetyPlanCard';
 import { calculateExpenseProjection } from '../src/components/budget/ExpenseProjectionCard';
 import { calculateColdMoney } from '../src/components/reports/ColdMoneyCard';
+import { calculateFinancialRatios } from '../src/components/reports/FinancialRatiosReport';
 
 let passed = 0;
 let failed = 0;
@@ -480,6 +481,54 @@ assert('is_available bernilai true', coldInfoAvailable.is_available === true);
 const coldInfoZero = calculateColdMoney(dummyColdWallets, dummyColdBudgets, 0, 5000000, 5000000);
 // Kas 30jt - Cadangan 22jt - Kewajiban 10jt = -2jt -> max(0, -2jt) = 0
 assert('uang dingin bernilai 0 jika kas belum melampaui cadangan wajib & hutang', coldInfoZero.cold_money === 0 && coldInfoZero.is_available === false);
+
+// ── Validasi calculateFinancialRatios (DER, DAR, DSR, Likuiditas, Savings) ─
+console.log('\n[10e] calculateFinancialRatios (DER, DAR, DSR, Likuiditas)');
+
+const dummyRatioSummary = {
+  month: 8,
+  year: 2026,
+  total_balance: 20000000,
+  total_income: 10000000,
+  total_expense: 6000000,
+  net_cash_flow: 4000000,
+  total_transfer: 0,
+  bill_pending_count: 0,
+  budget_over_count: 0,
+  total_bills_pending_amount: 0,
+  total_payable_due: 5000000,
+  total_receivable_due: 0,
+  safe_to_spend: 15000000,
+};
+
+const dummyRatioWallets = [
+  { id: validUuid1, user_id: validUuid1, name: 'BCA', type: 'bank' as const, balance: 20000000, icon: '', color: '', is_default: true, sort_order: 0, created_at: '', updated_at: '' },
+]; // kas = 20jt
+const dummyRatioDebts = [
+  { id: validUuid1, user_id: validUuid1, type: 'payable' as const, person_name: 'Bank', total_amount: 5000000, paid_amount: 0, remaining_amount: 5000000, status: 'unpaid' as const, created_at: '', updated_at: '' },
+]; // hutang = 5jt
+const dummyRatioAssets = [
+  { id: validUuid1, user_id: validUuid1, name: 'Motor', category: 'kendaraan' as const, purchase_date: '2025-01-01', purchase_price: 25000000, current_value: 20000000, depreciation_method: 'straight_line' as const, useful_life_years: 5, salvage_value: 0, created_at: '', updated_at: '', is_sold: false },
+]; // aset = 20jt (total aset = 20jt kas + 20jt motor = 40jt, net worth = 40jt - 5jt = 35jt)
+
+const dummyRatioBudgets = [
+  { id: validUuid1, user_id: validUuid1, category_id: validUuid1, monthly_limit: 5000000, spent: 4000000, remaining: 1000000, percentage: 80, month: 8, year: 2026, created_at: '' },
+];
+
+const ratioRes = calculateFinancialRatios(dummyRatioSummary, dummyRatioWallets, dummyRatioDebts, dummyRatioAssets, dummyRatioBudgets);
+
+// DER = 5jt / 35jt * 100% = 14%
+assert('DER ratio terhitung akurat (~14%)', ratioRes.der_ratio === 14);
+// DAR = 5jt / 40jt * 100% = 13% (dibulatkan 13%)
+assert('DAR ratio terhitung akurat (~13%)', ratioRes.dar_ratio === 13);
+// Savings ratio = 4jt / 10jt * 100% = 40%
+assert('savings ratio terhitung 40%', ratioRes.savings_ratio === 40);
+// OER = 6jt / 10jt * 100% = 60%
+assert('OER ratio terhitung 60%', ratioRes.oer_ratio === 60);
+// Liquidity = 20jt / 5jt = 4.0 bulan
+assert('liquidity months terhitung 4 bulan', ratioRes.liquidity_months === 4);
+assert('health score berada di zona baik (>= 70)', ratioRes.health_score >= 70);
+assert('verdict summary ter-generate otomatis', ratioRes.verdict_summary.length > 30);
 
 // ── Validasi Auth Token & Session ───────────────────────────────────────────
 console.log('\n[11] auth session & JWT token');

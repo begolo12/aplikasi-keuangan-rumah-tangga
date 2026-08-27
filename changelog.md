@@ -3,6 +3,27 @@
 Log eksekusi plan. Entri baru ditambahkan di bagian paling atas.
 Format entri lihat `AGENTS.md` bagian "Langkah 3 — Catat ke Changelog".
 
+## [2026-08-27] Fitur Laporan Rasio Keuangan (DER, DAR, DSR, Likuiditas) dan Kesimpulan Analisis
+
+**Plan**: `docs/plans/2026-08-27-fitur-laporan-rasio-keuangan-der-dan-kesimpulan-analisis.md`
+
+### Berubah
+- **Kalkulasi 6 Rasio Keuangan Utama**:
+  - Mengimplementasikan helper `calculateFinancialRatios` pada [FinancialRatiosReport.tsx](src/components/reports/FinancialRatiosReport.tsx) yang menghitung:
+    1. **DER (Debt to Equity Ratio)**: Rasio Hutang terhadap Modal/Kekayaan Bersih ($\le 35\%$ aman).
+    2. **DAR (Debt to Asset Ratio)**: Rasio Hutang terhadap Total Aset ($\le 30\%$ aman).
+    3. **DSR / DTI (Debt Service Ratio)**: Rasio Beban Cicilan terhadap Pemasukan ($\le 20\%$ aman).
+    4. **Liquidity Ratio**: Rasio Ketahanan Kas Likuid ($\ge 4.4$ bulan aman).
+    5. **Savings Ratio**: Rasio Tabungan terhadap Pemasukan ($\ge 20\%$ aman).
+    6. **OER (Operating Expense Ratio)**: Efisiensi Biaya Operasional ($\le 70\%$ aman).
+- **Skor Finansial & Kesimpulan Naratif Otomatis**:
+  - Menghitung skor kesehatan finansial (0-100) dan menghasilkan kesimpulan naratif eksekutif yang menjelaskan kondisi keuangan secara jelas (Sangat Sehat, Stabil, Waspada, atau Kritis) serta rekomendasi langkah tindakan nyata.
+- **Integrasi di Menu Laporan & Evaluasi**:
+  - Menambahkan sub-tab **"Rasio (DER dll)"** pada [ReportsView.tsx](src/components/reports/ReportsView.tsx).
+  - Memperbarui [EvaluationView.tsx](src/components/evaluation/EvaluationView.tsx) agar kartu rasio dan scoring kesehatan mengadopsi indikator DER.
+- **Verifikasi**:
+  - 103 assertion audit unit test + 37 pengujian E2E lulus 100%.
+
 ## [2026-08-27] Fitur Uang Dingin (Cold Money) dan Dana Bebas Rencana Jangka Pendek
 
 **Plan**: `docs/plans/2026-08-27-fitur-uang-dingin-dan-dana-bebas-rencana-jangka-pendek.md`

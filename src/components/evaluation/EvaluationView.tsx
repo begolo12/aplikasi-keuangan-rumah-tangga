@@ -139,6 +139,9 @@ export function EvaluationView({
     ? Math.round((totalPayableRemaining / monthlyIncome) * 100)
     : totalPayableRemaining > 0 ? 100 : 0;
 
+  // DER (Debt to Equity Ratio)
+  const derRatio = netWorth > 0 ? Math.round((totalPayableRemaining / netWorth) * 100) : totalPayableRemaining > 0 ? 999 : 0;
+
   // Financial Health Scoring (0 - 100)
   let score = 50; // base score
 
@@ -160,10 +163,10 @@ export function EvaluationView({
   if (savingsRate >= 20) score += 10;
   else if (savingsRate >= 10) score += 5;
 
-  // Debt burden factor
-  if (dtiRatio === 0) score += 10;
-  else if (dtiRatio <= 30) score += 5;
-  else if (dtiRatio > 50) score -= 15;
+  // DER & Debt burden factor
+  if (derRatio <= 35) score += 10;
+  else if (derRatio <= 70) score += 5;
+  else score -= 15;
 
   // Budget adherence
   if (summary.budget_over_count === 0) score += 5;
@@ -354,16 +357,16 @@ export function EvaluationView({
           <p className="text-[10px] text-text-muted">Ideal: &gt;= 20% dari Pemasukan</p>
         </div>
 
-        {/* Ratio 3: Debt to Income */}
+        {/* Ratio 3: DER (Debt to Equity Ratio) */}
         <div className="p-3 bg-surface border border-border rounded-2xl space-y-1 shadow-2xs">
           <div className="flex items-center gap-1.5 text-text-muted text-xs font-semibold">
-            <Receipt size={16} className="text-expense shrink-0" weight="duotone" />
-            <span className="truncate">Beban Hutang</span>
+            <Receipt size={16} className={derRatio <= 35 ? 'text-income shrink-0' : 'text-expense shrink-0'} weight="duotone" />
+            <span className="truncate">Rasio DER (Hutang/Modal)</span>
           </div>
-          <p className="text-sm sm:text-base font-extrabold text-text tabular-nums">
-            {dtiRatio}%
+          <p className={`text-sm sm:text-base font-extrabold tabular-nums ${derRatio <= 35 ? 'text-income' : 'text-expense'}`}>
+            {derRatio}%
           </p>
-          <p className="text-[10px] text-text-muted">Batas Aman: &lt;= 30%</p>
+          <p className="text-[10px] text-text-muted">Batas Aman: &lt;= 35%</p>
         </div>
 
         {/* Ratio 4: Nilai Buku Aset */}
