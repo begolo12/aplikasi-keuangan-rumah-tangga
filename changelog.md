@@ -3,6 +3,138 @@
 Log eksekusi plan. Entri baru ditambahkan di bagian paling atas.
 Format entri lihat `AGENTS.md` bagian "Langkah 3 — Catat ke Changelog".
 
+## [2026-08-28] Fitur Smart Receipt & Nota Parser Menggunakan DeepSeek API
+
+**Plan**: `docs/plans/2026-08-28-fitur-smart-receipt-parser-deepseek.md`
+
+### Berubah
+- **Engine DeepSeek Server-Isolated** (`src/lib/deepseek.ts` & `src/app/api/ai/parse-receipt/route.ts`): Menjalankan ekstraksi data transaksi belanja/nota/mutasi dari teks menggunakan model `deepseek-v4-flash`. API key tersimpan di variabel server (`DEEPSEEK_API_KEY`) tanpa prefix `NEXT_PUBLIC_` sehingga terisolasi aman dari client bundle dan dilindungi `.gitignore`. Dilengkapi fallback parser heuristik cerdas bila offline/unreachable.
+- **Validasi Schema** (`src/lib/validations.ts`): Skema Zod baru `parseReceiptRequestSchema`, `receiptItemSchema`, dan `parsedReceiptResultSchema`.
+- **Komponen Modal Scan Struk** (`src/components/transactions/ReceiptParserModal.tsx`): Pratinjau hasil ekstraksi (nominal total, tanggal, toko/merchant, rincian belanja, usulan kategori & dompet) dan tombol instan "Tempel Salinan" dari clipboard.
+- **Integrasi Input Transaksi** (`TransactionModal.tsx` & `QuickActions.tsx`): Tombol "Scan Struk" disematkan di QuickActions dan form pencatatan transaksi untuk pengisian form otomatis dalam satu klik.
+- **Testing & Proteksi**: Unit test audit parser + E2E test endpoint AI (termasuk verifikasi penolakan akses 401 unauthenticated).
+
+### Verifikasi
+- Build Next.js (`npm run build`) sukses tanpa error.
+- Unit Audit (`npm run test:audit`) lulus 119/119 pengujian.
+- E2E Full Suite (`npm run test:e2e`) lulus 52/52 pengujian.
+
+### Dampak
+- Tambahkan `DEEPSEEK_API_KEY`, `DEEPSEEK_BASE_URL`, dan `DEEPSEEK_MODEL` di Environment Variables project Vercel sebelum deploy produksi.
+
+## [2026-08-27] Fitur Target Tabungan (Savings Goals)
+
+
+**Plan**: `docs/plans/2026-08-27-fitur-target-tabungan-savings-goals.md`
+
+### Berubah
+- Tabel baru `savings_goals` + `goal_contributions` (migrasi + init idempotent). Progres goal TIDAK disimpan ganda: `saved_amount` dihitung dari SUM kontribusi, dan `UNIQUE(transaction_id)` menjamin satu transaksi kas hanya tercatat sekali.
+- API `/api/goals` (GET list dengan proyeksi, POST), `/api/goals/[id]` (PUT/DELETE, DELETE menghapus progres tapi membiarkan transaksi kas nyata tetap ada), `/api/goals/[id]/contribute` (POST): alokasi membuat SATU transfer kas nyata ke dompet penampung (lock dua dompet urut UUID) lalu menautkan transaksi tersebut sebagai progres.
+- Validasi baru `savingsGoalSchema` & `goalContributionSchema`.
+- View baru `GoalsView` (card progres, modal buat/ubah/alokasi/hapus, proyeksi tanggal tercapai dari rata-rata kontribusi 90 hari). Dinamis diimpor; nav sidebar ("Target Tabungan") & bottom sheet ("Target") ditambahkan.
+- Ringkasan goals masuk bootstrap sengaja dilewatkan demi query hemat; view melakukan fetch mandiri seperti modul lain. Dicatat sebagai penyimpangan ruang lingkup kecil.
+
+### Verifikasi
+- Build lulus; lint 0 error; 113 audit unit + 48 E2E lulus termasuk 5 skenario goals baru (buat, alokasi atomik, tautan transaksi, saldo dompet bergerak, isolasi lintas-user).
+
+### Dampak
+- Jalankan `npx tsx scripts/run-db-migrations.ts` pada DB lama sebelum deploy.
+
+## [2026-08-27] Rombak Identitas Visual Edisi Klasik Rumah
+
+**Plan**: `docs/plans/2026-08-27-rombak-identitas-visual-klasik-rumah.md` | Direction: `DESIGN.md`
+
+### Berubah
+- **Token warna baru** (`globals.css`, light + dark): ivory/porselen bg ramp, emerald tua `primary` (dengan varian `deep` untuk gradient hero), terracotta `expense`, hijau lumut `income`, biru-abu laut `transfer`, amber gelap `warning`. Semua nilai digerakkan agar teks lulus AA di atas permukaannya; theme-color meta ikut diperbarui.
+- **Motif identitas**: font serif display (Fraunces, self-contained via next/font) + utility `.font-display-num` khusus angka besar. Diterapkan pada: kartu saldo & safe-to-spend (BalanceHeader), tiga angka total MonthlySummary, angka utama Neraca/P&L/Arus Kas.
+- **Palet modul disederhanakan** ke 3 core + semantik: ikon modul BottomNav/Lainnya jadi netral (aktif = primary); QuickActions kini memakai token semantik (warning/primary/expense/income/transfer) bukan pelangi hardcoded; AssetsView, BillItem, DebtItem, DebtCalculatorModal, BudgetProgressBar, FinancialSafetyPlanCard, EmergencyFundCard, OfflineBanner, BalanceSheetReport, ColdMoneyCard sama halnya; badge "Baru" di sidebar dihapus (bukan status nyata).
+- **Ikon generik dibuang**: Sparkle diganti ikon kontekstual (Coins/Drop/PiggyBank/Gauge).
+- **Em dash dihapus dari semua teks UI** (R-02): metadata title, chip tren, opsi select depresiasi, banner offline, placeholder cicilan.
+- Gradient hero memakai token (`from-primary via-primary-hover to-primary-deep`) tanpa hex hardcode.
+
+### Verifikasi
+- Build lulus; lint 0 error (11 warning gaya sisa, dipilih biarkan); 113 audit unit + 43 E2E lulus.
+
+## [2026-08-27] Kartu Putusan Akhir Bulan di Evaluasi
+
+**Plan**: `docs/plans/2026-08-27-kartu-putusan-akhir-bulan.md`
+
+### Berubah
+- Modul baru `src/lib/decisionSummary.ts` (pure, teruji): membentuk tiga baris putusan dari angka riil (arus kas naik/turun, pos belanja lewat batas terbesar, ketersediaan uang dingin) plus maksimal satu saran aksi.
+- Komponen baru `DecisionCard` (ikon per baris relevan: arah tren, status batas, status dana) diletakkan paling atas halaman Evaluasi.
+- Data uang dingin memakai ulang `calculateColdMoney` tanpa agregasi duplikat; pos renteng diambil dari budgets real-time.
+- Semua kondisi rapi: bulan kosong menghasilkan putusan "belum ada data" tanpa aksi fiktif.
+
+### Verifikasi
+- Build lulus; 113 audit unit + 43 E2E lulus (7 assertion pembentuk putusan baru).
+
+## [2026-08-27] Paket Kepercayaan Data: Rekonsiliasi Basi, Tanda Revisi, Pengingat Backup
+
+**Plan**: `docs/plans/2026-08-27-paket-kepercayaan-data-rekonsiliasi-revisi-backup.md`
+
+### Berubah
+- **Rekonsiliasi basi**: helper baru `getReconcileAge` (formatters, pure & teruji); kartu dompet di dashboard dan halaman Dompet menampilkan status peringatan bila belum pernah direkonsiliasi atau lebih dari 14 hari ("Cek saldo" + ikon warning). Hard-coded amber di ganti token `warning`.
+- **Tanda revisi**: kolom DB `transactions.edited_at` (migrasi + init idempotent); handler PUT mengisinya; API list transaksi dan bootstrap memuat field; `TransactionItem` menampilkan ikon pensil kecil + tooltip tanggal revisi.
+- **Backup**: kartu Cadangan di Pengaturan menyimpan timestamp unduhan terakhir (localStorage) dan menampilkan usia cadangan; kalimat saran muncul bila > 30 hari. Nudge ringan di dashboard dengan tombol Unduh/Tutup (muncul bila cadangan lama/belum ada).
+- Hard-coded warna pengingat pemulihan diganti token `warning`.
+
+### Verifikasi
+- Build lulus; 106 audit unit + 43 E2E lulus (3 assertion getReconcileAge + 1 skenario edited_at).
+
+### Dampak
+- Jalankan `npx tsx scripts/run-db-migrations.ts` pada DB lama sebelum deploy.
+
+## [2026-08-27] Optimalisasi Input, Flow & Sinkronisasi Data (Integritas Uang)
+
+**Plan**: `docs/plans/2026-08-27-optimalisasi-input-flow-sync-data.md`
+
+### Berubah
+- **Bootstrap gagal keras**: seluruh `.catch(() => [])` dihapus; kegagalan sub-query kini memicu error state di dashboard (banner Coba lagi yang sudah ada), bukan angka Rp0 palsu.
+- **Bug safe-to-spend**: kewajiban piutang/hutang hanya dihitung bila jatuh tempo bulan ini, terlewat, atau tanpa tanggal (kolom SQL `is_due_this_period`); hutang tenor panjang seperti KPR tidak lagi menekan dana bebas belanja bulan ini.
+- **Query sargable**: semua filter `EXTRACT(MONTH/YEAR)` diganti rentang `make_date(...)+INTERVAL '1 month'` agar index terpakai.
+- **Antrean offline** (`offlineQueue.ts`): `persistAttempt` atomik (put-first, bukan delete-then-put) sehingga crash tidak menghilangkan mutasi; drain lintas-tab eksklusif via `navigator.locks`; timeout kirim 15 detik per item.
+- **Anti-replay revisi basi**: PUT `/api/transactions/[id]` menerima `expected_updated_at`, menolak 409 bila baris lebih baru; form edit mengirimkannya otomatis.
+- **Form**: double-submit guard sinkron via `useRef`; submit transaksi memakai `apiFetch`; semua request client punya timeout 15 detik default.
+- **Hapus offline**: DELETE diblokir saat offline dengan pesan jelas, bukan gagal senyap.
+- **Kontrol**: bottom sheet "Lainnya" bisa ditutup Escape + fokus balik ke trigger, outside tap memakai pointerdown; segmented control tipe transaksi, chip saran & preset nominal menjadi min-h 44px.
+- Multi-device: refresh otomatis saat tab kembali fokus (debounce 5s); mapping PG `wallets_balance_nonnegative` yang sudah mati dihapus dari apiHelpers.
+
+### Verifikasi
+- Build lulus; 103 audit unit + 42 E2E lulus termasuk 2 skenario baru (PUT replay basi ditolak & data utuh).
+
+## [2026-08-27] Fitur Pencatatan Hutang Detail KPR, Bunga, Tenor & Cicilan
+
+**Plan**: `docs/plans/2026-08-27-fitur-pencatatan-hutang-detail-kpr-bunga-dan-cicilan.md`
+
+### Berubah
+- Tabel `debts` bertambah kolom `category`, `principal_amount`, `interest_rate`, `interest_type`, `tenor_months`, `monthly_installment`, `total_interest` (migrasi + init idempotent).
+- API `/api/debts`: GET/POST menyertakan detail pinjaman; POST menghitung total bunga otomatis dan dapat membuat jadwal cicilan otomatis ke `recurring_bills` (`auto_schedule_bill`).
+- Bootstrap dashboard memuat rincian hutang lengkap.
+- Form di `DebtsView.tsx`: pemilihan kategori pinjaman (KPR/kendaraan/bank), mode input rinci dengan kalkulator cicilan live (bunga flat), opsi auto-jadwal. `DebtItem.tsx` menampilkan strip rincian pokok/bunga/cicilan.
+- E2E baru `[7b]`: post handler KPR, verifikasi total bunga Rp 150jt, verifikasi tagihan rutin terjadwal Rp 3.75jt; kontrak safe-to-spend diperbarui.
+
+### Dampak
+- Menjalankan `npx tsx scripts/run-db-migrations.ts` diperlukan pada DB lama sebelum deploy.
+- Verifikasi: build lulus, 103 audit unit + 40 E2E lulus.
+
+## [2026-08-27] Sinkronisasi AGENTS.md dengan Kebijakan Overdraft
+
+Tanpa plan doc (perubahan satu baris dokumentasi).
+
+### Berubah
+- [AGENTS.md](AGENTS.md): aturan saldo dompet strict-zero diganti menjadi kebijakan overdraft, menyusul pelepasan constraint di plan `2026-08-27-fitur-saldo-minus-laporan-dana-darurat-otomatisasi-dan-kalkulator-hutang`. Dokumentasi kini selaras dengan `walletSchema` dan E2E test.
+
+## [2026-08-27] Audit Aplikasi & Fix Lint Error Modal (Ref Sync Saat Render)
+
+Tanpa plan doc (perbaikan lint satu titik tanpa mengubah perilaku).
+
+### Berubah
+- [Modal.tsx](src/components/ui/Modal.tsx): pindahkan sinkronisasi `onCloseRef.current = onClose` dari badan render ke `useEffect([onClose])` agar tidak melanggar aturan React `react-hooks/refs` (Cannot update ref during render).
+- Bersihkan cache `.next/dev/types` yang basi dan membuat `npm run build` gagal type-check.
+
+### Verifikasi
+- `npm run build` lulus, `npm run lint` 0 error (sisa 10 warning gaya), `npm test` 103 audit + 37 E2E lulus.
+
 ## [2026-08-27] Perbaikan Bug Modal Keluar/Tertutup Sendiri Saat Mengetik (Focus Trap & Effect Cleanup Refactor)
 
 **Plan**: `docs/plans/2026-08-27-fix-modal-auto-close-dan-focus-trap-bug.md`

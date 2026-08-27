@@ -4,54 +4,57 @@
 
 @layer base {
   :root {
-    /* Warm neutrals — nuansa kas rumah tangga bersih & ramah */
-    --color-bg: 40 20% 98%;          /* #FAF8F5 */
-    --color-surface: 40 15% 94%;     /* #F3EFEA */
-    --color-surface-2: 40 12% 89%;   /* #E6E0D8 */
-    --color-surface-3: 40 10% 82%;   /* #D3CCC2 */
-    --color-border: 40 10% 88%;      /* #E3DED7 */
-    --color-text: 220 25% 12%;       /* #171E27 */
-    --color-text-muted: 220 10% 48%; /* #6F7682 */
+    /* Edisi "Klasik Rumah" (DESIGN.md): ivory/porselen, emerald tua, terracotta & hijau lumut semantik */
+    --color-bg: 42 32% 97%;          /* ivory kertas dompet #FAF8F2 */
+    --color-surface: 42 26% 94%;     /* porselen #F4F0E8 */
+    --color-surface-2: 42 20% 89%;   /* #E9E3D7 */
+    --color-surface-3: 40 16% 82%;   /* #D8D1C1 */
+    --color-border: 40 15% 86%;      /* #E1DCD2 */
+    --color-text: 25 22% 14%;        /* cokelat tua kalem #221C18 */
+    --color-text-muted: 25 10% 42%;  /* #6E645C */
 
-    /* Aksen utama — hijau teal finansial */
-    --color-primary: 162 65% 36%;       /* #20986C */
-    --color-primary-fg: 0 0% 100%;      /* #FFFFFF */
-    --color-primary-hover: 162 65% 30%; /* #1A7B57 */
-    --color-primary-subtle: 162 50% 93%;/* #E6F5EF */
+    /* Aksen utama: emerald tua (kepercayaan finansial). Digerakkan cukup gelap agar AA dengan teks putih. */
+    --color-primary: 158 62% 25%;       /* #17925E */
+    --color-primary-fg: 0 0% 100%;
+    --color-primary-hover: 158 64% 20%; /* #10794E */
+    --color-primary-deep: 158 66% 14%;  /* dasar gelap untuk gradient hero */
+    --color-primary-subtle: 158 44% 92%;
 
-    /* Semantik keuangan */
-    --color-income: 145 60% 38%;        /* #279B48 */
-    --color-income-subtle: 145 60% 93%; /* #E7F7EC */
-    --color-expense: 0 70% 50%;         /* #D92B2B */
-    --color-expense-subtle: 0 70% 94%;  /* #FCECEC */
-    --color-transfer: 215 75% 48%;      /* #1E6BE5 */
-    --color-transfer-subtle: 215 75% 94%;/* #EAF1FC */
-    --color-warning: 38 92% 48%;        /* #E98B0B */
-    --color-warning-subtle: 38 92% 93%; /* #FDF2E2 */
+    /* Semantik keuangan keluarga (AA di atas ivory/porselen) */
+    --color-income: 130 45% 30%;        /* hijau lumut tua #2A7A3C */
+    --color-income-subtle: 130 34% 93%;
+    --color-expense: 12 66% 44%;        /* terracotta merah bata #C24635 */
+    --color-expense-subtle: 12 55% 95%;
+    --color-transfer: 205 42% 42%;      /* biru-abu laut #3F7494 */
+    --color-transfer-subtle: 205 40% 94%;
+    --color-warning: 26 82% 31%;        /* amber gelap hangat, tetap terbaca */
+    --color-warning-subtle: 34 90% 93%;
   }
 
   .dark {
-    --color-bg: 220 20% 10%;           /* #14171E */
-    --color-surface: 220 18% 14%;      /* #1C212B */
-    --color-surface-2: 220 16% 19%;    /* #282F3D */
-    --color-surface-3: 220 14% 25%;    /* #374052 */
-    --color-border: 220 16% 22%;       /* #2F3747 */
-    --color-text: 220 20% 95%;         /* #EFF1F5 */
-    --color-text-muted: 220 10% 60%;   /* #9098A7 */
+    /* Edisi malam: tetap warm-neutral agar persona tidak berubah */
+    --color-bg: 225 16% 11%;
+    --color-surface: 225 14% 15%;
+    --color-surface-2: 225 13% 19%;
+    --color-surface-3: 223 12% 25%;
+    --color-border: 225 12% 22%;
+    --color-text: 40 24% 94%;         /* putih gading hangat */
+    --color-text-muted: 40 8% 64%;
 
-    --color-primary: 162 60% 45%;       /* #2EC28C */
-    --color-primary-fg: 220 20% 10%;   /* #14171E */
-    --color-primary-hover: 162 60% 52%; /* #41CF9B */
-    --color-primary-subtle: 162 40% 18%;/* #1B352B */
+    --color-primary: 158 50% 46%;     /* emerald malam */
+    --color-primary-fg: 225 20% 10%;
+    --color-primary-hover: 158 55% 53%;
+    --color-primary-deep: 158 48% 24%;
+    --color-primary-subtle: 158 38% 17%;
 
-    --color-income: 145 55% 48%;        /* #38B85C */
-    --color-income-subtle: 145 40% 18%; /* #1C3523 */
-    --color-expense: 0 65% 58%;         /* #E54B4B */
-    --color-expense-subtle: 0 40% 18%;  /* #3A1C1C */
-    --color-transfer: 215 75% 58%;      /* #4686EE */
-    --color-transfer-subtle: 215 40% 20%;/* #1C2B3F */
-    --color-warning: 38 85% 55%;        /* #EFA02A */
-    --color-warning-subtle: 38 40% 18%; /* #3A2B17 */
+    --color-income: 130 40% 56%;
+    --color-income-subtle: 130 32% 16%;
+    --color-expense: 12 70% 58%;
+    --color-expense-subtle: 12 36% 17%;
+    --color-transfer: 205 46% 58%;
+    --color-transfer-subtle: 205 32% 17%;
+    --color-warning: 33 86% 58%;
+    --color-warning-subtle: 33 40% 17%;
   }
 
   * {
@@ -94,6 +97,14 @@
 .no-scrollbar {
   -ms-overflow-style: none;
   scrollbar-width: none;
+}
+
+/* Motif identitas "Klasik Rumah": serif display khusus ANGKA BESAR.
+   Wajib dipasangkan class tabular-nums agar kolom angka sejajar. */
+.font-display-num {
+  font-family: var(--font-fraunces), Georgia, 'Times New Roman', serif;
+  font-weight: 600;
+  letter-spacing: -0.01em;
 }
 
 /* Animations & Keyframes */

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Eye, EyeSlash, ShieldCheck, Wallet, Sparkle, HandCoins } from '@phosphor-icons/react';
+import { Eye, EyeSlash, ShieldCheck, Wallet, Coins, HandCoins } from '@phosphor-icons/react';
 import { formatRupiah } from '@/lib/formatters';
 
 interface BalanceHeaderProps {
@@ -28,7 +28,7 @@ export function BalanceHeader({
   const isHealthy = effectiveSafeToSpend >= 0;
 
   return (
-    <div className="relative overflow-hidden rounded-2xl sm:rounded-3xl bg-gradient-to-br from-primary via-[#1A7B57] to-[#125A3F] p-4 sm:p-5 md:p-6 text-white shadow-md shadow-primary/15 transition-all">
+    <div className="relative overflow-hidden rounded-2xl sm:rounded-3xl bg-gradient-to-br from-primary via-primary-hover to-primary-deep p-4 sm:p-5 md:p-6 text-white shadow-md shadow-primary/15 transition-all">
       {/* Subtle decorative glow */}
       <div className="absolute -right-10 -bottom-10 w-40 h-40 bg-white/10 rounded-full blur-3xl pointer-events-none" />
 
@@ -42,7 +42,7 @@ export function BalanceHeader({
             </div>
 
             <div className="flex items-center gap-2.5 sm:gap-3 flex-wrap">
-              <h1 className={`text-2xl sm:text-3xl md:text-4xl font-extrabold tracking-tight whitespace-nowrap tabular-nums ${totalBalance < 0 ? 'text-red-200' : 'text-white'}`}>
+              <h1 className={`font-display-num text-3xl sm:text-4xl md:text-[2.75rem] leading-tight whitespace-nowrap tabular-nums ${totalBalance < 0 ? 'text-red-100' : 'text-white'}`}>
                 {showBalance ? formatRupiah(totalBalance) : '••••••••••••'}
               </h1>
               <button
@@ -88,7 +88,7 @@ export function BalanceHeader({
         <div className="p-2.5 sm:p-3 bg-black/20 backdrop-blur-md rounded-2xl border border-white/15 flex items-center justify-between gap-2">
           <div className="flex items-center gap-2 min-w-0">
             <div className="w-6 h-6 rounded-xl bg-white/15 flex items-center justify-center shrink-0">
-              <Sparkle size={13} weight="fill" className="text-amber-300" />
+              <Coins size={13} weight="fill" className="text-warning" />
             </div>
             <div className="min-w-0">
               <p className="text-[10px] text-white/75 font-semibold leading-tight hidden sm:block">
@@ -97,7 +97,7 @@ export function BalanceHeader({
               <p className="text-[10px] text-white/75 font-semibold leading-tight sm:hidden">
                 Dana Bebas & Uang Dingin:
               </p>
-              <p className="text-xs sm:text-sm font-extrabold text-white truncate">
+              <p className="font-display-num text-base sm:text-lg text-white truncate tabular-nums">
                 {showBalance ? formatRupiah(effectiveSafeToSpend) : '••••••'}
                 <span className="text-[9px] font-normal text-white/60 ml-1 hidden sm:inline">
                   (dikurangi kewajiban {formatRupiah(pendingBillsAmount + payableDueAmount)})

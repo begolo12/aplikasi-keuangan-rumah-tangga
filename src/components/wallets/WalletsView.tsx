@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { Wallet, WalletType } from '@/lib/types';
-import { formatRupiah } from '@/lib/formatters';
+import { formatRupiah, getReconcileAge } from '@/lib/formatters';
 import { CategoryIcon, AVAILABLE_COLORS } from '../ui/CategoryIcon';
 import { Button } from '../ui/Button';
 import { Modal } from '../ui/Modal';
@@ -162,7 +162,9 @@ export function WalletsView({ wallets, onRefresh, onOpenTransfer, onAddWallet }:
       )}
       {/* Wallets Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {wallets.map((wallet) => (
+        {wallets.map((wallet) => {
+          const reconcileAge = getReconcileAge(wallet.reconciled_at);
+          return (
           <div
             key={wallet.id}
             className="p-5 bg-surface border border-border rounded-3xl flex flex-col justify-between space-y-4 shadow-xs hover:border-primary/40 transition-all"
@@ -238,13 +240,14 @@ export function WalletsView({ wallets, onRefresh, onOpenTransfer, onAddWallet }:
                     (Minus / Overdraft)
                   </span>
                 )}
-                <span className="text-[10px] text-text-muted flex items-center gap-1 pt-0.5 truncate">
-                  <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${wallet.reconciled_at ? 'bg-primary' : 'bg-amber-500'}`} />
+                <span className={`text-[10px] flex items-center gap-1 pt-0.5 truncate ${reconcileAge !== 'fresh' ? 'font-semibold text-warning' : 'text-text-muted'}`}>
+                  <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${reconcileAge === 'fresh' ? 'bg-primary' : 'bg-warning'}`} />
                   <span>
                     {wallet.reconciled_at
                       ? `Rekom: ${new Date(wallet.reconciled_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}`
-                      : 'Belum pernah direkom'}
+                      : 'Belum pernah direkonsiliasi'}
                   </span>
+                  {reconcileAge !== 'fresh' && <span className="shrink-0">Cek saldo</span>}
                 </span>
               </div>
 
@@ -259,7 +262,8 @@ export function WalletsView({ wallets, onRefresh, onOpenTransfer, onAddWallet }:
               </button>
             </div>
           </div>
-        ))}
+          );
+        })}
       </div>
 
       {/* Reconcile Modal */}

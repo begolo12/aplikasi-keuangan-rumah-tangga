@@ -91,3 +91,17 @@ export function getCurrentPeriod(): { month: number; year: number; monthName: st
     monthName: INDONESIAN_MONTHS[month - 1],
   };
 }
+
+/**
+ * Umur verifikasi rekonsiliasi dompet.
+ * 'fresh' <= 14 hari, 'stale' > 14 hari, 'never' belum pernah direkonsiliasi.
+ */
+export type ReconcileAge = 'fresh' | 'stale' | 'never';
+
+export function getReconcileAge(reconciledAt: string | null | undefined, now: Date = new Date()): ReconcileAge {
+  if (!reconciledAt) return 'never';
+  const then = new Date(reconciledAt);
+  if (isNaN(then.getTime())) return 'never';
+  const days = Math.floor((now.getTime() - then.getTime()) / (1000 * 60 * 60 * 24));
+  return days > 14 ? 'stale' : 'fresh';
+}

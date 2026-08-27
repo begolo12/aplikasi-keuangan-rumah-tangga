@@ -306,6 +306,50 @@ async function runE2ESuite() {
         'Saldo dompet kembali ke nilai awal setelah pemulihan nominal',
         parseFloat(balRestored[0].balance) === 4347500
       );
+
+      const editStamp = await query<{ edited_at: string | null }>(
+        'SELECT edited_at FROM transactions WHERE id = $1',
+        [trxId]
+      );
+      assert('Tanda revisi tercatat (edited_at terisi) setelah PUT', editStamp[0].edited_at !== null);
+
+      // Anti-replay revisi basi: PUT dengan expected_updated_at yang sudah lewat harus ditolak (409)
+      const currentUpdatedAt = await query<{ updated_at: string }>(
+        'SELECT updated_at FROM transactions WHERE id = $1',
+        [trxId]
+      );
+      const staleReq = new NextRequest(`http://localhost/api/transactions/${trxId}`, {
+        method: 'PUT',
+        headers: { 'content-type': 'application/json', cookie: `kas_session_token=${token}` },
+        body: JSON.stringify({
+          type: 'expense',
+          amount: 99000000,
+          admin_fee: 0,
+          category_id: expenseCat.id,
+          wallet_id: mainWallet.id,
+          description: 'Replay Basi Harus Ditolak',
+          date: todayStr,
+          expected_updated_at: '2000-01-01T00:00:00.000Z',
+        }),
+      });
+      const staleRes = await PUT(staleReq, { params: Promise.resolve({ id: trxId }) });
+      assert('PUT dengan expected_updated_at basi ditolak (409 anti-replay)', staleRes.status === 409);
+
+      const rowAfterStale = await query<{ amount: string; description: string; updated_at: string }>(
+        'SELECT amount, description, updated_at FROM transactions WHERE id = $1',
+        [trxId]
+      );
+      const cAmount = parseFloat(rowAfterStale[0].amount) === 150000;
+      const cDesc = rowAfterStale[0].description === 'Makan Siang Restoran';
+      const cTime =
+        new Date(rowAfterStale[0].updated_at).getTime() ===
+        new Date(currentUpdatedAt[0].updated_at).getTime();
+      const cBal = parseFloat(balRestored[0].balance) === 4347500;
+      assert(
+        'Transaksi tidak berubah setelah replay ditolak & saldo utuh',
+        cAmount && cDesc && cTime && cBal,
+        `amount=${rowAfterStale[0].amount} desc="${rowAfterStale[0].description}" timeA=${rowAfterStale[0].updated_at} timeB=${currentUpdatedAt[0].updated_at} bal=${balRestored[0].balance}`
+      );
     }
 
     // ── 5. BUDGETS & REAL-TIME SPENT TRACKING ────────────────────────────────────
@@ -421,8 +465,155 @@ async function runE2ESuite() {
     );
     assert('Status hutang terupdate parsial (partial) dan paid_amount = Rp 400.000', debtState[0].status === 'partial' && parseFloat(debtState[0].paid_amount) === 400000);
 
+    // ── 7b. HUTANG DETAIL KPR: Pokok, Bunga, Tenor & Auto-Jadwal Cicilan ─────────
+    console.log('\n[7b] Hutang Detail KPR (Pokok, Bunga, Tenor, Cicilan & Auto-Schedule)');
+    {
+      const tokenKpr = await createSessionToken({ userId, email: testEmail, name: testName, familyName: testFamily });
+      const postReq = new NextRequest('http://localhost/api/debts', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', cookie: `kas_session_token=${tokenKpr}` },
+        body: JSON.stringify({
+          type: 'payable',
+          category: 'kpr_rumah',
+          person_name: 'KPR Bank BTN',
+          total_amount: 450000000,
+          principal_amount: 300000000,
+          interest_rate: 7.5,
+          interest_type: 'flat',
+          tenor_months: 120,
+          monthly_installment: 3750000,
+          due_date: todayStr,
+          auto_schedule_bill: true,
+          schedule_due_day: 10,
+          wallet_id: mainWallet.id,
+        }),
+      });
+      const { POST } = await import('../src/app/api/debts/route');
+      const postRes = await POST(postReq);
+      const postJson = await postRes.json();
+      assert('Handler POST hutang KPR merespons sukses (201)', postRes.status === 201 && postJson?.success);
+
+      const kpr = postJson?.data;
+      assert(
+        'Total beban bunga terhitung otomatis Rp 150.000.000 (total - pokok)',
+        kpr && parseFloat(kpr.total_interest) === 150000000 && parseFloat(kpr.principal_amount) === 300000000
+      );
+
+      const scheduleBills = await query<{ amount: number; is_active: boolean }>(
+        `SELECT amount::float AS amount, is_active FROM recurring_bills
+         WHERE user_id = $1 AND title LIKE 'Cicilan:%'`,
+        [userId]
+      );
+      assert(
+        'Cicilan bulanan otomatis masuk daftar Pengeluaran Pasti (Rp 3.750.000)',
+        scheduleBills.length === 1 && scheduleBills[0].amount === 3750000 && scheduleBills[0].is_active
+      );
+    }
+
+    // ── 7c. TARGET TABUNGAN: CRUD + Alokasi Dana Terhubung Kas ───────────────────
+    console.log('\n[7c] Target Tabungan (Goals): Buat, Alokasikan, Progres & Proyeksi');
+    {
+      const tokenGoal = await createSessionToken({ userId, email: testEmail, name: testName, familyName: testFamily });
+      const postGoalRes = await import('../src/app/api/goals/route').then(async ({ POST }) =>
+        POST(new NextRequest('http://localhost/api/goals', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json', cookie: `kas_session_token=${tokenGoal}` },
+          body: JSON.stringify({
+            name: 'Dana Darurat Keluarga',
+            target_amount: 5000000,
+            wallet_id: secondaryWallet.id,
+          }),
+        }))
+      );
+      const goalJson = await postGoalRes.json();
+      const goalId: string | undefined = goalJson?.data?.id;
+      assert('Handler POST target tabungan merespons sukses (201)', postGoalRes.status === 201 && Boolean(goalId));
+
+      if (goalId) {
+        const contribRes = await import('../src/app/api/goals/[id]/contribute/route').then(({ POST }) =>
+          POST(new NextRequest(`http://localhost/api/goals/${goalId}/contribute`, {
+            method: 'POST',
+            headers: { 'content-type': 'application/json', cookie: `kas_session_token=${tokenGoal}` },
+            body: JSON.stringify({ amount: 500000, wallet_id: mainWallet.id }),
+          }), { params: Promise.resolve({ id: goalId }) })
+        );
+        const contribJson = await contribRes.json();
+        assert(
+          'Alokasi dana membuat transfer nyata & progres tercatat',
+          contribRes.status === 201 && contribJson?.data?.savedAmount === 500000
+        );
+
+        const goalGet = await query<{ saved: number }>(
+          `SELECT COALESCE(SUM(amount), 0)::float AS saved FROM goal_contributions WHERE goal_id = $1`,
+          [goalId]
+        );
+        const trxLinked = await query<{ id: string; type: string }>(
+          `SELECT t.id, t.type FROM transactions t
+           JOIN goal_contributions gc ON gc.transaction_id = t.id WHERE gc.goal_id = $1 AND gc.user_id = $2`,
+          [goalId, userId]
+        );
+        assert(
+          'Progres goal terhubung ke transaksi kas riil (transfer ke penampung)',
+          goalGet[0].saved === 500000 && trxLinked.length === 1 && trxLinked[0].type === 'transfer'
+        );
+
+        const srcBalAfter = await query<{ balance: string }>('SELECT balance FROM wallets WHERE id = $1', [mainWallet.id]);
+        const dstBalAfter = await query<{ balance: string }>('SELECT balance FROM wallets WHERE id = $1', [secondaryWallet.id]);
+        assert(
+          'Saldo dompet sumber berkurang & penampung bertambah sesuai alokasi',
+          parseFloat(srcBalAfter[0].balance) > 0 && parseFloat(dstBalAfter[0].balance) >= 500000
+        );
+
+        // Isolasi user: contribute atas goal milik orang lain harus ditolak
+        const foreignToken = await createSessionToken({ userId: crypto.randomUUID(), email: 'x@x.test', name: 'X', familyName: 'Y' });
+        const foreignRes = await import('../src/app/api/goals/[id]/contribute/route').then(({ POST }) =>
+          POST(new NextRequest(`http://localhost/api/goals/${goalId}/contribute`, {
+            method: 'POST',
+            headers: { 'content-type': 'application/json', cookie: `kas_session_token=${foreignToken}` },
+            body: JSON.stringify({ amount: 10000, wallet_id: mainWallet.id }),
+          }), { params: Promise.resolve({ id: goalId }) })
+        );
+        assert('Alokasi lintas-user ditolak (404)', foreignRes.status === 404);
+      }
+    }
+
+    // ── 7d. SMART RECEIPT PARSER (DeepSeek AI Route & Auth Protection) ───────────
+    console.log('\n[7d] Smart Receipt Parser (DeepSeek AI Route & Auth Protection)');
+    {
+      const tokenAi = await createSessionToken({ userId, email: testEmail, name: testName, familyName: testFamily });
+      
+      // 1. Request terautentikasi dengan teks struk
+      const parseRes = await import('../src/app/api/ai/parse-receipt/route').then(({ POST }) =>
+        POST(new NextRequest('http://localhost/api/ai/parse-receipt', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json', cookie: `kas_session_token=${tokenAi}` },
+          body: JSON.stringify({
+            text: 'INDOMARET POINT\n1x SUSU UHT 19.500\n1x ROTI 15.000\nTOTAL: 34.500\nBCA QRIS 28-08-2026',
+            categories: [{ id: expenseCat.id, name: 'Makanan & Minuman', type: 'expense' }],
+            wallets: [{ id: mainWallet.id, name: 'BCA Utama', type: 'bank' }],
+          }),
+        }))
+      );
+
+      const parseJson = await parseRes.json();
+      assert('Handler POST /api/ai/parse-receipt merespons sukses (200)', parseRes.status === 200 && parseJson.success);
+      assert('Hasil parser mengekstrak nominal belanja akurat (>= 34.500)', parseJson.data?.amount === 34500);
+      assert('Hasil parser menyarankan tipe transaksi expense', parseJson.data?.type === 'expense');
+
+      // 2. Request unauthenticated ditolak 401
+      const unauthRes = await import('../src/app/api/ai/parse-receipt/route').then(({ POST }) =>
+        POST(new NextRequest('http://localhost/api/ai/parse-receipt', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ text: 'Nota tanpa login' }),
+        }))
+      );
+      assert('Request parser tanpa login ditolak 401 (Zero-leak proteksi server)', unauthRes.status === 401);
+    }
+
     // ── 8. DASHBOARD BOOTSTRAP & CASHFLOW / SAFE-TO-SPEND CALCULATION ────────────
     console.log('\n[8] Bootstrap Dashboard, Arus Kas & Formula Safe-to-Spend');
+
     const [wList, totBal, sumRows, debtList] = await Promise.all([
       query<{ balance: string }>('SELECT balance FROM wallets WHERE user_id = $1', [userId]),
       query<{ total: string }>('SELECT COALESCE(SUM(balance), 0) as total FROM wallets WHERE user_id = $1', [userId]),
@@ -451,7 +642,8 @@ async function runE2ESuite() {
     const safeToSpend = totalCurrentCash - activePayableRemaining + activeReceivableRemaining;
 
     assert('Total saldo kas riil terhitung akurat', totalCurrentCash > 0);
-    assert('Kalkulasi Dana Bebas Belanja (Safe-to-Spend) sesuai formula', safeToSpend === totalCurrentCash - 600000 + 800000);
+    // Sisa hutang aktif: Pak Joko 600.000 + KPR BTN 450.000.000 ; piutang Budi 800.000
+    assert('Kalkulasi Dana Bebas Belanja (Safe-to-Spend) sesuai formula', safeToSpend === totalCurrentCash - 450600000 + 800000);
 
     // ── 9. BACKUP EXPORT & IMPORT ISOLATION ─────────────────────────────────────
     console.log('\n[9] Modul Backup: Ekspor JSON, Ekspor CSV & Isolasi Data Multi-User');

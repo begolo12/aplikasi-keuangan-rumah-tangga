@@ -25,6 +25,7 @@ const config: Config = {
           DEFAULT: "hsl(var(--color-primary) / <alpha-value>)",
           fg: "hsl(var(--color-primary-fg) / <alpha-value>)",
           hover: "hsl(var(--color-primary-hover) / <alpha-value>)",
+          deep: "hsl(var(--color-primary-deep) / <alpha-value>)",
           subtle: "hsl(var(--color-primary-subtle) / <alpha-value>)",
         },
         income: {

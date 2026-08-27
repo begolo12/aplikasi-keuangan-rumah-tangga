@@ -1,9 +1,12 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { MonthlySummary as MonthlySummaryType, Debt, Asset, Budget, Wallet } from '@/lib/types';
 import { apiFetch, endpoints } from '@/lib/apiFetch';
 import { formatRupiah, INDONESIAN_MONTHS } from '@/lib/formatters';
+import { calculateColdMoney } from '../reports/ColdMoneyCard';
+import { buildMonthlyDecision } from '@/lib/decisionSummary';
+import { DecisionCard } from './DecisionCard';
 import { DashboardSkeleton } from '../ui/LoadingSkeleton';
 import {
   Heartbeat,
@@ -78,6 +81,52 @@ export function EvaluationView({
       isMounted = false;
     };
   }, [currentMonth, currentYear]);
+
+  // Putusan akhir bulan: hooks harus di atas early-return (rules-of-hooks).
+  const safeSummary = {
+    total_income: summary?.total_income ?? 0,
+    total_expense: summary?.total_expense ?? 0,
+    net_cash_flow: summary?.net_cash_flow ?? 0,
+    total_bills_pending_amount: summary?.total_bills_pending_amount ?? 0,
+    total_payable_due: summary?.total_payable_due ?? 0,
+  };
+
+  const coldMoneyInfo = useMemo(
+    () =>
+      calculateColdMoney(
+        wallets,
+        budgets,
+        safeSummary.total_expense,
+        safeSummary.total_bills_pending_amount,
+        safeSummary.total_payable_due
+      ),
+    [wallets, budgets, safeSummary.total_expense, safeSummary.total_bills_pending_amount, safeSummary.total_payable_due]
+  );
+
+  const topOverspentCategory = useMemo(() => {
+    const worst = budgets
+      .filter((b) => (b.percentage ?? 0) > 100)
+      .sort((a, b) => (b.percentage ?? 0) - (a.percentage ?? 0))[0];
+    if (!worst) return null;
+    return {
+      name: worst.category_name || 'Pos belanja',
+      pct: Math.round(worst.percentage),
+      overAmount: Math.max(0, (worst.spent || 0) - (worst.monthly_limit || 0)),
+    };
+  }, [budgets]);
+
+  const monthlyDecision = useMemo(
+    () =>
+      buildMonthlyDecision({
+        hasAnyTransaction: safeSummary.total_income > 0 || safeSummary.total_expense > 0,
+        netCashFlow: safeSummary.net_cash_flow,
+        coldMoneyAmount: coldMoneyInfo.cold_money,
+        coldMoneyGap:
+          coldMoneyInfo.safety_reserve_required + coldMoneyInfo.pending_obligations - coldMoneyInfo.total_liquid_cash,
+        topOverspent: topOverspentCategory,
+      }),
+    [safeSummary.total_income, safeSummary.total_expense, safeSummary.net_cash_flow, coldMoneyInfo, topOverspentCategory]
+  );
 
   if (!summary || isLoadingAssets) {
     return <DashboardSkeleton />;
@@ -252,6 +301,9 @@ export function EvaluationView({
         </div>
       </div>
 
+      {/* Putusan Akhir Bulan: tiga baris jawaban atas pertanyaan keuangan keluarga */}
+      <DecisionCard month={currentMonth} year={currentYear} decision={monthlyDecision} />
+
       {/* Main Score Hero Card */}
       <div className="p-4 sm:p-5 bg-surface border border-border rounded-3xl space-y-4 shadow-2xs">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -311,7 +363,7 @@ export function EvaluationView({
                   key={label}
                   className="px-2 py-0.5 rounded-lg bg-surface-2 border border-border/60 text-[10px] font-semibold text-text-muted"
                 >
-                  {label}: —
+                  {label}: belum ada pembanding
                 </span>
               ) : (
                 <span

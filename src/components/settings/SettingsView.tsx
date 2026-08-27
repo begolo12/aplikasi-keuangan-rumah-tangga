@@ -136,9 +136,31 @@ export function SettingsView({ user, settings, onRefresh, onLogout }: SettingsVi
     }
   };
 
+  const [lastBackupAt, setLastBackupAt] = useState<string | null>(() => {
+    if (typeof window === 'undefined') return null;
+    return window.localStorage.getItem('kaskeluarga-last-backup');
+  });
+  // Usia cadangan dihitung di effect, bukan di render (purity).
+  const [backupDaysSince, setBackupDaysSince] = useState<number | null>(null);
+  useEffect(() => {
+    setBackupDaysSince(
+      lastBackupAt ? Math.floor((Date.now() - new Date(lastBackupAt).getTime()) / (1000 * 60 * 60 * 24)) : null
+    );
+  }, [lastBackupAt]);
+
   const handleExportBackup = () => {
     window.open(endpoints.backupExport, '_blank');
+    const nowIso = new Date().toISOString();
+    try {
+      window.localStorage.setItem('kaskeluarga-last-backup', nowIso);
+    } catch {
+      // Private mode / storage penuh: pengingat saja yang tidak tersimpan
+    }
+    setLastBackupAt(nowIso);
+    setBackupDaysSince(0);
   };
+
+  const backupIsStale = backupDaysSince === null || backupDaysSince > 30;
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -327,8 +349,8 @@ export function SettingsView({ user, settings, onRefresh, onLogout }: SettingsVi
         )}
 
         {pendingRestoreFile && (
-          <div className="p-4 bg-amber-500/10 border border-amber-500/30 rounded-2xl space-y-2">
-            <p className="text-xs font-bold text-amber-800 dark:text-amber-300">
+          <div className="p-4 bg-warning/10 border border-warning/30 rounded-2xl space-y-2">
+            <p className="text-xs font-bold text-warning">
               Konfirmasi Pemulihan Data ({pendingRestoreFile.name}):
             </p>
             <p className="text-[11px] text-text-muted">
@@ -376,6 +398,12 @@ export function SettingsView({ user, settings, onRefresh, onLogout }: SettingsVi
             />
           </label>
         </div>
+
+        <p className={`text-[11px] font-semibold ${backupIsStale ? 'text-warning' : 'text-text-muted'}`}>
+          {backupDaysSince === null
+            ? 'Belum pernah membuat cadangan. Sebaiknya unduh cadangan minimal sebulan sekali.'
+            : `Cadangan terakhir: ${backupDaysSince} hari lalu (${new Date(lastBackupAt!).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}).`}
+        </p>
       </div>
 
       {/* Card 4: Keluar Akun */}

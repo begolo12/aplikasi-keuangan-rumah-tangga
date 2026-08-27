@@ -236,6 +236,18 @@ async function initializeSchema(req: NextRequest): Promise<NextResponse> {
       $$;
     `);
 
+    // Kolom detail hutang (KPR, bunga, tenor, cicilan) pada tabel debts
+    await client.query(`
+      ALTER TABLE debts
+      ADD COLUMN IF NOT EXISTS category VARCHAR(50) DEFAULT 'hutang_pribadi',
+      ADD COLUMN IF NOT EXISTS principal_amount NUMERIC(15,2),
+      ADD COLUMN IF NOT EXISTS interest_rate NUMERIC(6,2),
+      ADD COLUMN IF NOT EXISTS interest_type VARCHAR(20) DEFAULT 'flat',
+      ADD COLUMN IF NOT EXISTS tenor_months INTEGER,
+      ADD COLUMN IF NOT EXISTS monthly_installment NUMERIC(15,2),
+      ADD COLUMN IF NOT EXISTS total_interest NUMERIC(15,2);
+    `);
+
     // Kolom penjualan aset di tabel assets
     await client.query(`
       ALTER TABLE assets
@@ -262,13 +274,44 @@ async function initializeSchema(req: NextRequest): Promise<NextResponse> {
 
     // Kolom asset_id dan idempotency_key pada transactions
     await client.query(`
-      ALTER TABLE transactions 
+      ALTER TABLE transactions
       ADD COLUMN IF NOT EXISTS asset_id UUID REFERENCES assets(id) ON DELETE SET NULL,
-      ADD COLUMN IF NOT EXISTS idempotency_key UUID;
+      ADD COLUMN IF NOT EXISTS idempotency_key UUID,
+      ADD COLUMN IF NOT EXISTS edited_at TIMESTAMPTZ;
     `);
     await client.query(
       `CREATE UNIQUE INDEX IF NOT EXISTS idx_trx_idempotency ON transactions(idempotency_key) WHERE idempotency_key IS NOT NULL;`
     );
+
+    // Target tabungan (savings goals) + riwayat kontribusinya
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS savings_goals (
+        id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_id       UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        name          VARCHAR(80) NOT NULL,
+        target_amount NUMERIC(15,2) NOT NULL CHECK (target_amount > 0),
+        target_date   DATE,
+        wallet_id     UUID REFERENCES wallets(id) ON DELETE SET NULL,
+        notes         TEXT,
+        is_active     BOOLEAN NOT NULL DEFAULT TRUE,
+        created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+      CREATE INDEX IF NOT EXISTS idx_savings_goals_user ON savings_goals(user_id, is_active);
+
+      CREATE TABLE IF NOT EXISTS goal_contributions (
+        id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        goal_id        UUID NOT NULL REFERENCES savings_goals(id) ON DELETE CASCADE,
+        user_id        UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        transaction_id UUID REFERENCES transactions(id) ON DELETE SET NULL,
+        amount         NUMERIC(15,2) NOT NULL CHECK (amount > 0),
+        date           DATE,
+        created_at     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        UNIQUE (transaction_id)
+      );
+      CREATE INDEX IF NOT EXISTS idx_goal_contributions_goal ON goal_contributions(goal_id);
+      CREATE INDEX IF NOT EXISTS idx_goal_contributions_user ON goal_contributions(user_id);
+    `);
 
     // Indeks pelengkap query laporan per bulan.
     await client.query(`CREATE INDEX IF NOT EXISTS idx_bills_user_active ON recurring_bills(user_id, is_active);`);

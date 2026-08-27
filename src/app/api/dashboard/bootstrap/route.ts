@@ -20,15 +20,17 @@ export async function GET(req: NextRequest) {
     const year = parsedQuery.success && parsedQuery.data.year ? parsedQuery.data.year : now.getFullYear();
     const currentDay = now.getDate();
 
+    // Query transaksi harus index-aware: pakai rentang tanggal, bukan EXTRACT() per baris.
+    // Gagal sub-query = gagal total (gagal keras): app keuangan TIDAK boleh menampilkan angka Rp0 palsu.
     const [wRes, cRes, tRes, bRes, billRes, totBalRes, summaryRes, pendingRes, overRes, setRes, debtsRes] =
       await Promise.all([
-        query(`SELECT * FROM wallets WHERE user_id = $1 ORDER BY sort_order ASC, name ASC`, [uid]).catch(() => []),
-        query(`SELECT * FROM categories WHERE user_id = $1 ORDER BY sort_order ASC, name ASC`, [uid]).catch(() => []),
+        query(`SELECT * FROM wallets WHERE user_id = $1 ORDER BY sort_order ASC, name ASC`, [uid]),
+        query(`SELECT * FROM categories WHERE user_id = $1 ORDER BY sort_order ASC, name ASC`, [uid]),
         query(
           `SELECT
              t.id, t.user_id, t.type, t.amount, t.admin_fee,
              t.category_id, t.wallet_id, t.to_wallet_id,
-             t.description, t.date, t.created_at, t.updated_at,
+             t.description, t.date, t.created_at, t.updated_at, t.edited_at,
              c.name as category_name, c.icon as category_icon, c.color as category_color,
              w1.name as wallet_name, w1.icon as wallet_icon,
              w2.name as to_wallet_name
@@ -37,11 +39,11 @@ export async function GET(req: NextRequest) {
            LEFT JOIN wallets w1 ON t.wallet_id = w1.id AND w1.user_id = t.user_id
            LEFT JOIN wallets w2 ON t.to_wallet_id = w2.id AND w2.user_id = t.user_id
            WHERE t.user_id = $1
-             AND EXTRACT(MONTH FROM t.date) = $2
-             AND EXTRACT(YEAR FROM t.date) = $3
+             AND t.date >= make_date($3::int, $2::int, 1)
+             AND t.date < make_date($3::int, $2::int, 1) + INTERVAL '1 month'
            ORDER BY t.date DESC, t.created_at DESC`,
           [uid, month, year]
-        ).catch(() => []),
+        ),
         query(
           `WITH latest_budgets AS (
              SELECT DISTINCT ON (category_id)
@@ -56,9 +58,9 @@ export async function GET(req: NextRequest) {
              c.name as category_name, c.icon as category_icon, c.color as category_color,
              COALESCE(SUM(t.amount), 0)::NUMERIC as spent,
              (b.monthly_limit - COALESCE(SUM(t.amount), 0))::NUMERIC as remaining,
-             CASE 
-               WHEN b.monthly_limit > 0 THEN ROUND((COALESCE(SUM(t.amount), 0) / b.monthly_limit * 100)::NUMERIC, 1)::FLOAT 
-               ELSE 0 
+             CASE
+               WHEN b.monthly_limit > 0 THEN ROUND((COALESCE(SUM(t.amount), 0) / b.monthly_limit * 100)::NUMERIC, 1)::FLOAT
+               ELSE 0
              END as percentage
            FROM latest_budgets b
            JOIN categories c ON b.category_id = c.id AND c.user_id = b.user_id
@@ -66,13 +68,13 @@ export async function GET(req: NextRequest) {
              ON t.category_id = b.category_id
              AND t.type = 'expense'
              AND t.user_id = b.user_id
-             AND EXTRACT(MONTH FROM t.date) = $2
-             AND EXTRACT(YEAR FROM t.date) = $3
+             AND t.date >= make_date($3::int, $2::int, 1)
+             AND t.date < make_date($3::int, $2::int, 1) + INTERVAL '1 month'
            GROUP BY b.id, b.user_id, b.category_id, b.monthly_limit, b.created_at,
                     c.name, c.icon, c.color
            ORDER BY percentage DESC, b.monthly_limit DESC`,
           [uid, month, year]
-        ).catch(() => []),
+        ),
         query(
           `SELECT
              b.id, b.user_id, COALESCE(b.type, 'expense') as type, b.title, b.amount, b.due_day, b.category_id,
@@ -89,8 +91,8 @@ export async function GET(req: NextRequest) {
            WHERE b.user_id = $1 AND b.is_active = TRUE
            ORDER BY is_paid ASC, b.due_day ASC`,
           [uid, month, year]
-        ).catch(() => []),
-        query(`SELECT COALESCE(SUM(balance), 0) as total FROM wallets WHERE user_id = $1`, [uid]).catch(() => [{ total: '0' }]),
+        ),
+        query(`SELECT COALESCE(SUM(balance), 0) as total FROM wallets WHERE user_id = $1`, [uid]),
         query(
           `SELECT
              COALESCE(SUM(CASE WHEN type='income' THEN amount ELSE 0 END), 0) as income,
@@ -99,20 +101,20 @@ export async function GET(req: NextRequest) {
              COALESCE(SUM(admin_fee), 0) as admin_total
            FROM transactions
            WHERE user_id = $1
-             AND EXTRACT(MONTH FROM date) = $2
-             AND EXTRACT(YEAR FROM date) = $3`,
+             AND date >= make_date($3::int, $2::int, 1)
+             AND date < make_date($3::int, $2::int, 1) + INTERVAL '1 month'`,
           [uid, month, year]
-        ).catch(() => [{ income: '0', expense: '0', transfer: '0', admin_total: '0' }]),
+        ),
         query(
           `SELECT 
              COUNT(*)::text as count,
              COALESCE(SUM(b.amount), 0)::text as total_pending_amount
-           FROM recurring_bills b
-           LEFT JOIN bill_payments bp
-             ON bp.bill_id = b.id AND bp.month = $2 AND bp.year = $3 AND bp.user_id = b.user_id
-           WHERE b.user_id = $1 AND b.is_active = TRUE AND COALESCE(b.type, 'expense') = 'expense' AND bp.id IS NULL`,
+            FROM recurring_bills b
+            LEFT JOIN bill_payments bp
+              ON bp.bill_id = b.id AND bp.month = $2 AND bp.year = $3 AND bp.user_id = b.user_id
+            WHERE b.user_id = $1 AND b.is_active = TRUE AND COALESCE(b.type, 'expense') = 'expense' AND bp.id IS NULL`,
           [uid, month, year]
-        ).catch(() => [{ count: '0', total_pending_amount: '0' }]),
+        ),
         query(
           `SELECT COUNT(*)::text as count
            FROM (
@@ -129,35 +131,45 @@ export async function GET(req: NextRequest) {
              LEFT JOIN transactions t
                ON t.category_id = b.category_id AND t.type = 'expense'
                AND t.user_id = b.user_id
-               AND EXTRACT(MONTH FROM t.date) = $2
-               AND EXTRACT(YEAR FROM t.date) = $3
+               AND t.date >= make_date($3::int, $2::int, 1)
+               AND t.date < make_date($3::int, $2::int, 1) + INTERVAL '1 month'
              GROUP BY b.id, b.monthly_limit
              HAVING COALESCE(SUM(t.amount), 0) > b.monthly_limit
            ) over_budgets`,
           [uid, month, year]
-        ).catch(() => [{ count: '0' }]),
-        query(`SELECT * FROM app_settings WHERE user_id = $1`, [uid]).catch(() => []),
+        ),
+        query(`SELECT * FROM app_settings WHERE user_id = $1`, [uid]),
         query(
-          `SELECT 
-             id, user_id, type, person_name,
+          `SELECT
+             id, user_id, type, category, person_name,
              total_amount::float AS total_amount,
              paid_amount::float AS paid_amount,
              (total_amount - paid_amount)::float AS remaining_amount,
+             principal_amount::float AS principal_amount,
+             interest_rate::float AS interest_rate,
+             interest_type,
+             tenor_months,
+             monthly_installment::float AS monthly_installment,
+             total_interest::float AS total_interest,
              due_date, notes, status,
-             CASE 
+             CASE
                WHEN due_date IS NOT NULL THEN (due_date - CURRENT_DATE)
-               ELSE NULL 
+               ELSE NULL
              END AS days_until_due,
-             CASE 
+             CASE
                WHEN due_date IS NOT NULL AND due_date < CURRENT_DATE AND status != 'paid' THEN TRUE
-               ELSE FALSE 
+               ELSE FALSE
              END AS is_overdue,
+             CASE
+               WHEN status != 'paid' AND (due_date IS NULL OR due_date < date_trunc('month', CURRENT_DATE) + INTERVAL '1 month') THEN TRUE
+               ELSE FALSE
+             END AS is_due_this_period,
              created_at, updated_at
            FROM debts
            WHERE user_id = $1
            ORDER BY status ASC, due_date ASC NULLS LAST, created_at DESC`,
           [uid]
-        ).catch(() => []),
+        ),
       ]);
 
     const totalBalance = parseFloat((totBalRes[0]?.total as string) || '0');
@@ -277,13 +289,16 @@ export async function GET(req: NextRequest) {
       status: 'unpaid' | 'partial' | 'paid';
       days_until_due: number | null;
       is_overdue: boolean;
+      is_due_this_period?: boolean;
       created_at: string;
       updated_at: string;
     }
 
     const formattedDebts = debtsRes as unknown as DebtRow[];
 
-    // Calculate Debts & Receivables Due in current month
+    // Kewajiban/aset masuk "due" hanya bila jatuh tempo bulan ini, terlewat, atau tak terjadwal.
+    // Hutang tenor panjang (KPR) yang jadwalnya bulan-bulan depan TIDAK menekan safe-to-spend di sini
+    // (beban cicilannya sudah terhitung lewat tagihan rutin bila user mengaktifkan auto-schedule).
     let totalPayableDue = 0;
     let totalReceivableDue = 0;
     let payableUnpaidCount = 0;
@@ -291,13 +306,17 @@ export async function GET(req: NextRequest) {
 
     for (const d of formattedDebts) {
       if (d.status !== 'paid') {
+        const isDueNow = d.is_due_this_period === true;
         if (d.type === 'payable') {
           payableUnpaidCount++;
-          // If due this month or no due date / overdue, count towards payable due
-          totalPayableDue += d.remaining_amount;
+          if (isDueNow) {
+            totalPayableDue += d.remaining_amount;
+          }
         } else {
           receivableUnpaidCount++;
-          totalReceivableDue += d.remaining_amount;
+          if (isDueNow) {
+            totalReceivableDue += d.remaining_amount;
+          }
         }
       }
     }

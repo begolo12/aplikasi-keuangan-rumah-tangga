@@ -2,9 +2,9 @@
 
 import React from 'react';
 import { Wallet as WalletType } from '@/lib/types';
-import { formatRupiah } from '@/lib/formatters';
+import { formatRupiah, getReconcileAge } from '@/lib/formatters';
 import { CategoryIcon } from '../ui/CategoryIcon';
-import { Plus, ArrowsLeftRight } from '@phosphor-icons/react';
+import { Plus, ArrowsLeftRight, Warning } from '@phosphor-icons/react';
 
 interface WalletScrollerProps {
   wallets: WalletType[];
@@ -38,7 +38,9 @@ export function WalletScroller({ wallets, onAddWallet, onTransfer }: WalletScrol
 
       {/* Responsive: Horizontal swipe snap on mobile, Grid on desktop */}
       <div className="flex md:grid md:grid-cols-4 gap-2.5 sm:gap-3.5 overflow-x-auto pb-1.5 md:pb-0 scroll-smooth snap-x snap-mandatory no-scrollbar">
-        {wallets.map((wallet) => (
+        {wallets.map((wallet) => {
+          const reconcileAge = getReconcileAge(wallet.reconciled_at);
+          return (
           <div
             key={wallet.id}
             className="snap-start shrink-0 w-[190px] md:w-auto p-3 sm:p-3.5 bg-surface border border-border rounded-xl sm:rounded-2xl flex flex-col justify-between hover:border-primary/40 transition-all shadow-2xs"
@@ -58,18 +60,27 @@ export function WalletScroller({ wallets, onAddWallet, onTransfer }: WalletScrol
                 {formatRupiah(wallet.balance)}
               </p>
               <div className="flex items-center justify-between gap-1 text-[9px] text-text-muted mt-1 pt-1 border-t border-border/40">
-                <span className="truncate">
+                <span className={`truncate ${reconcileAge !== 'fresh' ? 'font-semibold text-warning' : ''}`}>
                   {wallet.reconciled_at
                     ? `Rekom: ${new Date(wallet.reconciled_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })}`
-                    : 'Belum direkom'}
+                    : 'Belum direkonsiliasi'}
                 </span>
                 {wallet.balance < 0 && (
                   <span className="font-bold text-expense shrink-0">Minus</span>
                 )}
+                {reconcileAge !== 'fresh' && (
+                  <span
+                    className="shrink-0 inline-flex items-center"
+                    title={reconcileAge === 'never' ? 'Belum pernah dicocokkan dengan saldo riil' : 'Lebih dari 14 hari tidak dicek dengan saldo riil'}
+                  >
+                    <Warning size={11} weight="fill" />
+                  </span>
+                )}
               </div>
             </div>
           </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );

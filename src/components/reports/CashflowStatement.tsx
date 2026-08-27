@@ -4,7 +4,7 @@ import React from 'react';
 import {
   CheckCircle,
   WarningCircle,
-  Sparkle,
+  PiggyBank,
   TrendUp,
   TrendDown,
   ArrowsLeftRight,
@@ -97,7 +97,7 @@ export function CashflowStatement({
         <div className="grid grid-cols-3 gap-2 sm:gap-3 py-3">
           <div className="p-2.5 sm:p-3.5 bg-surface rounded-2xl border border-border/60 space-y-0.5 sm:space-y-1 text-center sm:text-left">
             <span className="text-[10px] sm:text-xs text-text-muted font-semibold block">Total Kas Masuk</span>
-            <p className="text-xs sm:text-base md:text-lg font-extrabold text-income tabular-nums whitespace-nowrap">
+            <p className="font-display-num text-base md:text-lg text-income tabular-nums whitespace-nowrap">
               +{formatRupiah(totalIncome)}
             </p>
             <span className="text-[9px] sm:text-[10px] text-text-muted hidden sm:block">Pemasukan & Piutang</span>
@@ -105,7 +105,7 @@ export function CashflowStatement({
 
           <div className="p-2.5 sm:p-3.5 bg-surface rounded-2xl border border-border/60 space-y-0.5 sm:space-y-1 text-center sm:text-left">
             <span className="text-[10px] sm:text-xs text-text-muted font-semibold block">Total Kas Keluar</span>
-            <p className="text-xs sm:text-base md:text-lg font-extrabold text-expense tabular-nums whitespace-nowrap">
+            <p className="font-display-num text-base md:text-lg text-expense tabular-nums whitespace-nowrap">
               -{formatRupiah(totalExpense)}
             </p>
             <span className="text-[9px] sm:text-[10px] text-text-muted hidden sm:block">Pengeluaran & Cicilan</span>
@@ -114,7 +114,7 @@ export function CashflowStatement({
           <div className="p-2.5 sm:p-3.5 bg-surface rounded-2xl border border-border/60 space-y-0.5 sm:space-y-1 text-center sm:text-left">
             <span className="text-[10px] sm:text-xs text-text-muted font-semibold block">Arus Kas Bersih</span>
             <p
-              className={`text-xs sm:text-base md:text-lg font-extrabold tabular-nums whitespace-nowrap ${
+              className={`font-display-num text-base md:text-lg tabular-nums whitespace-nowrap ${
                 isSurplus ? 'text-income' : 'text-expense'
               }`}
             >
@@ -128,7 +128,7 @@ export function CashflowStatement({
 
         {/* Insight Ringkas Arus Kas */}
         <div className="pt-1 text-xs text-text-muted flex items-start gap-2">
-          <Sparkle size={16} weight="fill" className={isSurplus ? 'text-income shrink-0 mt-0.5' : 'text-expense shrink-0 mt-0.5'} />
+          <PiggyBank size={16} weight="fill" className={isSurplus ? 'text-income shrink-0 mt-0.5' : 'text-expense shrink-0 mt-0.5'} />
           <p className="text-[11px] leading-relaxed">
             {isSurplus
               ? `Arus kas Anda berada pada posisi surplus sebesar ${formatRupiah(netCashflow)} (${savingsRate}% dari pemasukan). Uang Anda bertambah di akhir bulan.`

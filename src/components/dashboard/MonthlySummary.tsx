@@ -76,7 +76,7 @@ export function MonthlySummary({ summary }: MonthlySummaryProps) {
         <div className="p-3 md:p-3.5 bg-surface border border-border rounded-2xl flex items-center justify-between shadow-2xs min-w-0">
           <div className="space-y-0.5 min-w-0 pr-2">
             <p className="text-xs font-semibold text-text-muted truncate">Total Pemasukan</p>
-            <p className="text-base md:text-lg font-extrabold text-income whitespace-nowrap tabular-nums">
+            <p className="font-display-num text-lg md:text-xl text-income whitespace-nowrap tabular-nums">
               +{formatRupiah(summary.total_income)}
             </p>
           </div>
@@ -89,7 +89,7 @@ export function MonthlySummary({ summary }: MonthlySummaryProps) {
         <div className="p-3 md:p-3.5 bg-surface border border-border rounded-2xl flex items-center justify-between shadow-2xs min-w-0">
           <div className="space-y-0.5 min-w-0 pr-2">
             <p className="text-xs font-semibold text-text-muted truncate">Total Pengeluaran</p>
-            <p className="text-base md:text-lg font-extrabold text-expense whitespace-nowrap tabular-nums">
+            <p className="font-display-num text-lg md:text-xl text-expense whitespace-nowrap tabular-nums">
               -{formatRupiah(summary.total_expense)}
             </p>
           </div>
@@ -106,7 +106,7 @@ export function MonthlySummary({ summary }: MonthlySummaryProps) {
             <p className="text-xs font-semibold text-text-muted truncate">
               {isSurplus ? 'Surplus Arus Kas' : 'Defisit Arus Kas'}
             </p>
-            <p className={`text-base md:text-lg font-extrabold whitespace-nowrap tabular-nums ${isSurplus ? 'text-income' : 'text-expense'}`}>
+            <p className={`font-display-num text-lg md:text-xl whitespace-nowrap tabular-nums ${isSurplus ? 'text-income' : 'text-expense'}`}>
               {isSurplus ? '+' : ''}{formatRupiah(summary.net_cash_flow)}
             </p>
           </div>

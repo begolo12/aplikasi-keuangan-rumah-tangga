@@ -10,6 +10,7 @@ import {
   Vault,
   Receipt,
   HandCoins,
+  Target,
   Package,
   ChartPieSlice,
   Heartbeat,
@@ -21,7 +22,7 @@ import {
 } from '@phosphor-icons/react';
 import { TransactionType } from '@/lib/types';
 
-export type NavTab = 'dashboard' | 'transactions' | 'budget' | 'reports' | 'evaluation' | 'wallets' | 'bills' | 'debts' | 'assets' | 'settings';
+export type NavTab = 'dashboard' | 'transactions' | 'budget' | 'reports' | 'evaluation' | 'wallets' | 'bills' | 'debts' | 'assets' | 'goals' | 'settings';
 
 interface BottomNavProps {
   activeTab: NavTab;
@@ -44,17 +45,32 @@ export function BottomNav({
 }: BottomNavProps) {
   const [isMoreOpen, setIsMoreOpen] = useState(false);
   const sheetRef = useRef<HTMLDivElement>(null);
+  const moreTriggerRef = useRef<HTMLButtonElement>(null);
 
-  // Close on outside tap
+  // Close on outside tap (pointerdown menutupi mouse + sentuh)
   useEffect(() => {
     if (!isMoreOpen) return;
-    const handle = (e: MouseEvent) => {
+    const handle = (e: PointerEvent) => {
       if (sheetRef.current && !sheetRef.current.contains(e.target as Node)) {
         setIsMoreOpen(false);
       }
     };
-    document.addEventListener('mousedown', handle);
-    return () => document.removeEventListener('mousedown', handle);
+    document.addEventListener('pointerdown', handle);
+    return () => document.removeEventListener('pointerdown', handle);
+  }, [isMoreOpen]);
+
+  // Keyboard: Escape menutup sheet dan mengembalikan fokus ke trigger (R-32)
+  useEffect(() => {
+    if (!isMoreOpen) return;
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        setIsMoreOpen(false);
+        moreTriggerRef.current?.focus();
+      }
+    };
+    window.addEventListener('keydown', handleKey);
+    return () => window.removeEventListener('keydown', handleKey);
   }, [isMoreOpen]);
 
   // Close sheet if navigating
@@ -78,17 +94,19 @@ export function BottomNav({
     { id: 'wallets', label: 'Dompet', icon: Wallet },
   ];
 
+  // Ikon modul NETRAL sesuai DESIGN.md: palet maksimal 3 core + aksen semantik.
   const MORE_MODULES = [
-    { id: 'budget' as NavTab, label: 'Anggaran', icon: Vault, badge: overbudgetCount > 0 ? overbudgetCount : undefined, color: 'text-amber-600' },
-    { id: 'bills' as NavTab, label: 'Tagihan', icon: Receipt, badge: pendingBillsCount > 0 ? pendingBillsCount : undefined, color: 'text-purple-600' },
-    { id: 'debts' as NavTab, label: 'Hutang', icon: HandCoins, badge: unpaidDebtsCount > 0 ? unpaidDebtsCount : undefined, color: 'text-rose-600' },
-    { id: 'assets' as NavTab, label: 'Aset', icon: Package, color: 'text-emerald-600' },
-    { id: 'reports' as NavTab, label: 'Laporan', icon: ChartPieSlice, color: 'text-blue-600' },
-    { id: 'evaluation' as NavTab, label: 'Evaluasi', icon: Heartbeat, color: 'text-teal-600' },
-    { id: 'settings' as NavTab, label: 'Pengaturan', icon: Gear, color: 'text-text-muted' },
+    { id: 'budget' as NavTab, label: 'Anggaran', icon: Vault, badge: overbudgetCount > 0 ? overbudgetCount : undefined },
+    { id: 'bills' as NavTab, label: 'Tagihan', icon: Receipt, badge: pendingBillsCount > 0 ? pendingBillsCount : undefined },
+    { id: 'debts' as NavTab, label: 'Hutang', icon: HandCoins, badge: unpaidDebtsCount > 0 ? unpaidDebtsCount : undefined },
+    { id: 'goals' as NavTab, label: 'Target', icon: Target },
+    { id: 'assets' as NavTab, label: 'Aset', icon: Package },
+    { id: 'reports' as NavTab, label: 'Laporan', icon: ChartPieSlice },
+    { id: 'evaluation' as NavTab, label: 'Evaluasi', icon: Heartbeat },
+    { id: 'settings' as NavTab, label: 'Pengaturan', icon: Gear },
   ];
 
-  const iMoreActive = ['budget', 'bills', 'debts', 'assets', 'reports', 'evaluation', 'settings'].includes(activeTab);
+  const iMoreActive = ['budget', 'bills', 'debts', 'assets', 'goals', 'reports', 'evaluation', 'settings'].includes(activeTab);
   const totalBadge = (overbudgetCount > 0 ? 1 : 0) + (pendingBillsCount > 0 ? 1 : 0) + (unpaidDebtsCount > 0 ? 1 : 0);
 
   return (
@@ -157,7 +175,9 @@ export function BottomNav({
           {/* Right: Lainnya */}
           <button
             type="button"
+            ref={moreTriggerRef}
             onClick={() => setIsMoreOpen(!isMoreOpen)}
+            aria-expanded={isMoreOpen}
             className={`flex flex-col items-center justify-center py-1 px-2.5 min-w-[54px] min-h-[46px] rounded-xl transition-all relative ${
               iMoreActive || isMoreOpen ? 'text-primary' : 'text-text-muted'
             }`}
@@ -255,7 +275,7 @@ export function BottomNav({
                   <Icon
                     size={24}
                     weight={isActive ? 'fill' : 'duotone'}
-                    className={isActive ? 'text-primary' : mod.color}
+                    className={isActive ? 'text-primary' : 'text-text-muted'}
                   />
                   <span className={`text-[10px] font-semibold leading-tight text-center ${isActive ? 'text-primary' : 'text-text-muted'}`}>
                     {mod.label}

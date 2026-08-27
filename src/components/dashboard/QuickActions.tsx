@@ -11,6 +11,7 @@ import {
   ChartPieSlice,
   Package,
   Heartbeat,
+  Sparkle,
 } from '@phosphor-icons/react';
 import { NavTab } from '../layout/BottomNav';
 import { TransactionType } from '@/lib/types';
@@ -18,6 +19,7 @@ import { TransactionType } from '@/lib/types';
 interface QuickActionsProps {
   onOpenTransactionModal: (type: TransactionType) => void;
   onNavigate: (tab: NavTab) => void;
+  onOpenReceiptScan?: () => void;
   pendingBillsCount?: number;
   overbudgetCount?: number;
   unpaidDebtsCount?: number;
@@ -26,61 +28,63 @@ interface QuickActionsProps {
 export function QuickActions({
   onOpenTransactionModal,
   onNavigate,
+  onOpenReceiptScan,
   pendingBillsCount = 0,
   overbudgetCount = 0,
   unpaidDebtsCount = 0,
 }: QuickActionsProps) {
+
   const MODULE_SHORTCUTS = [
     {
       label: 'Anggaran',
       icon: Vault,
-      color: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20',
+      color: 'bg-warning/10 text-warning border-warning/20',
       badge: overbudgetCount > 0 ? overbudgetCount : undefined,
       action: () => onNavigate('budget'),
     },
     {
       label: 'Tagihan',
       icon: Receipt,
-      color: 'bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20',
+      color: 'bg-primary/10 text-primary border-primary/20',
       badge: pendingBillsCount > 0 ? pendingBillsCount : undefined,
       action: () => onNavigate('bills'),
     },
     {
       label: 'Hutang',
       icon: HandCoins,
-      color: 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20',
+      color: 'bg-expense/10 text-expense border-expense/25',
       badge: unpaidDebtsCount > 0 ? unpaidDebtsCount : undefined,
       action: () => onNavigate('debts'),
     },
     {
       label: 'Aset',
       icon: Package,
-      color: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20',
+      color: 'bg-surface-2 text-text-muted border-border',
       action: () => onNavigate('assets'),
     },
     {
       label: 'Laporan',
       icon: ChartPieSlice,
-      color: 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20',
+      color: 'bg-transfer/10 text-transfer border-transfer/20',
       action: () => onNavigate('reports'),
     },
     {
       label: 'Evaluasi',
       icon: Heartbeat,
-      color: 'bg-teal-500/10 text-teal-600 dark:text-teal-400 border-teal-500/20',
+      color: 'bg-income/10 text-income border-income/25',
       action: () => onNavigate('evaluation'),
     },
   ];
 
   return (
     <div className="bg-surface border border-border rounded-2xl sm:rounded-3xl p-3 sm:p-4 space-y-2.5 shadow-2xs">
-      {/* Top: 3 Primary Action Buttons */}
-      <div className="grid grid-cols-3 gap-2">
+      {/* Top: Primary Action Buttons */}
+      <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
         {/* Button 1: Pengeluaran */}
         <button
           type="button"
           onClick={() => onOpenTransactionModal('expense')}
-          className="flex items-center justify-center gap-2 py-2 px-3 rounded-xl bg-expense/10 hover:bg-expense/15 border border-expense/25 text-expense font-bold text-xs sm:text-sm active:scale-[0.98] transition-all group shadow-2xs"
+          className="flex items-center justify-center gap-1.5 sm:gap-2 py-2 px-2.5 sm:px-3 rounded-xl bg-expense/10 hover:bg-expense/15 border border-expense/25 text-expense font-bold text-xs sm:text-sm active:scale-[0.98] transition-all group shadow-2xs"
         >
           <div className="w-6 h-6 rounded-lg bg-expense/15 flex items-center justify-center shrink-0">
             <ArrowDownRight size={15} weight="bold" />
@@ -92,7 +96,7 @@ export function QuickActions({
         <button
           type="button"
           onClick={() => onOpenTransactionModal('income')}
-          className="flex items-center justify-center gap-2 py-2 px-3 rounded-xl bg-income/10 hover:bg-income/15 border border-income/25 text-income font-bold text-xs sm:text-sm active:scale-[0.98] transition-all group shadow-2xs"
+          className="flex items-center justify-center gap-1.5 sm:gap-2 py-2 px-2.5 sm:px-3 rounded-xl bg-income/10 hover:bg-income/15 border border-income/25 text-income font-bold text-xs sm:text-sm active:scale-[0.98] transition-all group shadow-2xs"
         >
           <div className="w-6 h-6 rounded-lg bg-income/15 flex items-center justify-center shrink-0">
             <ArrowUpRight size={15} weight="bold" />
@@ -104,14 +108,29 @@ export function QuickActions({
         <button
           type="button"
           onClick={() => onOpenTransactionModal('transfer')}
-          className="flex items-center justify-center gap-2 py-2 px-3 rounded-xl bg-transfer/10 hover:bg-transfer/15 border border-transfer/25 text-transfer font-bold text-xs sm:text-sm active:scale-[0.98] transition-all group shadow-2xs"
+          className="flex items-center justify-center gap-1.5 sm:gap-2 py-2 px-2.5 sm:px-3 rounded-xl bg-transfer/10 hover:bg-transfer/15 border border-transfer/25 text-transfer font-bold text-xs sm:text-sm active:scale-[0.98] transition-all group shadow-2xs"
         >
           <div className="w-6 h-6 rounded-lg bg-transfer/15 flex items-center justify-center shrink-0">
             <ArrowsLeftRight size={15} weight="bold" />
           </div>
           <span className="truncate">Transfer</span>
         </button>
+
+        {/* Button 4: Scan AI Struk */}
+        {onOpenReceiptScan && (
+          <button
+            type="button"
+            onClick={onOpenReceiptScan}
+            className="hidden sm:flex items-center justify-center gap-1.5 sm:gap-2 py-2 px-2.5 sm:px-3 rounded-xl bg-primary/10 hover:bg-primary/15 border border-primary/25 text-primary font-bold text-xs sm:text-sm active:scale-[0.98] transition-all group shadow-2xs"
+          >
+            <div className="w-6 h-6 rounded-lg bg-primary/15 flex items-center justify-center shrink-0">
+              <Sparkle size={15} weight="fill" />
+            </div>
+            <span className="truncate">Scan Struk</span>
+          </button>
+        )}
       </div>
+
 
       {/* Bottom: 6 Symmetrical Module Shortcuts — Desktop only */}
       <div className="hidden md:grid grid-cols-6 gap-1 sm:gap-2 pt-1 border-t border-border/60">

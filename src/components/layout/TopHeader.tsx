@@ -203,7 +203,7 @@ export function TopHeader({
                   onClick={handleOpenSettings}
                   className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-text hover:bg-surface-2 rounded-xl transition-colors text-left"
                 >
-                  <UserCircle size={16} weight="duotone" className="text-teal-600" />
+                  <UserCircle size={16} weight="duotone" className="text-primary" />
                   <span>Edit Profil & Nama Kas</span>
                 </button>
               </div>

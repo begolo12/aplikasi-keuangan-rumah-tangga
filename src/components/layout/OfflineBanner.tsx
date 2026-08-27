@@ -100,7 +100,7 @@ export function OfflineBanner({ userId, onSynced }: OfflineBannerProps) {
     <div
       role="status"
       className={`w-full px-4 py-2 text-xs font-semibold flex flex-wrap items-center justify-between gap-2 shadow-sm z-40 ${
-        deadCount > 0 ? 'bg-expense' : 'bg-amber-500'
+        deadCount > 0 ? 'bg-expense' : 'bg-warning'
       } text-white`}
     >
       <div className="flex items-center gap-2">
@@ -121,7 +121,7 @@ export function OfflineBanner({ userId, onSynced }: OfflineBannerProps) {
         ) : !isOnline ? (
           <>
             <WifiSlash size={16} weight="bold" />
-            <span>Mode Offline — Transaksi disimpan di perangkat dan disinkronkan saat online.</span>
+            <span>Mode Offline. Transaksi disimpan di perangkat dan disinkronkan saat online.</span>
           </>
         ) : syncSuccess ? (
           <>

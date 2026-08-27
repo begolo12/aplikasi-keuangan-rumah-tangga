@@ -189,7 +189,7 @@ export function FinancialSafetyPlanCard({
         <div className="w-full h-3 bg-surface-2 rounded-full overflow-hidden border border-border/50">
           <div
             className={`h-full rounded-full transition-all duration-700 ${
-              plan.can_expand_expense ? 'bg-primary' : plan.progress_pct > 60 ? 'bg-amber-500' : 'bg-expense'
+              plan.can_expand_expense ? 'bg-primary' : plan.progress_pct > 60 ? 'bg-warning' : 'bg-expense'
             }`}
             style={{ width: `${Math.min(100, Math.max(3, plan.progress_pct))}%` }}
           />

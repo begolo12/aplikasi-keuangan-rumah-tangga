@@ -128,12 +128,15 @@ export async function clearOfflineQueue(userId: string): Promise<void> {
 }
 
 /**
- * Cat satu percobaan gagal: naikkan attempts, buang bila melewati batas retry.
+ * Cat satu percobaan gagal: naikkan attempts dulu (put menimpa item yang sama,
+ * tidak ada jendela antara delete+put), buang bila melewati batas retry.
  */
 async function persistAttempt(item: OfflineMutation): Promise<OfflineMutation | null> {
   const attempts = (item.attempts ?? 0) + 1;
-  await removeOfflineMutation(item.id);
-  if (attempts >= MAX_ATTEMPTS) return null;
+  if (attempts >= MAX_ATTEMPTS) {
+    await removeOfflineMutation(item.id);
+    return null;
+  }
   const next: OfflineMutation = { ...item, attempts };
   const db = await openDB();
   await putItem(db, next);
@@ -141,6 +144,16 @@ async function persistAttempt(item: OfflineMutation): Promise<OfflineMutation | 
 }
 
 let drainInFlight = false;
+
+const DRAIN_TIMEOUT_MS = 15_000;
+
+/** Jalankan fn eksklusif lintas tab bila Web Locks tersedia; fallback langsung eksekusi. */
+async function withDrainLock<T>(fn: () => Promise<T>): Promise<T> {
+  if (typeof navigator !== 'undefined' && navigator.locks?.request) {
+    return navigator.locks.request('kaskeluarga-drain', () => fn()) as Promise<T>;
+  }
+  return fn();
+}
 
 export interface DrainResult {
   synced: number;
@@ -151,7 +164,7 @@ export interface DrainResult {
 
 /**
  * Drain and sync the offline queue by sending all pending mutations to the server.
- * Hanya satu drain yang boleh berjalan; sukses berarti HTTP OK DAN body.success true.
+ * Eksklusif lintas-tab lewat Web Locks (plus guard per-tab); sukses berarti HTTP OK DAN body.success true.
  */
 export async function drainOfflineQueue(
   userId: string,
@@ -161,56 +174,60 @@ export async function drainOfflineQueue(
   if (typeof navigator !== 'undefined' && !navigator.onLine) {
     return { synced: 0, failed: 0, dead: 0 };
   }
-  drainInFlight = true;
 
-  try {
-    const items = await getOfflineMutations(userId);
-    if (items.length === 0) return { synced: 0, failed: 0, dead: 0 };
+  return withDrainLock(async () => {
+    drainInFlight = true;
 
-    let synced = 0;
-    let failed = 0;
-    let dead = 0;
+    try {
+      const items = await getOfflineMutations(userId);
+      if (items.length === 0) return { synced: 0, failed: 0, dead: 0 };
 
-    for (const item of items) {
-      try {
-        const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-        if (item.idempotencyKey) headers['Idempotency-Key'] = item.idempotencyKey;
+      let synced = 0;
+      let failed = 0;
+      let dead = 0;
 
-        const res = await fetch(item.endpoint, {
-          method: item.method,
-          headers,
-          body: JSON.stringify(item.payload),
-        });
-
-        let bodySuccess = false;
+      for (const item of items) {
         try {
-          const json = await res.json();
-          bodySuccess = Boolean(json?.success);
-        } catch {
-          // respons non-JSON dianggap gagal
-        }
+          const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+          if (item.idempotencyKey) headers['Idempotency-Key'] = item.idempotencyKey;
 
-        if (res.ok && bodySuccess) {
-          await removeOfflineMutation(item.id);
-          synced++;
-        } else {
+          const res = await fetch(item.endpoint, {
+            method: item.method,
+            headers,
+            body: JSON.stringify(item.payload),
+            signal: AbortSignal.timeout(DRAIN_TIMEOUT_MS),
+          });
+
+          let bodySuccess = false;
+          try {
+            const json = await res.json();
+            bodySuccess = Boolean(json?.success);
+          } catch {
+            // respons non-JSON dianggap gagal
+          }
+
+          if (res.ok && bodySuccess) {
+            await removeOfflineMutation(item.id);
+            synced++;
+          } else {
+            const survived = await persistAttempt(item);
+            if (survived) failed++;
+            else dead++;
+          }
+        } catch {
           const survived = await persistAttempt(item);
           if (survived) failed++;
           else dead++;
         }
-      } catch {
-        const survived = await persistAttempt(item);
-        if (survived) failed++;
-        else dead++;
       }
-    }
 
-    if (synced > 0 && onSuccessCallback) {
-      onSuccessCallback();
-    }
+      if (synced > 0 && onSuccessCallback) {
+        onSuccessCallback();
+      }
 
-    return { synced, failed, dead };
-  } finally {
-    drainInFlight = false;
-  }
+      return { synced, failed, dead };
+    } finally {
+      drainInFlight = false;
+    }
+  });
 }

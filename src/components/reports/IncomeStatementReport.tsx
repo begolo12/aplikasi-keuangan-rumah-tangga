@@ -7,7 +7,7 @@ import {
   CheckCircle,
   WarningCircle,
   FileCsv,
-  Sparkle,
+
 } from '@phosphor-icons/react';
 import { formatRupiah, INDONESIAN_MONTHS } from '@/lib/formatters';
 import { MonthlySummary as MonthlySummaryType, Asset } from '@/lib/types';
@@ -99,7 +99,7 @@ export function IncomeStatementReport({
         <div className="grid grid-cols-3 gap-2 sm:gap-3 py-3">
           <div className="p-2.5 sm:p-3.5 bg-surface rounded-2xl border border-border/60 space-y-0.5 sm:space-y-1 text-center sm:text-left">
             <span className="text-[10px] sm:text-xs text-text-muted font-semibold block">Total Uang Masuk</span>
-            <p className="text-xs sm:text-sm md:text-lg font-extrabold text-income tabular-nums whitespace-nowrap">
+            <p className="font-display-num text-base md:text-lg text-income tabular-nums whitespace-nowrap">
               +{formatRupiah(totalIncome)}
             </p>
             <span className="text-[9px] sm:text-[10px] text-text-muted hidden sm:block">Gaji & Tambahan</span>
@@ -107,7 +107,7 @@ export function IncomeStatementReport({
 
           <div className="p-2.5 sm:p-3.5 bg-surface rounded-2xl border border-border/60 space-y-0.5 sm:space-y-1 text-center sm:text-left">
             <span className="text-[10px] sm:text-xs text-text-muted font-semibold block">Total Belanja Hidup</span>
-            <p className="text-xs sm:text-sm md:text-lg font-extrabold text-expense tabular-nums whitespace-nowrap">
+            <p className="font-display-num text-base md:text-lg text-expense tabular-nums whitespace-nowrap">
               -{formatRupiah(totalOperatingExpense)}
             </p>
             <span className="text-[9px] sm:text-[10px] text-text-muted hidden sm:block">Kebutuhan & Tagihan</span>
@@ -115,7 +115,7 @@ export function IncomeStatementReport({
 
           <div className="p-2.5 sm:p-3.5 bg-surface rounded-2xl border border-border/60 space-y-0.5 sm:space-y-1 text-center sm:text-left">
             <span className="text-[10px] sm:text-xs text-text-muted font-semibold block">Penurunan Nilai Barang</span>
-            <p className="text-xs sm:text-sm md:text-lg font-extrabold text-purple-600 dark:text-purple-400 tabular-nums whitespace-nowrap">
+            <p className="font-display-num text-base md:text-lg text-transfer tabular-nums whitespace-nowrap">
               -{formatRupiah(totalMonthlyDepreciation)}
             </p>
             <span className="text-[9px] sm:text-[10px] text-text-muted hidden sm:block">Susut Nilai Aset</span>
@@ -186,7 +186,7 @@ export function IncomeStatementReport({
             </span>
             <div className="flex items-center justify-between py-1 px-2">
               <span>Penurunan Nilai {activeAssets.length} Barang Berharga / Kendaraan</span>
-              <span className="font-bold text-purple-600 dark:text-purple-400 tabular-nums">-{formatRupiah(totalMonthlyDepreciation)}</span>
+              <span className="font-bold text-transfer tabular-nums">-{formatRupiah(totalMonthlyDepreciation)}</span>
             </div>
           </div>
 

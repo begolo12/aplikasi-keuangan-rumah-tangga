@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from 'next';
-import { Manrope } from 'next/font/google';
+import { Manrope, Fraunces } from 'next/font/google';
 import { ServiceWorkerRegister } from '@/components/pwa/ServiceWorkerRegister';
 import './globals.css';
 
@@ -9,8 +9,16 @@ const manrope = Manrope({
   display: 'swap',
 });
 
+// Serif display khusus angka besar: motif identitas "buku kas rumah" (DESIGN.md)
+const fraunces = Fraunces({
+  subsets: ['latin'],
+  weight: ['500', '600', '700'],
+  variable: '--font-fraunces',
+  display: 'swap',
+});
+
 export const metadata: Metadata = {
-  title: 'KasPribadi — Catatan Keuangan & Manajemen Aset',
+  title: 'KasPribadi: Catatan Keuangan & Manajemen Aset',
   description: 'Aplikasi manajemen keuangan pribadi & keluarga modern, ringan, cepat, dan siap offline.',
   manifest: '/manifest.json',
   appleWebApp: {
@@ -28,7 +36,7 @@ export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
   viewportFit: 'cover',
-  themeColor: '#20986C',
+  themeColor: '#17925E',
 };
 
 export default function RootLayout({
@@ -37,7 +45,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="id" suppressHydrationWarning className={`${manrope.variable} font-sans`}>
+    <html lang="id" suppressHydrationWarning className={`${manrope.variable} ${fraunces.variable} font-sans`}>
       <head>
         <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
         <script

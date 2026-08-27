@@ -19,6 +19,14 @@ interface DebtItemProps {
   onDelete: (id: string) => void;
 }
 
+const CATEGORY_LABEL: Record<string, string> = {
+  kpr_rumah: 'KPR / Rumah',
+  kredit_kendaraan: 'Kredit Kendaraan',
+  pinjaman_bank: 'Pinjaman Bank',
+  hutang_pribadi: 'Hutang Pribadi',
+  lainnya: 'Lainnya',
+};
+
 export function DebtItem({ debt, onPay, onDelete }: DebtItemProps) {
   const [showConfirm, setShowConfirm] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -29,6 +37,8 @@ export function DebtItem({ debt, onPay, onDelete }: DebtItemProps) {
     debt.total_amount > 0 ? Math.round((debt.paid_amount / debt.total_amount) * 100) : 0,
     100
   );
+
+  const categoryLabel = debt.category ? CATEGORY_LABEL[debt.category] || debt.category : null;
 
   const getStatusBadge = () => {
     if (isPaid) {
@@ -60,7 +70,7 @@ export function DebtItem({ debt, onPay, onDelete }: DebtItemProps) {
       }
       if (debt.days_until_due > 0 && debt.days_until_due <= 7) {
         return (
-          <span className="flex items-center gap-1 text-[10px] sm:text-[11px] font-bold text-amber-600 dark:text-amber-400 bg-amber-500/10 px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-full border border-amber-500/20">
+          <span className="flex items-center gap-1 text-[10px] sm:text-[11px] font-bold text-warning bg-warning/10 px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-full border border-warning/25">
             <Clock size={13} weight="bold" />
             <span>Jatuh Tempo {debt.days_until_due} Hari Lagi</span>
           </span>
@@ -99,7 +109,7 @@ export function DebtItem({ debt, onPay, onDelete }: DebtItemProps) {
                 ? 'bg-income/10 text-income border-income/20'
                 : isPayable
                 ? 'bg-expense/10 text-expense border-expense/20'
-                : 'bg-teal-500/10 text-teal-600 dark:text-teal-400 border-teal-500/20'
+                : 'bg-primary-subtle text-primary border-primary/20'
             }`}
           >
             {isPayable ? (
@@ -114,6 +124,11 @@ export function DebtItem({ debt, onPay, onDelete }: DebtItemProps) {
               <h4 className="text-xs sm:text-sm md:text-base font-bold text-text truncate max-w-full">
                 {debt.person_name}
               </h4>
+              {categoryLabel && (
+                <span className="text-[9px] font-extrabold px-1.5 py-0.5 rounded-md bg-surface-2 text-text-muted border border-border">
+                  {categoryLabel}
+                </span>
+              )}
               {getStatusBadge()}
             </div>
             {debt.notes && (
@@ -157,6 +172,26 @@ export function DebtItem({ debt, onPay, onDelete }: DebtItemProps) {
           </button>
         )}
       </div>
+
+      {/* Rincian Pokok, Bunga & Cicilan jika ada */}
+      {(debt.interest_rate || debt.monthly_installment || debt.tenor_months) && (
+        <div className="p-2.5 bg-surface-2/70 rounded-xl border border-border/50 grid grid-cols-3 gap-2 text-[10.5px]">
+          <div>
+            <span className="text-text-muted block">Pokok:</span>
+            <span className="font-bold text-text tabular-nums">{formatRupiah(debt.principal_amount || debt.total_amount)}</span>
+          </div>
+          <div>
+            <span className="text-text-muted block">Bunga / Thn:</span>
+            <span className="font-bold text-text tabular-nums">{debt.interest_rate || 0}% ({debt.interest_type || 'flat'})</span>
+          </div>
+          <div>
+            <span className="text-text-muted block">Cicilan / Bln:</span>
+            <span className="font-extrabold text-expense tabular-nums">
+              {debt.monthly_installment ? formatRupiah(debt.monthly_installment) : '-'}
+            </span>
+          </div>
+        </div>
+      )}
 
       {/* Amounts & Progress Bar */}
       <div className="space-y-1.5">

@@ -142,7 +142,7 @@ export function EmergencyFundCard({
         <div className="w-full h-3 bg-surface-2 rounded-full overflow-hidden border border-border/50">
           <div
             className={`h-full rounded-full transition-all duration-700 ${
-              isSafe ? 'bg-primary' : progressPct > 50 ? 'bg-amber-500' : 'bg-expense'
+              isSafe ? 'bg-primary' : progressPct > 50 ? 'bg-warning' : 'bg-expense'
             }`}
             style={{ width: `${Math.min(100, Math.max(3, progressPct))}%` }}
           />

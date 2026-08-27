@@ -35,12 +35,6 @@ export function handleRouteError(error: unknown, context: string): NextResponse 
   const pgError = error as { code?: string; constraint?: string; message?: string };
   if (pgError && typeof pgError.code === 'string') {
     if (pgError.code === '23514') {
-      if (pgError.constraint?.includes('wallets_balance') || pgError.message?.includes('wallets_balance_nonnegative')) {
-        return NextResponse.json(
-          { success: false, error: 'Saldo dompet tidak mencukupi untuk transaksi ini.' },
-          { status: 400 }
-        );
-      }
       return NextResponse.json(
         { success: false, error: 'Nilai data tidak memenuhi batasan validasi sistem.' },
         { status: 400 }

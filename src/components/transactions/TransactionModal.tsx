@@ -1,13 +1,15 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { Modal } from '../ui/Modal';
 import { AmountInput } from '../ui/AmountInput';
 import { Button } from '../ui/Button';
-import { Wallet, Category, Transaction, TransactionType, AssetCategory } from '@/lib/types';
+import { Wallet, Category, Transaction, TransactionType, AssetCategory, ParsedReceiptResult } from '@/lib/types';
 import { enqueueOfflineMutation } from '@/lib/offlineQueue';
+import { apiFetch } from '@/lib/apiFetch';
 import { formatRupiah } from '@/lib/formatters';
-import { WifiSlash, PencilSimple, Plus, Package } from '@phosphor-icons/react';
+import { WifiSlash, PencilSimple, Plus, Package, Sparkle } from '@phosphor-icons/react';
+import { ReceiptParserModal } from './ReceiptParserModal';
 
 interface TransactionModalProps {
   isOpen: boolean;
@@ -18,6 +20,7 @@ interface TransactionModalProps {
   categories: Category[];
   userId: string;
   onSuccess: () => void;
+  initialReceipt?: ParsedReceiptResult | null;
 }
 
 interface TransactionFormProps {
@@ -28,6 +31,8 @@ interface TransactionFormProps {
   userId: string;
   onSuccess: () => void;
   onClose: () => void;
+  onOpenReceiptParser?: () => void;
+  appliedReceipt?: ParsedReceiptResult | null;
 }
 
 function TransactionForm({
@@ -38,6 +43,8 @@ function TransactionForm({
   userId,
   onSuccess,
   onClose,
+  onOpenReceiptParser,
+  appliedReceipt,
 }: TransactionFormProps) {
   const isEditing = Boolean(editingTransaction);
 
@@ -48,24 +55,36 @@ function TransactionForm({
     (c) => c.type === ((editingTransaction?.type || initialType) === 'income' ? 'income' : 'expense')
   );
 
-  const [type, setType] = useState<TransactionType>(editingTransaction?.type || initialType);
-  const [amount, setAmount] = useState(editingTransaction?.amount || 0);
+  const [type, setType] = useState<TransactionType>(
+    editingTransaction?.type || appliedReceipt?.type || initialType
+  );
+  const [amount, setAmount] = useState(
+    editingTransaction?.amount || appliedReceipt?.amount || 0
+  );
   const [adminFee, setAdminFee] = useState(editingTransaction?.admin_fee || 0);
-  const [walletId, setWalletId] = useState(defaultWalletId);
+  const [walletId, setWalletId] = useState(
+    appliedReceipt?.suggested_wallet_id || defaultWalletId
+  );
   const [toWalletId, setToWalletId] = useState(editingTransaction?.to_wallet_id || defaultToWallet?.id || '');
   const [categoryId, setCategoryId] = useState(
-    editingTransaction?.category_id || defaultCat?.id || ''
+    appliedReceipt?.suggested_category_id || editingTransaction?.category_id || defaultCat?.id || ''
   );
-  const [description, setDescription] = useState(editingTransaction?.description || '');
+  const [description, setDescription] = useState(
+    appliedReceipt?.description || editingTransaction?.description || ''
+  );
   const [createAsset, setCreateAsset] = useState(false);
   const [assetName, setAssetName] = useState('');
   const [assetCategory, setAssetCategory] = useState<AssetCategory>('kendaraan');
   const [date, setDate] = useState(
-    () => editingTransaction?.date || new Date().toISOString().split('T')[0]
+    () => appliedReceipt?.date || editingTransaction?.date || new Date().toISOString().split('T')[0]
   );
+
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [offlineNotice, setOfflineNotice] = useState(false);
+
+  // Guard double-submit sinkron: state isLoading re-render-nya async, ref tidak.
+  const submittingRef = useRef(false);
 
   const handleTypeChange = (newType: TransactionType) => {
     setType(newType);
@@ -91,6 +110,7 @@ function TransactionForm({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (submittingRef.current) return;
     setError(null);
 
     if (amount <= 0) {
@@ -120,9 +140,12 @@ function TransactionForm({
       asset_category: type === 'expense' && createAsset ? assetCategory : null,
       description: description.trim() || null,
       date,
+      // Anti-replay revisi basi saat PUT antrean offline direplay setelah data berubah
+      ...(isEditing && editingTransaction?.updated_at ? { expected_updated_at: editingTransaction.updated_at } : {}),
     };
 
     setIsLoading(true);
+    submittingRef.current = true;
 
     try {
       if (typeof navigator !== 'undefined' && !navigator.onLine) {
@@ -144,23 +167,14 @@ function TransactionForm({
       const endpoint = isEditing && editingTransaction ? `/api/transactions/${editingTransaction.id}` : '/api/transactions';
       const method = isEditing ? 'PUT' : 'POST';
 
-      const res = await fetch(endpoint, {
-        method,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-
-      const data = await res.json();
-
-      if (!res.ok || !data.success) {
-        throw new Error(data.error || 'Gagal menyimpan transaksi.');
-      }
+      await apiFetch(endpoint, { method, json: payload });
 
       onSuccess();
       onClose();
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Terjadi kesalahan sistem.');
     } finally {
+      submittingRef.current = false;
       setIsLoading(false);
     }
   };
@@ -187,36 +201,51 @@ function TransactionForm({
         </div>
       )}
 
-      {/* 1. Transaction Type Segmented Control */}
-      <div className="grid grid-cols-3 gap-1.5 p-1 bg-surface-2 rounded-2xl">
-        <button
-          type="button"
-          onClick={() => handleTypeChange('expense')}
-          className={`py-2 text-xs font-bold rounded-xl transition-all ${
-            type === 'expense' ? 'bg-expense text-white shadow-xs' : 'text-text-muted hover:text-text'
-          }`}
-        >
-          Pengeluaran
-        </button>
-        <button
-          type="button"
-          onClick={() => handleTypeChange('income')}
-          className={`py-2 text-xs font-bold rounded-xl transition-all ${
-            type === 'income' ? 'bg-income text-white shadow-xs' : 'text-text-muted hover:text-text'
-          }`}
-        >
-          Pemasukan
-        </button>
-        <button
-          type="button"
-          onClick={() => handleTypeChange('transfer')}
-          className={`py-2 text-xs font-bold rounded-xl transition-all ${
-            type === 'transfer' ? 'bg-transfer text-white shadow-xs' : 'text-text-muted hover:text-text'
-          }`}
-        >
-          Transfer
-        </button>
+      {/* 1. Transaction Type Segmented Control & AI Scan button */}
+      <div className="flex items-center gap-2">
+        <div className="grid grid-cols-3 gap-1.5 p-1 bg-surface-2 rounded-2xl flex-1">
+          <button
+            type="button"
+            onClick={() => handleTypeChange('expense')}
+            className={`min-h-[44px] py-2 text-xs font-bold rounded-xl transition-all ${
+              type === 'expense' ? 'bg-expense text-white shadow-xs' : 'text-text-muted hover:text-text'
+            }`}
+          >
+            Pengeluaran
+          </button>
+          <button
+            type="button"
+            onClick={() => handleTypeChange('income')}
+            className={`min-h-[44px] py-2 text-xs font-bold rounded-xl transition-all ${
+              type === 'income' ? 'bg-income text-white shadow-xs' : 'text-text-muted hover:text-text'
+            }`}
+          >
+            Pemasukan
+          </button>
+          <button
+            type="button"
+            onClick={() => handleTypeChange('transfer')}
+            className={`min-h-[44px] py-2 text-xs font-bold rounded-xl transition-all ${
+              type === 'transfer' ? 'bg-transfer text-white shadow-xs' : 'text-text-muted hover:text-text'
+            }`}
+          >
+            Transfer
+          </button>
+        </div>
+
+        {!isEditing && onOpenReceiptParser && (
+          <button
+            type="button"
+            onClick={onOpenReceiptParser}
+            title="Scan Struk / Nota dengan AI"
+            className="min-h-[44px] px-3 rounded-2xl bg-primary/10 hover:bg-primary/15 border border-primary/25 text-primary text-xs font-bold flex items-center gap-1.5 shrink-0 active:scale-95 transition-all shadow-2xs"
+          >
+            <Sparkle size={16} weight="fill" />
+            <span className="hidden sm:inline">Scan Struk</span>
+          </button>
+        )}
       </div>
+
 
       {/* 2. Context Section: Category & Wallet Selection first */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -366,7 +395,7 @@ function TransactionForm({
                 setDescription(note);
                 if (!assetName) setAssetName(note);
               }}
-              className="px-2 py-0.5 text-[11px] bg-background hover:bg-surface-2 border border-border rounded-lg text-text-muted hover:text-text transition-colors"
+              className="px-3 min-h-[44px] text-[11px] bg-background hover:bg-surface-2 border border-border rounded-lg text-text-muted hover:text-text transition-colors"
             >
               {note}
             </button>
@@ -450,42 +479,67 @@ export function TransactionModal({
   categories,
   userId,
   onSuccess,
+  initialReceipt = null,
 }: TransactionModalProps) {
   const isEditing = Boolean(editingTransaction);
+  const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false);
+  const [appliedReceipt, setAppliedReceipt] = useState<ParsedReceiptResult | null>(initialReceipt);
+
+  const handleApplyReceipt = (parsed: ParsedReceiptResult) => {
+    setAppliedReceipt(parsed);
+  };
+
+  const handleClose = () => {
+    setAppliedReceipt(null);
+    onClose();
+  };
 
   return (
-    <Modal
-      isOpen={isOpen}
-      onClose={onClose}
-      title={
-        <div className="flex items-center gap-2">
-          {isEditing ? (
-            <>
-              <PencilSimple size={20} className="text-primary" weight="bold" />
-              <span>Edit Transaksi</span>
-            </>
-          ) : (
-            <>
-              <Plus size={20} className="text-primary" weight="bold" />
-              <span>Catat Transaksi</span>
-            </>
-          )}
-        </div>
-      }
-      maxWidth="md"
-    >
-      {isOpen && (
-        <TransactionForm
-          key={editingTransaction?.id || 'new'}
-          initialType={initialType}
-          editingTransaction={editingTransaction}
-          wallets={wallets}
-          categories={categories}
-          userId={userId}
-          onSuccess={onSuccess}
-          onClose={onClose}
-        />
-      )}
-    </Modal>
+    <>
+      <Modal
+        isOpen={isOpen}
+        onClose={handleClose}
+        title={
+          <div className="flex items-center gap-2">
+            {isEditing ? (
+              <>
+                <PencilSimple size={20} className="text-primary" weight="bold" />
+                <span>Edit Transaksi</span>
+              </>
+            ) : (
+              <>
+                <Plus size={20} className="text-primary" weight="bold" />
+                <span>Catat Transaksi</span>
+              </>
+            )}
+          </div>
+        }
+        maxWidth="md"
+      >
+        {isOpen && (
+          <TransactionForm
+            key={`${editingTransaction?.id || 'new'}-${appliedReceipt ? 'receipt-' + appliedReceipt.amount : 'clean'}`}
+            initialType={initialType}
+            editingTransaction={editingTransaction}
+            wallets={wallets}
+            categories={categories}
+            userId={userId}
+            onSuccess={onSuccess}
+            onClose={handleClose}
+            onOpenReceiptParser={() => setIsReceiptModalOpen(true)}
+            appliedReceipt={appliedReceipt}
+          />
+        )}
+      </Modal>
+
+      <ReceiptParserModal
+        isOpen={isReceiptModalOpen}
+        onClose={() => setIsReceiptModalOpen(false)}
+        categories={categories}
+        wallets={wallets}
+        onApply={handleApplyReceipt}
+      />
+    </>
   );
 }
+

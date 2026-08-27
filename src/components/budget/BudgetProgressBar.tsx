@@ -21,9 +21,9 @@ export function BudgetProgressBar({ budget, onEdit, onDelete }: BudgetProgressBa
   const barColor = isOver
     ? 'bg-expense'
     : isCritical
-    ? 'bg-amber-500'
+    ? 'bg-warning'
     : isWarning
-    ? 'bg-amber-400'
+    ? 'bg-warning/70'
     : 'bg-primary';
 
   return (

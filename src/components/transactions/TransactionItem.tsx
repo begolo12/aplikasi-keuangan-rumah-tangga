@@ -56,6 +56,18 @@ export function TransactionItem({ transaction, onDelete, onEdit }: TransactionIt
           </p>
           <div className="flex items-center gap-1.5 text-[10px] sm:text-[11px] text-text-muted mt-0.5 flex-wrap">
             <span>{formatDate(transaction.date, 'short')}</span>
+            {transaction.edited_at && (
+              <>
+                <span>•</span>
+                <span
+                  className="inline-flex items-center gap-0.5 font-semibold"
+                  title={`Direvisi ${new Date(transaction.edited_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })}`}
+                >
+                  <PencilSimple size={11} weight="fill" className="text-warning" />
+                  direvisi
+                </span>
+              </>
+            )}
             <span>•</span>
             <span className="truncate max-w-[120px]">{transaction.wallet_name}</span>
             {transaction.admin_fee > 0 && (

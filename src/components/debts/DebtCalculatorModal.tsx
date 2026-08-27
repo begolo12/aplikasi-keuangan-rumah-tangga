@@ -102,7 +102,7 @@ export function DebtCalculatorModal({
   } else if (dtiRatio > 20 || !isEmergencyFundSafe) {
     status = 'warning';
     statusTitle = 'Perlu Waspada & Penghematan';
-    badgeColor = 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20';
+    badgeColor = 'bg-warning/10 text-warning border-warning/25';
     if (dtiRatio > 20) {
       conclusions.push(`Cicilan memakan ${dtiRatio}% pemasukan (zona menengah 20-35%).`);
     }
@@ -268,7 +268,7 @@ export function DebtCalculatorModal({
             </div>
             <div className="col-span-2 sm:col-span-1">
               <span className="text-text-muted block text-[11px]">Rasio DTI terhadap Gaji:</span>
-              <span className={`font-extrabold tabular-nums ${dtiRatio > 35 ? 'text-expense' : dtiRatio > 20 ? 'text-amber-500' : 'text-primary'}`}>
+              <span className={`font-extrabold tabular-nums ${dtiRatio > 35 ? 'text-expense' : dtiRatio > 20 ? 'text-warning' : 'text-primary'}`}>
                 {dtiRatio}% {dtiRatio > 35 ? '(Tinggi)' : dtiRatio > 20 ? '(Sedang)' : '(Aman)'}
               </span>
             </div>
@@ -281,7 +281,7 @@ export function DebtCalculatorModal({
             status === 'safe'
               ? 'bg-primary/5 border-primary/20'
               : status === 'warning'
-              ? 'bg-amber-500/5 border-amber-500/20'
+              ? 'bg-warning/5 border-warning/25'
               : 'bg-expense/5 border-expense/20'
           }`}
         >
@@ -290,7 +290,7 @@ export function DebtCalculatorModal({
               {status === 'safe' ? (
                 <ShieldCheck size={20} weight="fill" className="text-primary shrink-0" />
               ) : status === 'warning' ? (
-                <ShieldWarning size={20} weight="fill" className="text-amber-600 dark:text-amber-400 shrink-0" />
+                <ShieldWarning size={20} weight="fill" className="text-warning shrink-0" />
               ) : (
                 <WarningOctagon size={20} weight="fill" className="text-expense shrink-0" />
               )}

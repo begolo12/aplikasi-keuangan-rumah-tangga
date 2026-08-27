@@ -19,10 +19,17 @@ export async function GET(req: NextRequest) {
         id,
         user_id,
         type,
+        category,
         person_name,
         total_amount::float AS total_amount,
         paid_amount::float AS paid_amount,
         (total_amount - paid_amount)::float AS remaining_amount,
+        principal_amount::float AS principal_amount,
+        interest_rate::float AS interest_rate,
+        interest_type,
+        tenor_months,
+        monthly_installment::float AS monthly_installment,
+        total_interest::float AS total_interest,
         due_date,
         notes,
         status,
@@ -70,26 +77,44 @@ export async function POST(req: NextRequest) {
     const body = await readJsonBody(req);
     const validated = debtSchema.parse(body);
 
+    const principal = validated.principal_amount || validated.total_amount;
+    const totalAmount = validated.total_amount;
+    const totalInterest = Math.max(0, totalAmount - principal);
+
     const rows = await query(
       `
       INSERT INTO debts (
         user_id,
         type,
+        category,
         person_name,
         total_amount,
         paid_amount,
+        principal_amount,
+        interest_rate,
+        interest_type,
+        tenor_months,
+        monthly_installment,
+        total_interest,
         due_date,
         notes,
         status
-      ) VALUES ($1, $2, $3, $4, 0, $5, $6, 'unpaid')
+      ) VALUES ($1, $2, $3, $4, $5, 0, $6, $7, $8, $9, $10, $11, $12, $13, 'unpaid')
       RETURNING 
         id,
         user_id,
         type,
+        category,
         person_name,
         total_amount::float AS total_amount,
         paid_amount::float AS paid_amount,
         total_amount::float AS remaining_amount,
+        principal_amount::float AS principal_amount,
+        interest_rate::float AS interest_rate,
+        interest_type,
+        tenor_months,
+        monthly_installment::float AS monthly_installment,
+        total_interest::float AS total_interest,
         due_date,
         notes,
         status,
@@ -99,14 +124,39 @@ export async function POST(req: NextRequest) {
       [
         user.userId,
         validated.type,
+        validated.category || 'hutang_pribadi',
         validated.person_name,
-        validated.total_amount,
+        totalAmount,
+        principal,
+        validated.interest_rate || 0,
+        validated.interest_type || 'flat',
+        validated.tenor_months || null,
+        validated.monthly_installment || null,
+        totalInterest,
         validated.due_date || null,
         validated.notes || null,
       ]
     );
 
-    return NextResponse.json({ success: true, data: rows[0] }, { status: 201 });
+    const createdDebt = rows[0];
+
+    // Jika auto_schedule_bill aktif pada hutang (payable), buat jadwal cicilan rutin ke recurring_bills
+    if (validated.type === 'payable' && validated.auto_schedule_bill && validated.monthly_installment) {
+      await query(
+        `INSERT INTO recurring_bills (
+          user_id, type, title, amount, due_day, wallet_id, auto_record, is_active
+        ) VALUES ($1, 'expense', $2, $3, $4, $5, TRUE, TRUE)`,
+        [
+          user.userId,
+          `Cicilan: ${validated.person_name}`,
+          validated.monthly_installment,
+          validated.schedule_due_day || 10,
+          validated.wallet_id || null,
+        ]
+      ).catch(() => {});
+    }
+
+    return NextResponse.json({ success: true, data: createdDebt }, { status: 201 });
   } catch (error) {
     return handleRouteError(error, 'debts:post');
   }

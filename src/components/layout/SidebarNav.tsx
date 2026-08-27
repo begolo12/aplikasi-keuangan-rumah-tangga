@@ -8,6 +8,7 @@ import {
   Receipt,
   Wallet,
   HandCoins,
+  Target,
   ChartPieSlice,
   Gear,
   Plus,
@@ -97,6 +98,7 @@ export function SidebarNav({
         { id: 'wallets', label: 'Pos Kas & Rekening', icon: Wallet },
         { id: 'budget', label: 'Anggaran Bulanan', icon: Vault },
         { id: 'bills', label: 'Tagihan Rutin', icon: Receipt },
+        { id: 'goals', label: 'Target Tabungan', icon: Target },
       ],
     },
     {
@@ -110,7 +112,7 @@ export function SidebarNav({
       title: 'Laporan & Evaluasi',
       items: [
         { id: 'reports', label: 'Laporan & Ekspor', icon: ChartPieSlice },
-        { id: 'evaluation', label: 'Evaluasi Keuangan', icon: Heartbeat, badge: 'Baru' },
+        { id: 'evaluation', label: 'Evaluasi Keuangan', icon: Heartbeat },
       ],
     },
     {

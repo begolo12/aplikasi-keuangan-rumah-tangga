@@ -110,10 +110,20 @@ export const transactionListQuerySchema = z.object({
 
 export const debtSchema = z.object({
   type: z.enum(['payable', 'receivable']),
-  person_name: z.string().min(1, 'Nama pihak/orang wajib diisi').max(100),
+  category: z.enum(['kpr_rumah', 'kredit_kendaraan', 'pinjaman_bank', 'hutang_pribadi', 'lainnya']).optional().nullable().default('hutang_pribadi'),
+  person_name: z.string().min(1, 'Nama pihak/orang/lembaga wajib diisi').max(100),
   total_amount: z.number().positive('Nominal hutang/piutang harus lebih dari 0'),
+  principal_amount: z.number().positive().optional().nullable(),
+  interest_rate: z.number().nonnegative().optional().nullable(), // % per tahun
+  interest_type: z.enum(['flat', 'effective', 'none']).optional().nullable().default('flat'),
+  tenor_months: z.number().int().positive().optional().nullable(),
+  monthly_installment: z.number().positive().optional().nullable(),
   due_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Format tanggal harus YYYY-MM-DD').optional().nullable(),
   notes: z.string().max(500).optional().nullable(),
+  // Opsi jadwalkan cicilan bulanan otomatis ke pengeluaran rutin
+  auto_schedule_bill: z.boolean().default(false),
+  schedule_due_day: z.number().int().min(1).max(31).optional().nullable(),
+  wallet_id: z.string().uuid().optional().nullable(),
 });
 
 export const debtPaymentSchema = z.object({
@@ -126,6 +136,20 @@ export const debtPaymentSchema = z.object({
 export const debtQuerySchema = z.object({
   type: z.enum(['payable', 'receivable']).optional(),
   status: z.enum(['unpaid', 'partial', 'paid']).optional(),
+});
+
+export const savingsGoalSchema = z.object({
+  name: z.string().trim().min(1, 'Nama target wajib diisi').max(80),
+  target_amount: z.number().positive('Target tabungan harus lebih dari 0'),
+  target_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Format tanggal harus YYYY-MM-DD').optional().nullable(),
+  wallet_id: z.string().uuid('Dompet tujuan tidak valid').optional().nullable(),
+  notes: z.string().max(500).optional().nullable(),
+});
+
+export const goalContributionSchema = z.object({
+  amount: z.number().positive('Nominal alokasi harus lebih dari 0'),
+  wallet_id: z.string().uuid('Pilih dompet sumber dana'),
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Format tanggal harus YYYY-MM-DD').default(() => new Date().toISOString().split('T')[0]),
 });
 
 export const assetSchema = z.object({
@@ -161,4 +185,37 @@ export const sellAssetSchema = z.object({
   wallet_id: z.string().uuid('Pilih dompet/rekening penerima dana penjualan yang valid'),
   notes: z.string().max(500).optional().nullable(),
 });
+
+export const parseReceiptRequestSchema = z.object({
+  text: z.string().trim().min(1, 'Teks struk / nota tidak boleh kosong').max(5000, 'Teks maksimal 5.000 karakter'),
+  categories: z.array(z.object({
+    id: z.string(),
+    name: z.string(),
+    type: z.enum(['expense', 'income']),
+  })).optional().default([]),
+  wallets: z.array(z.object({
+    id: z.string(),
+    name: z.string(),
+    type: z.string(),
+  })).optional().default([]),
+});
+
+export const receiptItemSchema = z.object({
+  name: z.string(),
+  price: z.number(),
+  qty: z.number().optional().nullable(),
+});
+
+export const parsedReceiptResultSchema = z.object({
+  amount: z.number().nonnegative(),
+  type: z.enum(['expense', 'income', 'transfer']).default('expense'),
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  description: z.string(),
+  merchant: z.string().optional().nullable(),
+  suggested_category_id: z.string().optional().nullable(),
+  suggested_wallet_id: z.string().optional().nullable(),
+  items: z.array(receiptItemSchema).optional().default([]),
+  confidence: z.enum(['high', 'medium', 'low']).optional().default('high'),
+});
+
 

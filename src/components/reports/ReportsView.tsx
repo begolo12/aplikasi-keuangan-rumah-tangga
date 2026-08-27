@@ -21,7 +21,7 @@ import {
   ShieldCheck,
   Receipt,
   HandCoins,
-  Sparkle,
+  Coins,
   TrendUp,
   TrendDown,
   CaretLeft,
@@ -29,7 +29,6 @@ import {
   Calendar,
   ChartLineUp,
   Scales,
-  Coins,
   BookOpen,
   ChartDonut,
 } from '@phosphor-icons/react';
@@ -395,7 +394,7 @@ export function ReportsView({
             <div className="flex items-center justify-between gap-2 border-b border-border pb-2">
               <div className="flex items-center gap-1.5 min-w-0">
                 <div className="p-1.5 bg-primary/10 text-primary rounded-lg shrink-0">
-                  <Sparkle size={16} weight="duotone" />
+                  <Coins size={16} weight="duotone" />
                 </div>
                 <div className="min-w-0">
                   <h3 className="text-xs sm:text-sm font-bold text-text truncate">
@@ -451,7 +450,7 @@ export function ReportsView({
 
               <div className="p-2.5 bg-primary/10 border border-primary/20 rounded-xl flex flex-col justify-between gap-1">
                 <div className="flex items-center gap-1 text-primary text-[10px] sm:text-[11px] font-bold">
-                  <Sparkle size={14} weight="fill" className="shrink-0" />
+                  <Coins size={14} weight="fill" className="shrink-0" />
                   <span className="truncate">Dana Bebas</span>
                 </div>
                 <p className={`text-xs sm:text-sm md:text-base font-extrabold whitespace-nowrap tabular-nums tracking-tight ${safeSpend < 0 ? 'text-expense' : 'text-primary'}`}>

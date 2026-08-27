@@ -81,7 +81,7 @@ export function AmountInput({ value, onChange, label = 'Nominal (Rp)', error, di
             type="button"
             disabled={disabled}
             onClick={() => addPreset(p.val)}
-            className="px-2.5 py-1 text-xs font-semibold bg-surface hover:bg-surface-2 border border-border/80 rounded-lg active:scale-95 transition-all text-text-muted hover:text-text disabled:opacity-50"
+            className="px-3 min-h-[44px] text-xs font-semibold bg-surface hover:bg-surface-2 border border-border/80 rounded-lg active:scale-95 transition-all text-text-muted hover:text-text disabled:opacity-50"
           >
             {p.label}
           </button>

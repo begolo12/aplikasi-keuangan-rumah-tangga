@@ -32,7 +32,7 @@ export async function GET(req: NextRequest) {
         t.wallet_id, w.name as wallet_name, w.icon as wallet_icon,
         t.to_wallet_id, tw.name as to_wallet_name,
         t.asset_id, a.name as asset_name,
-        t.description, t.date, t.created_at, t.updated_at,
+        t.description, t.date, t.created_at, t.updated_at, t.edited_at,
         COUNT(*) OVER() AS total_count
       FROM transactions t
       LEFT JOIN categories c ON t.category_id = c.id AND c.user_id = t.user_id

@@ -67,7 +67,16 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     const { id } = await params;
     uuidIdParam.parse(id);
 
-    const validated = transactionSchema.parse(await readJsonBody(req));
+    const rawBody = (await readJsonBody(req)) as Record<string, unknown> | null;
+
+    // Anti-replay revisi basi (utk replay antrean offline lintas perangkat/tab):
+    // bila client mengirim expected_updated_at dan baris ternyata lebih baru -> konflik.
+    const expectedUpdatedAt =
+      typeof rawBody?.expected_updated_at === 'string' && rawBody.expected_updated_at
+        ? rawBody.expected_updated_at
+        : null;
+
+    const validated = transactionSchema.parse(rawBody);
 
     const updatedTrx = await withTransaction(async (client) => {
       // 1. Kunci baris transaksi lama milik user ini.
@@ -81,6 +90,18 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       }
 
       const oldTrx = trxRows.rows[0];
+
+      if (
+        expectedUpdatedAt &&
+        new Date(oldTrx.updated_at as string | Date).getTime() >
+          new Date(expectedUpdatedAt).getTime()
+      ) {
+        throw new BusinessError(
+          'Transaksi telah berubah di tempat lain. Muat ulang halaman sebelum menyimpan.',
+          409
+        );
+      }
+
       const oldAmount = parseFloat(oldTrx.amount);
       const oldAdminFee = parseFloat(oldTrx.admin_fee || 0);
 
@@ -191,7 +212,8 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
           to_wallet_id = $6,
           description = $7,
           date = $8,
-          updated_at = NOW()
+          updated_at = NOW(),
+          edited_at = NOW()
         WHERE id = $9 AND user_id = $10
         RETURNING *`,
         [

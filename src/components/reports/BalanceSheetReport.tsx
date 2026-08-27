@@ -76,7 +76,7 @@ export function BalanceSheetReport({
     conditionDesc = 'Total hutang Anda melebihi seluruh aset yang dimiliki. Segera lakukan restrukturisasi hutang.';
   } else if (totalLiabilities > 0 && solvencyRatio < 2) {
     conditionStatus = 'Kondisi Keuangan Perlu Waspada';
-    conditionColor = 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20';
+    conditionColor = 'bg-warning/10 text-warning border-warning/25';
     conditionDesc = 'Beban hutang cukup tinggi dibandingkan aset likuid yang dimiliki.';
   }
 
@@ -121,7 +121,7 @@ export function BalanceSheetReport({
           {/* Total Harta Aset */}
           <div className="p-2.5 sm:p-3.5 bg-surface-2 rounded-2xl border border-border/60 space-y-0.5 sm:space-y-1 text-center sm:text-left">
             <span className="text-[10px] sm:text-xs text-text-muted font-semibold block">Total Harta (Aset)</span>
-            <p className="text-xs sm:text-sm md:text-lg font-extrabold text-text tabular-nums whitespace-nowrap">
+            <p className="font-display-num text-base md:text-lg text-text tabular-nums whitespace-nowrap">
               {formatRupiah(totalAssets)}
             </p>
             <span className="text-[9px] sm:text-[10px] text-text-muted hidden sm:block">Kas + Piutang + Barang</span>
@@ -130,7 +130,7 @@ export function BalanceSheetReport({
           {/* Total Hutang Kewajiban */}
           <div className="p-2.5 sm:p-3.5 bg-surface-2 rounded-2xl border border-border/60 space-y-0.5 sm:space-y-1 text-center sm:text-left">
             <span className="text-[10px] sm:text-xs text-text-muted font-semibold block">Total Hutang</span>
-            <p className="text-xs sm:text-sm md:text-lg font-extrabold text-expense tabular-nums whitespace-nowrap">
+            <p className="font-display-num text-base md:text-lg text-expense tabular-nums whitespace-nowrap">
               {formatRupiah(totalLiabilities)}
             </p>
             <span className="text-[9px] sm:text-[10px] text-text-muted hidden sm:block">Tagihan & Pinjaman</span>
@@ -141,7 +141,7 @@ export function BalanceSheetReport({
             netWorth >= 0 ? 'bg-primary/10 border-primary/20' : 'bg-expense/10 border-expense/20'
           }`}>
             <span className="text-[10px] sm:text-xs font-bold text-text-muted block">Kekayaan Bersih</span>
-            <p className={`text-xs sm:text-sm md:text-lg font-extrabold tabular-nums whitespace-nowrap ${
+            <p className={`font-display-num text-base md:text-lg tabular-nums whitespace-nowrap ${
               netWorth >= 0 ? 'text-primary' : 'text-expense'
             }`}>
               {formatRupiah(netWorth)}

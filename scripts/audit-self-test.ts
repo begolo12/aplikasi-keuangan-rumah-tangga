@@ -23,10 +23,15 @@ import {
   assetSchema,
   assetQuerySchema,
   sellAssetSchema,
+  parseReceiptRequestSchema,
+  parsedReceiptResultSchema,
 } from '../src/lib/validations';
-import { formatRupiah, formatCompactRupiah, formatDate } from '../src/lib/formatters';
+import { formatRupiah, formatCompactRupiah, formatDate, getReconcileAge } from '../src/lib/formatters';
 import { createSessionToken, verifySessionToken } from '../src/lib/auth';
+import { buildMonthlyDecision } from '../src/lib/decisionSummary';
 import { calculateAssetDepreciation } from '../src/app/api/assets/route';
+import { extractHeuristicReceipt } from '../src/lib/deepseek';
+
 import { calculateFinancialSafetyPlan } from '../src/components/budget/FinancialSafetyPlanCard';
 import { calculateExpenseProjection } from '../src/components/budget/ExpenseProjectionCard';
 import { calculateColdMoney } from '../src/components/reports/ColdMoneyCard';
@@ -158,6 +163,44 @@ assert('"2026-08-24" short memuat Agu', formatDate('2026-08-24', 'short').includ
 assert('"2026-08-24" long contains "2026"', formatDate('2026-08-24', 'long').includes('2026'));
 assert('empty string returns empty', formatDate('', 'short') === '');
 assert('invalid date dikembalikan apa adanya', formatDate('bukan-tanggal', 'short') === 'bukan-tanggal');
+
+// [4b] getReconcileAge (umur verifikasi rekonsiliasi)
+const reconcileNow = new Date('2026-08-27T12:00:00Z');
+assert('reconcile age: never bila belum pernah', getReconcileAge(null, reconcileNow) === 'never');
+assert('reconcile age: fresh bila <= 14 hari', getReconcileAge('2026-08-20T00:00:00Z', reconcileNow) === 'fresh');
+assert('reconcile age: stale bila > 14 hari', getReconcileAge('2026-07-01T00:00:00Z', reconcileNow) === 'stale');
+
+// [4c] buildMonthlyDecision (kartu putusan akhir bulan)
+const decSurplus = buildMonthlyDecision({
+  hasAnyTransaction: true,
+  netCashFlow: 1200000,
+  coldMoneyAmount: 5000000,
+  coldMoneyGap: -3000000,
+  topOverspent: { name: 'Makan', pct: 118, overAmount: 250000 },
+});
+assert('putusan surplus menyebut kas naik', decSurplus.cashLine.includes('naik') && decSurplus.statusTone === 'surplus');
+assert('putusan menunjuk pos renteng terbesar', decSurplus.budgetLine.includes('Makan') && decSurplus.budgetLine.includes('118%'));
+assert('putusan sebut uang dingin tersedia', decSurplus.fundLine.includes('5.000.000'));
+assert('aksi tunggal ada pada skenario mixed', Boolean(decSurplus.actionHint));
+
+const decDefisit = buildMonthlyDecision({
+  hasAnyTransaction: true,
+  netCashFlow: -400000,
+  coldMoneyAmount: 0,
+  coldMoneyGap: 2000000,
+  topOverspent: null,
+});
+assert('putusan defisit menyebut kas turun & semua pos aman', decDefisit.cashLine.includes('turun') && decDefisit.budgetLine.includes('dalam batas'));
+assert('putusan defisit tunda non-primer', decDefisit.actionHint?.includes('Tunda') === true);
+
+const decKosong = buildMonthlyDecision({
+  hasAnyTransaction: false,
+  netCashFlow: 0,
+  coldMoneyAmount: 0,
+  coldMoneyGap: 0,
+  topOverspent: null,
+});
+assert('bulan tanpa data menghasilkan putusan kosong non-aksi', decKosong.statusTone === 'kosong' && decKosong.actionHint === null);
 
 // ── Validasi budgetSchema ────────────────────────────────────────────────────
 console.log('\n[5] budgetSchema');
@@ -300,11 +343,19 @@ console.log('\n[9] debtSchema, debtPaymentSchema & debtQuerySchema');
 
 const dt1 = debtSchema.safeParse({
   type: 'payable',
-  person_name: 'Bank BCA',
-  total_amount: 5000000,
+  category: 'kpr_rumah',
+  person_name: 'Bank BTN (KPR)',
+  total_amount: 450000000,
+  principal_amount: 300000000,
+  interest_rate: 7.5,
+  interest_type: 'flat',
+  tenor_months: 120,
+  monthly_installment: 3750000,
   due_date: '2026-12-31',
+  auto_schedule_bill: true,
+  wallet_id: validUuid1,
 });
-assert('debt payable valid diterima', dt1.success);
+assert('debt payable KPR detail dengan bunga dan tenor valid diterima', dt1.success && dt1.data.category === 'kpr_rumah' && dt1.data.monthly_installment === 3750000);
 
 const dt2 = debtSchema.safeParse({
   type: 'receivable',
@@ -530,8 +581,45 @@ assert('liquidity months terhitung 4 bulan', ratioRes.liquidity_months === 4);
 assert('health score berada di zona baik (>= 70)', ratioRes.health_score >= 70);
 assert('verdict summary ter-generate otomatis', ratioRes.verdict_summary.length > 30);
 
+// ── Validasi Smart Receipt Parser & DeepSeek Helper ───────────────────────
+console.log('\n[10f] Smart Receipt Parser (Schema & Heuristic Fallback)');
+
+const reqParseValid = parseReceiptRequestSchema.safeParse({
+  text: 'INDOMARET POINT\n1x SUSU UHT 19.500\nTOTAL: 19.500',
+  categories: [{ id: validUuid1, name: 'Makanan', type: 'expense' }],
+  wallets: [{ id: validUuid2, name: 'BCA', type: 'bank' }],
+});
+assert('parseReceiptRequestSchema valid diterima', reqParseValid.success);
+
+const reqParseEmpty = parseReceiptRequestSchema.safeParse({ text: '' });
+assert('parseReceiptRequestSchema text kosong ditolak', !reqParseEmpty.success);
+
+const parsedResValid = parsedReceiptResultSchema.safeParse({
+  amount: 45000,
+  type: 'expense',
+  date: '2026-08-28',
+  description: 'Superindo Tebet',
+  suggested_category_id: validUuid1,
+  suggested_wallet_id: validUuid2,
+  items: [{ name: 'Apel Fuji', price: 45000, qty: 1 }],
+  confidence: 'high',
+});
+assert('parsedReceiptResultSchema valid diterima', parsedResValid.success);
+
+const heuristicRes = extractHeuristicReceipt(
+  'SUPERINDO SUPERMARKET\n1x Minyak Goreng 2L 34.000\n1x Telur Ayam 28.000\nTOTAL BELANJA: Rp 62.000\nBayar via BCA QRIS',
+  '2026-08-28',
+  [{ id: validUuid1, name: 'Makanan & Belanja', type: 'expense' }],
+  [{ id: validUuid2, name: 'BCA', type: 'bank' }]
+);
+
+assert('heuristic receipt parser mengekstrak total nominal 62.000', heuristicRes.amount === 62000);
+assert('heuristic receipt parser mendeteksi nama merchant di baris pertama', heuristicRes.description.includes('SUPERINDO'));
+assert('heuristic receipt parser menyarankan dompet BCA', heuristicRes.suggested_wallet_id === validUuid2);
+
 // ── Validasi Auth Token & Session ───────────────────────────────────────────
 console.log('\n[11] auth session & JWT token');
+
 
 async function testAuth() {
   const token = await createSessionToken({

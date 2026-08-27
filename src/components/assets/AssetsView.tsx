@@ -45,17 +45,17 @@ interface AssetsApiResponse {
 }
 
 const CATEGORY_MAP: Record<AssetCategory, { label: string; icon: React.ElementType; color: string }> = {
-  kendaraan: { label: 'Kendaraan', icon: Car, color: 'bg-blue-500/10 text-blue-600 border-blue-500/20' },
+  kendaraan: { label: 'Kendaraan', icon: Car, color: 'bg-transfer/10 text-transfer border-transfer/25' },
   elektronik: { label: 'Elektronik', icon: Laptop, color: 'bg-indigo-500/10 text-indigo-600 border-indigo-500/20' },
   properti: { label: 'Properti', icon: HouseLine, color: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20' },
-  perhiasan_emas: { label: 'Emas / Perhiasan', icon: Sparkle, color: 'bg-amber-500/10 text-amber-600 border-amber-500/20' },
-  alat_usaha: { label: 'Peralatan Usaha', icon: Wrench, color: 'bg-purple-500/10 text-purple-600 border-purple-500/20' },
+  perhiasan_emas: { label: 'Emas / Perhiasan', icon: Sparkle, color: 'bg-warning/10 text-warning border-warning/25' },
+  alat_usaha: { label: 'Peralatan Usaha', icon: Wrench, color: 'bg-income/10 text-income border-income/25' },
   lainnya: { label: 'Lainnya', icon: DotsThree, color: 'bg-gray-500/10 text-gray-600 border-gray-500/20' },
 };
 
 const METHOD_MAP: Record<DepreciationMethod, { label: string; tag: string }> = {
   straight_line: { label: 'Garis Lurus', tag: 'bg-primary/10 text-primary border-primary/20' },
-  declining_balance: { label: 'Saldo Menurun', tag: 'bg-purple-500/10 text-purple-600 border-purple-500/20' },
+  declining_balance: { label: 'Saldo Menurun', tag: 'bg-transfer/10 text-transfer border-transfer/25' },
   none: { label: 'Tanpa Penyusutan', tag: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20' },
 };
 
@@ -246,10 +246,10 @@ export function AssetsView({ onRefreshParent }: AssetsViewProps) {
         {/* Card 4: Beban Depresiasi Bulan Ini */}
         <div className="p-2.5 sm:p-3 bg-surface border border-border rounded-2xl flex flex-col justify-between gap-1 shadow-2xs">
           <div className="flex items-center gap-1.5 text-text-muted text-[10px] sm:text-xs font-semibold">
-            <CalendarCheck size={15} className="text-purple-500 shrink-0" weight="duotone" />
+            <CalendarCheck size={15} className="text-transfer shrink-0" weight="duotone" />
             <span className="truncate">Beban Susut / Bulan</span>
           </div>
-          <p className="text-xs sm:text-sm md:text-base font-extrabold text-purple-600 dark:text-purple-400 whitespace-nowrap tabular-nums tracking-tight">
+          <p className="text-xs sm:text-sm md:text-base font-extrabold text-transfer whitespace-nowrap tabular-nums tracking-tight">
             {formatRupiah(summary.total_monthly_depreciation)}
           </p>
         </div>
@@ -502,7 +502,7 @@ export function AssetsView({ onRefreshParent }: AssetsViewProps) {
                       </div>
                       <div className="flex items-center justify-between text-text-muted pt-0.5">
                         <span>Beban susut bulanan:</span>
-                        <span className="font-semibold text-purple-600 dark:text-purple-400 whitespace-nowrap tabular-nums">
+                        <span className="font-semibold text-transfer whitespace-nowrap tabular-nums">
                           {formatRupiah(monthlyDepr)} / bln
                         </span>
                       </div>

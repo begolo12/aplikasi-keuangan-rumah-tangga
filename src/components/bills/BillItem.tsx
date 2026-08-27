@@ -38,7 +38,7 @@ export function BillItem({ bill, onPay, onDelete }: BillItemProps) {
       case 'overdue':
         return (
           <span className={`flex items-center gap-1 text-[11px] font-bold px-2.5 py-1 rounded-full border ${
-            isIncome ? 'text-amber-600 bg-amber-500/10 border-amber-500/20' : 'text-expense bg-expense/10 border-expense/20'
+            isIncome ? 'text-warning bg-warning/10 border-warning/20' : 'text-expense bg-expense/10 border-expense/20'
           }`}>
             <WarningCircle size={14} weight="fill" />
             <span>{isIncome ? 'Belum Tercatat' : 'Menunggak'}</span>
@@ -46,7 +46,7 @@ export function BillItem({ bill, onPay, onDelete }: BillItemProps) {
         );
       case 'due_soon':
         return (
-          <span className="flex items-center gap-1 text-[11px] font-bold text-amber-600 dark:text-amber-400 bg-amber-500/10 px-2.5 py-1 rounded-full border border-amber-500/20">
+          <span className="flex items-center gap-1 text-[11px] font-bold text-warning bg-warning/10 px-2.5 py-1 rounded-full border border-warning/25">
             <Clock size={14} weight="bold" />
             <span>{bill.days_until_due} Hari Lagi</span>
           </span>

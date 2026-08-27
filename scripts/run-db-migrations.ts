@@ -86,6 +86,49 @@ async function main() {
       CREATE INDEX IF NOT EXISTS idx_debts_user_type ON debts(user_id, type);
       CREATE INDEX IF NOT EXISTS idx_debts_user_status ON debts(user_id, status);
       CREATE INDEX IF NOT EXISTS idx_debts_user_due ON debts(user_id, due_date);
+
+      ALTER TABLE debts
+      ADD COLUMN IF NOT EXISTS category VARCHAR(50) DEFAULT 'hutang_pribadi',
+      ADD COLUMN IF NOT EXISTS principal_amount NUMERIC(15,2),
+      ADD COLUMN IF NOT EXISTS interest_rate NUMERIC(6,2),
+      ADD COLUMN IF NOT EXISTS interest_type VARCHAR(20) DEFAULT 'flat',
+      ADD COLUMN IF NOT EXISTS tenor_months INTEGER,
+      ADD COLUMN IF NOT EXISTS monthly_installment NUMERIC(15,2),
+      ADD COLUMN IF NOT EXISTS total_interest NUMERIC(15,2);
+
+      ALTER TABLE transactions
+      ADD COLUMN IF NOT EXISTS edited_at TIMESTAMPTZ;
+    `);
+
+    // 3b. Savings goals (target tabungan) + riwayat kontribusi
+    console.log('3b. Ensuring savings_goals and goal_contributions tables...');
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS savings_goals (
+        id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_id       UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        name          VARCHAR(80) NOT NULL,
+        target_amount NUMERIC(15,2) NOT NULL CHECK (target_amount > 0),
+        target_date   DATE,
+        wallet_id     UUID REFERENCES wallets(id) ON DELETE SET NULL,
+        notes         TEXT,
+        is_active     BOOLEAN NOT NULL DEFAULT TRUE,
+        created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+      CREATE INDEX IF NOT EXISTS idx_savings_goals_user ON savings_goals(user_id, is_active);
+
+      CREATE TABLE IF NOT EXISTS goal_contributions (
+        id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        goal_id        UUID NOT NULL REFERENCES savings_goals(id) ON DELETE CASCADE,
+        user_id        UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        transaction_id UUID REFERENCES transactions(id) ON DELETE SET NULL,
+        amount         NUMERIC(15,2) NOT NULL CHECK (amount > 0),
+        date           DATE,
+        created_at     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        UNIQUE (transaction_id)
+      );
+      CREATE INDEX IF NOT EXISTS idx_goal_contributions_goal ON goal_contributions(goal_id);
+      CREATE INDEX IF NOT EXISTS idx_goal_contributions_user ON goal_contributions(user_id);
     `);
 
     await client.query(`

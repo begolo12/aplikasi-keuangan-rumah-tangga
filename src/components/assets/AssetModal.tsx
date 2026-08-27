@@ -288,8 +288,8 @@ function AssetForm({ onClose, onSubmit, initialData, wallets = [] }: AssetFormPr
           onChange={(e) => setDepreciationMethod(e.target.value as DepreciationMethod)}
           className="w-full h-11 px-3.5 bg-background border border-border rounded-xl text-sm font-medium focus:ring-2 focus:ring-primary focus:outline-none"
         >
-          <option value="straight_line">Garis Lurus (Straight-Line) — Nilai susut merata setiap bulan</option>
-          <option value="declining_balance">Saldo Menurun Ganda (Declining Balance) — Susut lebih cepat di awal</option>
+          <option value="straight_line">Garis Lurus (Straight-Line): nilai susut merata setiap bulan</option>
+          <option value="declining_balance">Saldo Menurun Ganda (Declining Balance): susut lebih cepat di awal</option>
           <option value="none">Tanpa Penyusutan (Properti / Logam Mulia / Apresiatif)</option>
         </select>
       </div>

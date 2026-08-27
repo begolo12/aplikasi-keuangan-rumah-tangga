@@ -3,7 +3,7 @@
 import React from 'react';
 import {
   Snowflake,
-  Sparkle,
+  Drop,
   LockKey,
 } from '@phosphor-icons/react';
 import { formatRupiah } from '@/lib/formatters';
@@ -86,7 +86,7 @@ export function ColdMoneyCard({
         <div className="flex items-center gap-2.5">
           <div
             className={`w-10 h-10 rounded-2xl flex items-center justify-center shrink-0 ${
-              info.is_available ? 'bg-blue-600 text-white' : 'bg-surface-2 text-text-muted border border-border'
+              info.is_available ? 'bg-primary text-primary-fg' : 'bg-surface-2 text-text-muted border border-border'
             }`}
           >
             <Snowflake size={22} weight="bold" />
@@ -99,7 +99,7 @@ export function ColdMoneyCard({
               <span
                 className={`text-[10px] font-extrabold px-2.5 py-0.5 rounded-full border ${
                   info.is_available
-                    ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/30'
+                    ? 'bg-primary/10 text-primary border-primary/25'
                     : 'bg-surface-2 text-text-muted border-border'
                 }`}
               >
@@ -151,7 +151,7 @@ export function ColdMoneyCard({
           </span>
           <p
             className={`text-xs sm:text-sm md:text-base font-extrabold tabular-nums whitespace-nowrap ${
-              info.is_available ? 'text-blue-600 dark:text-blue-400' : 'text-text-muted'
+              info.is_available ? 'text-primary' : 'text-text-muted'
             }`}
           >
             {formatRupiah(info.cold_money)}
@@ -171,7 +171,7 @@ export function ColdMoneyCard({
         }`}
       >
         {info.is_available ? (
-          <Sparkle size={18} weight="fill" className="text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
+          <Drop size={18} weight="fill" className="text-primary shrink-0 mt-0.5" />
         ) : (
           <LockKey size={18} weight="fill" className="text-text-muted shrink-0 mt-0.5" />
         )}

@@ -164,7 +164,7 @@ export function BillsView({
             <Button
               variant="outline"
               size="md"
-              leftIcon={<Lightning size={18} weight="fill" className="text-amber-500" />}
+              leftIcon={<Lightning size={18} weight="fill" className="text-warning" />}
               onClick={handleAutoProcessAll}
               isLoading={isAutoProcessing}
             >

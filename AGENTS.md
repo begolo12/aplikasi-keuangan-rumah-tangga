@@ -93,4 +93,4 @@ Meski tanpa plan doc, **perubahan tetap dicatat** ke `changelog.md` sebagai entr
 ### Aturan teknis tambahan
 - Jangan commit `.env.local`, `env-*.json`, atau secret apa pun.
 - Validasi input pakai Zod; query DB selalu filter by user id (data isolation multi-user).
-- Saldo dompet bersifat strict-zero: larang transaksi/transfer yang membuat saldo minus.
+- Saldo dompet boleh minus (overdraft didukung untuk kartu kredit & rekonsiliasi riil; constraint strict-zero sudah dilepas sejak plan 2026-08-27).

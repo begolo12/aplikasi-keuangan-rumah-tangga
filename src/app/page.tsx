@@ -14,6 +14,7 @@ import {
   Debt,
   AppSettings,
   TransactionType,
+  ParsedReceiptResult,
 } from '@/lib/types';
 import { ApiError, apiFetch, endpoints } from '@/lib/apiFetch';
 import { AppShell } from '@/components/layout/AppShell';
@@ -25,6 +26,8 @@ import { MonthlySummary } from '@/components/dashboard/MonthlySummary';
 import { TransactionList } from '@/components/transactions/TransactionList';
 import { DashboardSkeleton } from '@/components/ui/LoadingSkeleton';
 import { clearOfflineQueue } from '@/lib/offlineQueue';
+import { ReceiptParserModal } from '@/components/transactions/ReceiptParserModal';
+
 
 const TransactionModal = dynamic(
   () => import('@/components/transactions/TransactionModal').then((m) => m.TransactionModal),
@@ -40,6 +43,10 @@ const BillsView = dynamic(
 );
 const DebtsView = dynamic(
   () => import('@/components/debts/DebtsView').then((m) => m.DebtsView),
+  { ssr: false, loading: () => <DashboardSkeleton /> }
+);
+const GoalsView = dynamic(
+  () => import('@/components/goals/GoalsView').then((m) => m.GoalsView),
   { ssr: false, loading: () => <DashboardSkeleton /> }
 );
 const WalletsView = dynamic(
@@ -96,6 +103,9 @@ export default function MainPage() {
   const [isTxModalOpen, setIsTxModalOpen] = useState(false);
   const [txModalType, setTxModalType] = useState<TransactionType>('expense');
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
+  const [isReceiptParserOpen, setIsReceiptParserOpen] = useState(false);
+  const [parsedReceiptData, setParsedReceiptData] = useState<ParsedReceiptResult | null>(null);
+
 
   // Application Data States
   const [reloadKey, setReloadKey] = useState(0);
@@ -258,9 +268,18 @@ export default function MainPage() {
 
   const handleOpenAddModal = (type: TransactionType = 'expense') => {
     setEditingTransaction(null);
+    setParsedReceiptData(null);
     setTxModalType(type);
     setIsTxModalOpen(true);
   };
+
+  const handleApplyReceipt = (parsed: ParsedReceiptResult) => {
+    setEditingTransaction(null);
+    setParsedReceiptData(parsed);
+    setTxModalType(parsed.type);
+    setIsTxModalOpen(true);
+  };
+
 
   const handleEditTransaction = (trx: Transaction) => {
     setEditingTransaction(trx);
@@ -270,6 +289,12 @@ export default function MainPage() {
 
   const handleDeleteTransaction = async (id: string) => {
     setDeleteError(null);
+    // Hapus TIDAK didukung offline: menghapus yang tersimpan di server butuh koneksi,
+    // dan menyantroningnya ke antrean offline berisiko menghapus saat user lupa.
+    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+      setDeleteError('Hapus transaksi hanya bisa dilakukan saat online. Coba lagi setelah terhubung.');
+      return;
+    }
     try {
       await apiFetch(endpoints.transaction(id), { method: 'DELETE' });
       setReloadKey((k) => k + 1);
@@ -293,6 +318,36 @@ export default function MainPage() {
   const refetch = useCallback(() => {
     setReloadKey((k) => k + 1);
   }, []);
+
+  // Multi-device freshness: data lain diperbarui di perangkat lain akan terlihat
+  // saat tab kembali fokus (dibatasi maksimal sekali per 5 detik).
+  useEffect(() => {
+    let last = 0;
+    const handler = () => {
+      if (document.visibilityState !== 'visible') return;
+      const now = Date.now();
+      if (now - last < 5000) return;
+      last = now;
+      refetch();
+    };
+    document.addEventListener('visibilitychange', handler);
+    return () => document.removeEventListener('visibilitychange', handler);
+  }, [refetch]);
+
+  // Pengingat cadangan: evaluasi usia backup terakhir setelah user terautentikasi
+  const [backupNudgeDismissed, setBackupNudgeDismissed] = useState(true);
+  useEffect(() => {
+    if (!user) return;
+    try {
+      const last = window.localStorage.getItem('kaskeluarga-last-backup');
+      const days = last
+        ? Math.floor((Date.now() - new Date(last).getTime()) / (1000 * 60 * 60 * 24))
+        : Infinity;
+      setBackupNudgeDismissed(days <= 30);
+    } catch {
+      setBackupNudgeDismissed(false);
+    }
+  }, [user]);
 
   if (isAuthLoading) {
     return (
@@ -339,6 +394,38 @@ export default function MainPage() {
         <DashboardSkeleton />
       ) : activeTab === 'dashboard' ? (
         <div className="space-y-3.5 sm:space-y-5">
+          {/* Backup Reminder: muncul bila cadangan terakhir > 30 hari / belum pernah */}
+          {!backupNudgeDismissed && (
+            <div className="flex items-center justify-between gap-3 p-3 bg-warning/10 border border-warning/20 rounded-2xl">
+              <span className="text-xs font-semibold text-text">
+                Belum ada cadangan data terbaru. Unduh arsip JSON agar data selalu aman.
+              </span>
+              <div className="flex items-center gap-2 shrink-0">
+                <a
+                  href={endpoints.backupExport}
+                  target="_blank"
+                  onClick={() => {
+                    try {
+                      window.localStorage.setItem('kaskeluarga-last-backup', new Date().toISOString());
+                    } catch { /* abaikan */ }
+                    setBackupNudgeDismissed(true);
+                  }}
+                  className="min-h-[44px] flex items-center px-3 rounded-xl bg-warning text-white text-xs font-bold hover:opacity-90 active:opacity-80 transition-opacity"
+                >
+                  Unduh
+                </a>
+                <button
+                  type="button"
+                  onClick={() => setBackupNudgeDismissed(true)}
+                  aria-label="Tutup pengingat cadangan"
+                  className="min-h-[44px] px-2 rounded-xl text-text-muted hover:text-text text-xs font-semibold"
+                >
+                  Tutup
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* Total Balance & Safe-to-Spend Gradient Card */}
           <BalanceHeader
             totalBalance={summary.total_balance}
@@ -354,10 +441,12 @@ export default function MainPage() {
           <QuickActions
             onOpenTransactionModal={handleOpenAddModal}
             onNavigate={handleTabChange}
+            onOpenReceiptScan={() => setIsReceiptParserOpen(true)}
             pendingBillsCount={summary.bill_pending_count}
             overbudgetCount={summary.budget_over_count}
             unpaidDebtsCount={summary.payable_unpaid_count}
           />
+
 
           {/* Digital Wallets Scroller */}
           <WalletScroller
@@ -407,6 +496,8 @@ export default function MainPage() {
           budgets={budgets}
           onRefresh={refetch}
         />
+      ) : activeTab === 'goals' ? (
+        <GoalsView userId={user.id} wallets={wallets} />
       ) : activeTab === 'budget' ? (
         <BudgetView
           budgets={budgets}
@@ -468,6 +559,7 @@ export default function MainPage() {
         onClose={() => {
           setIsTxModalOpen(false);
           setEditingTransaction(null);
+          setParsedReceiptData(null);
         }}
         initialType={txModalType}
         editingTransaction={editingTransaction}
@@ -475,7 +567,18 @@ export default function MainPage() {
         categories={categories}
         userId={user.id}
         onSuccess={refetch}
+        initialReceipt={parsedReceiptData}
       />
+
+      {/* Global AI Receipt Parser Modal */}
+      <ReceiptParserModal
+        isOpen={isReceiptParserOpen}
+        onClose={() => setIsReceiptParserOpen(false)}
+        categories={categories}
+        wallets={wallets}
+        onApply={handleApplyReceipt}
+      />
+
 
       {/* Mobile Back Exit Toast */}
       {exitToast && (

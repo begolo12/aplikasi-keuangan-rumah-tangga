@@ -2,7 +2,7 @@
 
 import React from 'react';
 import {
-  Sparkle,
+  Gauge,
   CheckCircle,
   Lightbulb,
   FileCsv,
@@ -286,7 +286,7 @@ export function FinancialRatiosReport({
         {/* Narrative Executive Summary */}
         <div className="p-3.5 bg-surface-2 rounded-2xl border border-border/60 text-xs space-y-1.5">
           <div className="flex items-center gap-1.5 font-bold text-text">
-            <Sparkle size={16} weight="fill" className="text-primary shrink-0" />
+            <Gauge size={16} weight="fill" className="text-primary shrink-0" />
             <span>Kesimpulan Kondisi Keuangan Anda:</span>
           </div>
           <p className="text-[11px] text-text-muted leading-relaxed">

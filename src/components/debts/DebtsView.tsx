@@ -45,12 +45,28 @@ export function DebtsView({
   // Add Modal State
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [addType, setAddType] = useState<DebtType>('payable');
+  const [debtCategory, setDebtCategory] = useState<string>('hutang_pribadi');
   const [personName, setPersonName] = useState('');
+  const [principalAmount, setPrincipalAmount] = useState(0);
+  const [interestRate, setInterestRate] = useState(0); // % per tahun
+  const [tenorMonths, setTenorMonths] = useState(12);
+  const [isDetailLoan, setIsDetailLoan] = useState(false);
   const [totalAmount, setTotalAmount] = useState(0);
   const [dueDate, setDueDate] = useState('');
   const [notes, setNotes] = useState('');
+  const [autoSchedule, setAutoSchedule] = useState(false);
+  const [scheduleWalletId, setScheduleWalletId] = useState('');
   const [isAdding, setIsAdding] = useState(false);
   const [addError, setAddError] = useState<string | null>(null);
+
+  // Live calculation jika mode detail aktif
+  const computedInterest = isDetailLoan && interestRate > 0 && tenorMonths > 0
+    ? (principalAmount * (interestRate / 100) * (tenorMonths / 12))
+    : 0;
+  const computedTotal = isDetailLoan ? principalAmount + computedInterest : totalAmount;
+  const computedMonthlyInstallment = isDetailLoan && tenorMonths > 0
+    ? Math.round(computedTotal / tenorMonths)
+    : 0;
 
   // Pay / Settle Modal State
   const [isPayOpen, setIsPayOpen] = useState(false);
@@ -84,10 +100,18 @@ export function DebtsView({
 
   const openAddModal = (type: DebtType = activeType) => {
     setAddType(type);
+    setDebtCategory('hutang_pribadi');
     setPersonName('');
+    setPrincipalAmount(0);
+    setInterestRate(0);
+    setTenorMonths(12);
+    setIsDetailLoan(false);
     setTotalAmount(0);
     setDueDate('');
     setNotes('');
+    setAutoSchedule(false);
+    const defaultW = wallets.find((w) => w.is_default) || wallets[0];
+    if (defaultW) setScheduleWalletId(defaultW.id);
     setAddError(null);
     setIsAddOpen(true);
   };
@@ -95,10 +119,11 @@ export function DebtsView({
   const handleAddSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!personName.trim()) {
-      setAddError('Nama pihak/orang wajib diisi.');
+      setAddError('Nama pihak/lembaga wajib diisi.');
       return;
     }
-    if (totalAmount <= 0) {
+    const finalTotal = isDetailLoan ? computedTotal : totalAmount;
+    if (finalTotal <= 0) {
       setAddError('Nominal harus lebih dari 0.');
       return;
     }
@@ -111,10 +136,19 @@ export function DebtsView({
         method: 'POST',
         json: {
           type: addType,
+          category: debtCategory,
           person_name: personName.trim(),
-          total_amount: totalAmount,
+          total_amount: finalTotal,
+          principal_amount: isDetailLoan ? principalAmount : finalTotal,
+          interest_rate: isDetailLoan ? interestRate : 0,
+          interest_type: 'flat',
+          tenor_months: isDetailLoan ? tenorMonths : null,
+          monthly_installment: isDetailLoan ? computedMonthlyInstallment : null,
           due_date: dueDate || null,
           notes: notes.trim() || null,
+          auto_schedule_bill: addType === 'payable' && autoSchedule,
+          schedule_due_day: 10,
+          wallet_id: scheduleWalletId || null,
         },
       });
 
@@ -396,9 +430,48 @@ export function DebtsView({
             </button>
           </div>
 
+          {/* Mode Switcher: Simpel vs Rinci (KPR/Bunga/Tenor) untuk Hutang */}
+          {addType === 'payable' && (
+            <div className="space-y-2">
+              <div className="space-y-1">
+                <label className="block text-xs font-semibold text-text-muted">Kategori / Jenis Pinjaman</label>
+                <select
+                  value={debtCategory}
+                  onChange={(e) => {
+                    const cat = e.target.value;
+                    setDebtCategory(cat);
+                    if (cat === 'kpr_rumah' || cat === 'kredit_kendaraan' || cat === 'pinjaman_bank') {
+                      setIsDetailLoan(true);
+                    }
+                  }}
+                  className="w-full h-11 px-3 bg-background border border-border rounded-xl text-sm font-medium focus:ring-2 focus:ring-primary focus:outline-none"
+                >
+                  <option value="hutang_pribadi">Hutang Pribadi (Teman / Kerabat)</option>
+                  <option value="kpr_rumah">KPR / Cicilan Rumah & Properti</option>
+                  <option value="kredit_kendaraan">Kredit Motor / Mobil</option>
+                  <option value="pinjaman_bank">Pinjaman Bank / KTA / Koperasi</option>
+                  <option value="lainnya">Pinjaman Lainnya</option>
+                </select>
+              </div>
+
+              <div className="flex items-center gap-2 pt-1">
+                <input
+                  type="checkbox"
+                  id="isDetailLoan"
+                  checked={isDetailLoan}
+                  onChange={(e) => setIsDetailLoan(e.target.checked)}
+                  className="w-4 h-4 text-primary rounded border-border focus:ring-primary"
+                />
+                <label htmlFor="isDetailLoan" className="text-xs font-bold text-text cursor-pointer">
+                  Input Rinci (Pokok Pinjaman, Suku Bunga & Tenor Bulan)
+                </label>
+              </div>
+            </div>
+          )}
+
           <div className="space-y-1">
             <label htmlFor="debt-person-name" className="block text-xs font-semibold text-text-muted">
-              {addType === 'payable' ? 'Pemberi Pinjaman / Nama Orang / Lembaga' : 'Peminjam / Nama Orang / Lembaga'}
+              {addType === 'payable' ? 'Pemberi Pinjaman / Nama Bank / Lembaga' : 'Peminjam / Nama Orang / Lembaga'}
             </label>
             <input
               id="debt-person-name"
@@ -406,16 +479,114 @@ export function DebtsView({
               required
               value={personName}
               onChange={(e) => setPersonName(e.target.value)}
-              placeholder={addType === 'payable' ? 'Contoh: Bank Mandiri, Pak Budi, Mertua' : 'Contoh: Teman Kantor (Andi), Saudara'}
+              placeholder={
+                debtCategory === 'kpr_rumah'
+                  ? 'Contoh: KPR Bank BTN / BCA'
+                  : debtCategory === 'kredit_kendaraan'
+                  ? 'Contoh: Leasing Adira / BCA Finance'
+                  : addType === 'payable'
+                  ? 'Contoh: Bank Mandiri, Pak Budi, Mertua'
+                  : 'Contoh: Teman Kantor (Andi), Saudara'
+              }
               className="w-full h-11 px-4 bg-background border border-border rounded-xl text-sm font-medium focus:ring-2 focus:ring-primary focus:outline-none"
             />
           </div>
 
-          <AmountInput value={totalAmount} onChange={setTotalAmount} />
+          {isDetailLoan ? (
+            <div className="space-y-3 p-3.5 bg-surface-2 rounded-2xl border border-border">
+              <AmountInput
+                id="principalAmount"
+                label="Pokok Pinjaman Awal (Rp)"
+                value={principalAmount}
+                onChange={setPrincipalAmount}
+              />
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label htmlFor="tenorInput" className="block text-xs font-semibold text-text-muted">Tenor (Bulan)</label>
+                  <input
+                    id="tenorInput"
+                    type="number"
+                    min="1"
+                    max="360"
+                    required={isDetailLoan}
+                    value={tenorMonths}
+                    onChange={(e) => setTenorMonths(parseInt(e.target.value, 10) || 1)}
+                    placeholder="Contoh: 120 (10 thn)"
+                    className="w-full h-11 px-3.5 bg-background border border-border rounded-xl text-sm font-medium focus:ring-2 focus:ring-primary focus:outline-none"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label htmlFor="rateInput" className="block text-xs font-semibold text-text-muted">Suku Bunga (% / Thn)</label>
+                  <input
+                    id="rateInput"
+                    type="number"
+                    step="0.1"
+                    min="0"
+                    value={interestRate}
+                    onChange={(e) => setInterestRate(parseFloat(e.target.value) || 0)}
+                    placeholder="Contoh: 7.5"
+                    className="w-full h-11 px-3.5 bg-background border border-border rounded-xl text-sm font-medium focus:ring-2 focus:ring-primary focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              {/* Live Calculation Preview Strip */}
+              {principalAmount > 0 && (
+                <div className="p-3 bg-surface rounded-xl border border-primary/20 space-y-2 text-xs">
+                  <div className="flex items-center justify-between">
+                    <span className="text-text-muted">Estimasi Cicilan per Bulan:</span>
+                    <span className="font-extrabold text-expense text-sm tabular-nums">
+                      {formatRupiah(computedMonthlyInstallment)} / bln
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between text-[11px] pt-1 border-t border-border/50 text-text-muted">
+                    <span>Total Bunga ({interestRate}%): <span className="font-semibold text-text tabular-nums">+{formatRupiah(computedInterest)}</span></span>
+                    <span>Total Pelunasan: <span className="font-extrabold text-text tabular-nums">{formatRupiah(computedTotal)}</span></span>
+                  </div>
+                </div>
+              )}
+
+              {/* Opsi Jadwalkan Cicilan Otomatis */}
+              <div className="space-y-2 pt-1 border-t border-border/50">
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    id="autoSchedule"
+                    checked={autoSchedule}
+                    onChange={(e) => setAutoSchedule(e.target.checked)}
+                    className="w-4 h-4 text-primary rounded border-border focus:ring-primary"
+                  />
+                  <label htmlFor="autoSchedule" className="text-xs font-semibold text-text cursor-pointer">
+                    Otomatis jadwalkan cicilan {formatRupiah(computedMonthlyInstallment)}/bln ke daftar Pengeluaran Pasti
+                  </label>
+                </div>
+
+                {autoSchedule && (
+                  <div className="pl-6">
+                    <select
+                      value={scheduleWalletId}
+                      onChange={(e) => setScheduleWalletId(e.target.value)}
+                      className="w-full h-10 px-3 bg-background border border-border rounded-xl text-xs font-medium focus:ring-2 focus:ring-primary focus:outline-none"
+                    >
+                      {wallets.map((w) => (
+                        <option key={w.id} value={w.id}>
+                          {w.name} (Saldo: {formatRupiah(w.balance)})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+              </div>
+            </div>
+          ) : (
+            <AmountInput value={totalAmount} onChange={setTotalAmount} />
+          )}
 
           <div className="space-y-1">
             <label htmlFor="debt-due-date" className="block text-xs font-semibold text-text-muted">
-              Tanggal Jatuh Tempo (Opsional)
+              Tanggal Jatuh Tempo {isDetailLoan ? 'Cicilan Pertama' : '(Opsional)'}
             </label>
             <input
               id="debt-due-date"
@@ -433,7 +604,7 @@ export function DebtsView({
               type="text"
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              placeholder="Contoh: Pinjaman renovasi rumah tenor 6 bulan"
+              placeholder="Contoh: KPR tenor 10 tahun, bunga floating setelah tahun ke-3"
               className="w-full h-11 px-4 bg-background border border-border rounded-xl text-sm font-medium focus:ring-2 focus:ring-primary focus:outline-none"
             />
           </div>

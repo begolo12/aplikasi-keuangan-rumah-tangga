@@ -9,10 +9,15 @@ export class ApiError extends Error {
   }
 }
 
+/** Timeout bawaan: request yang menggantung dihentikan, bukan menggantung selamanya. */
+const DEFAULT_TIMEOUT_MS = 15_000;
+
 async function request<T>(path: string, init?: RequestInit & { json?: unknown }): Promise<ApiResponse<T>> {
-  const { json, ...rest } = init ?? {};
+  const { json, timeoutMs = DEFAULT_TIMEOUT_MS, ...rest } = init as (RequestInit & { json?: unknown; timeoutMs?: number }) ?? {};
+  const signal = rest.signal ?? (typeof AbortSignal !== 'undefined' ? AbortSignal.timeout(timeoutMs) : undefined);
   const res = await fetch(path, {
     ...rest,
+    signal,
     headers: { ...(json !== undefined ? { 'Content-Type': 'application/json' } : {}), ...(rest.headers ?? {}) },
     body: json !== undefined ? JSON.stringify(json) : rest.body,
   });
@@ -87,6 +92,11 @@ export const endpoints = {
   reportsMonthly: (month: number, year: number) => `/api/reports/monthly?month=${month}&year=${year}`,
   reportsCategory: (month: number, year: number) => `/api/reports/category?month=${month}&year=${year}`,
   settings: '/api/settings',
+  goals: '/api/goals',
+  goal: (id: string) => `/api/goals/${id}`,
+  contributeGoal: (id: string) => `/api/goals/${id}/contribute`,
+  aiParseReceipt: '/api/ai/parse-receipt',
   backupExport: '/api/backup/export',
   backupImport: '/api/backup/import',
 };
+

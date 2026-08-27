@@ -58,6 +58,7 @@ export interface Transaction {
   asset_name?: string | null;
   description?: string | null;
   date: string; // YYYY-MM-DD
+  edited_at?: string | null; // Terisi bila transaksi pernah direvisi lewat edit
   created_at: string;
   updated_at: string;
 }
@@ -194,14 +195,24 @@ export interface AppSettings {
 export type DebtType = 'payable' | 'receivable';
 export type DebtStatus = 'unpaid' | 'partial' | 'paid';
 
+export type DebtCategory = 'kpr_rumah' | 'kredit_kendaraan' | 'pinjaman_bank' | 'hutang_pribadi' | 'lainnya';
+export type InterestType = 'flat' | 'effective' | 'none';
+
 export interface Debt {
   id: string;
   user_id: string;
   type: DebtType;
+  category?: DebtCategory | null;
   person_name: string;
   total_amount: number;
   paid_amount: number;
   remaining_amount: number;
+  principal_amount?: number | null; // Pokok pinjaman
+  interest_rate?: number | null; // % Bunga per tahun
+  interest_type?: InterestType | null; // Flat / Efektif / Tanpa Bunga
+  tenor_months?: number | null; // Tenor (Bulan)
+  monthly_installment?: number | null; // Estimasi cicilan per bulan
+  total_interest?: number | null; // Total beban bunga
   due_date?: string | null;
   notes?: string | null;
   status: DebtStatus;
@@ -290,3 +301,41 @@ export interface ApiResponse<T = unknown> {
     limit?: number;
   };
 }
+
+export interface SavingsGoal {
+  id: string;
+  user_id: string;
+  name: string;
+  target_amount: number;
+  saved_amount: number; // derived: SUM(goal_contributions.amount)
+  remaining_amount: number;
+  percentage: number;
+  monthly_progress?: number | null; // rata-rata kontribusi 90 hari terakhir
+  months_left_to_target?: number | null; // estimasi bulan tercapai dari rata-rata di atas
+  target_date?: string | null;
+  wallet_id?: string | null;
+  wallet_name?: string | null;
+  notes?: string | null;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ReceiptItem {
+  name: string;
+  price: number;
+  qty?: number | null;
+}
+
+export interface ParsedReceiptResult {
+  amount: number;
+  type: TransactionType;
+  date: string;
+  description: string;
+  merchant?: string | null;
+  suggested_category_id?: string | null;
+  suggested_wallet_id?: string | null;
+  items?: ReceiptItem[];
+  confidence?: 'high' | 'medium' | 'low';
+}
+
