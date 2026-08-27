@@ -12,7 +12,6 @@ import {
   Gear,
   Plus,
   SignOut,
-  Keyboard,
   CaretDown,
   ArrowDownRight,
   ArrowUpRight,
@@ -291,37 +290,8 @@ export function SidebarNav({
         </nav>
       </div>
 
-      {/* Bottom Profile Card & Keyboard Shortcuts */}
+      {/* Bottom Profile Card */}
       <div className="space-y-3 pt-3 border-t border-border mt-3">
-        {/* Keyboard Shortcuts Mini Card */}
-        <div className="bg-surface-2/60 p-2.5 rounded-2xl border border-border/60 text-[10px] text-text-muted space-y-1.5 hidden lg:block">
-          <div className="flex items-center justify-between font-bold text-text px-0.5">
-            <span className="flex items-center gap-1.5 text-text">
-              <Keyboard size={13} className="text-primary" weight="duotone" />
-              <span>Pintasan Cepat</span>
-            </span>
-            <span className="text-[9px] font-normal text-text-muted">Tombol</span>
-          </div>
-          <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-[9.5px] pt-0.5 px-0.5">
-            <div className="flex items-center justify-between">
-              <span className="text-text-muted">Pengeluaran</span>
-              <kbd className="bg-surface px-1.5 py-0.2 rounded border border-border font-mono text-[9px] text-text">E</kbd>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-text-muted">Pemasukan</span>
-              <kbd className="bg-surface px-1.5 py-0.2 rounded border border-border font-mono text-[9px] text-text">I</kbd>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-text-muted">Transfer</span>
-              <kbd className="bg-surface px-1.5 py-0.2 rounded border border-border font-mono text-[9px] text-text">T</kbd>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-text-muted">Tutup Dialog</span>
-              <kbd className="bg-surface px-1.5 py-0.2 rounded border border-border font-mono text-[9px] text-text">Esc</kbd>
-            </div>
-          </div>
-        </div>
-
         {/* User Profile Card with Logout Trigger */}
         <div className="p-1.5 rounded-2xl bg-surface-2/40 border border-border/50 flex items-center justify-between">
           <div className="flex items-center gap-2.5 overflow-hidden min-w-0 pl-1">
@@ -337,8 +307,9 @@ export function SidebarNav({
             onClick={onLogout}
             title="Keluar dari Akun"
             className="p-2 text-text-muted hover:text-expense hover:bg-expense/10 rounded-xl transition-colors shrink-0"
+            aria-label="Keluar"
           >
-            <SignOut size={16} />
+            <SignOut size={16} weight="bold" />
           </button>
         </div>
       </div>

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect } from 'react';
+import React from 'react';
 import { SidebarNav } from './SidebarNav';
 import { BottomNav, NavTab } from './BottomNav';
 import { TopHeader } from './TopHeader';
@@ -42,31 +42,6 @@ export function AppShell({
   onDataRefresh,
   children,
 }: AppShellProps) {
-  // Desktop keyboard shortcuts: N / E for Expense, I for Income, T for Transfer
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      const tag = (e.target as HTMLElement)?.tagName?.toLowerCase();
-      if (['input', 'textarea', 'select'].includes(tag)) return;
-
-      const key = e.key.toLowerCase();
-      const openModal = onOpenTypedModal || ((_t: TransactionType) => onOpenAddModal());
-
-      if (key === 'n' || key === 'e') {
-        e.preventDefault();
-        openModal('expense');
-      } else if (key === 'i') {
-        e.preventDefault();
-        openModal('income');
-      } else if (key === 't') {
-        e.preventDefault();
-        openModal('transfer');
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [onOpenAddModal, onOpenTypedModal]);
-
   return (
     <div className="min-h-screen bg-background text-text flex flex-col md:flex-row">
       {/* Sidebar for Desktop & Tablet */}

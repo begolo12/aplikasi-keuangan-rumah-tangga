@@ -3,6 +3,17 @@
 Log eksekusi plan. Entri baru ditambahkan di bagian paling atas.
 Format entri lihat `AGENTS.md` bagian "Langkah 3 — Catat ke Changelog".
 
+## [2026-08-27] Penghapusan Pintasan Cepat Keyboard Global
+
+**Plan**: `docs/plans/2026-08-27-hapus-pintasan-cepat-keyboard-global.md`
+
+### Berubah
+- **Menghapus Global Keyboard Shortcut Listener**:
+  - Menghapus listener `keydown` (tombol `E`, `N`, `I`, `T`) dari [AppShell.tsx](src/components/layout/AppShell.tsx) sehingga saat pengguna mengetik teks/form transaksi tidak ada lagi popup yang muncul tiba-tiba.
+  - Menghapus kartu informasi "Pintasan Cepat" dari sidebar [SidebarNav.tsx](src/components/layout/SidebarNav.tsx).
+- **Verifikasi**:
+  - 103 assertion audit unit test + 37 pengujian E2E lulus 100%.
+
 ## [2026-08-27] Penyempurnaan Bahasa Laporan Keuangan Keluarga (Human-Friendly Tone)
 
 **Plan**: `docs/plans/2026-08-27-penyempurnaan-bahasa-laporan-keuangan-keluarga.md`
