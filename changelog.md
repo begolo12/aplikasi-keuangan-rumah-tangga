@@ -3,6 +3,19 @@
 Log eksekusi plan. Entri baru ditambahkan di bagian paling atas.
 Format entri lihat `AGENTS.md` bagian "Langkah 3 — Catat ke Changelog".
 
+## [2026-08-27] Perbaikan Bug Modal Keluar/Tertutup Sendiri Saat Mengetik (Focus Trap & Effect Cleanup Refactor)
+
+**Plan**: `docs/plans/2026-08-27-fix-modal-auto-close-dan-focus-trap-bug.md`
+
+### Berubah
+- **Refactoring Focus Trap & State Isolation pada Modal**:
+  - Menyimpan referensi `onClose` menggunakan `useRef` pada [Modal.tsx](src/components/ui/Modal.tsx) sehingga perubahan callback dari parent saat user mengetik karakter tidak memicu re-running `useEffect` dan cleanup yang melempar fokus ke luar modal.
+  - Memastikan auto-focus ke input pertama hanya dijalankan satu kali saat modal pertama kali dibuka.
+  - Memperkuat proteksi backdrop click (`e.target === e.currentTarget`) dan `stopPropagation` pada container modal agar sentuhan dan interaksi form tidak bocor ke backdrop.
+  - Menstabilkan mounting form pada [TransactionModal.tsx](src/components/transactions/TransactionModal.tsx).
+- **Verifikasi**:
+  - 103 assertion audit unit test + 37 pengujian E2E lulus 100%.
+
 ## [2026-08-27] Audit & Perbaikan Sinkronisasi Anggaran Bulanan (Auto Carry-Forward & Live Real-Time Spent)
 
 **Plan**: `docs/plans/2026-08-27-audit-dan-perbaikan-sinkronisasi-anggaran-bulanan.md`

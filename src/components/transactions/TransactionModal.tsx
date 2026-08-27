@@ -476,7 +476,7 @@ export function TransactionModal({
     >
       {isOpen && (
         <TransactionForm
-          key={`${isOpen}-${initialType}-${editingTransaction?.id || 'new'}`}
+          key={editingTransaction?.id || 'new'}
           initialType={initialType}
           editingTransaction={editingTransaction}
           wallets={wallets}
