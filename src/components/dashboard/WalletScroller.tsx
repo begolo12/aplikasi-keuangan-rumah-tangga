@@ -57,9 +57,16 @@ export function WalletScroller({ wallets, onAddWallet, onTransfer }: WalletScrol
               <p className={`text-sm sm:text-base font-extrabold mt-0.5 whitespace-nowrap tabular-nums ${wallet.balance < 0 ? 'text-expense' : 'text-text'}`}>
                 {formatRupiah(wallet.balance)}
               </p>
-              {wallet.balance < 0 && (
-                <span className="text-[9px] font-bold text-expense block">Minus</span>
-              )}
+              <div className="flex items-center justify-between gap-1 text-[9px] text-text-muted mt-1 pt-1 border-t border-border/40">
+                <span className="truncate">
+                  {wallet.reconciled_at
+                    ? `Rekom: ${new Date(wallet.reconciled_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })}`
+                    : 'Belum direkom'}
+                </span>
+                {wallet.balance < 0 && (
+                  <span className="font-bold text-expense shrink-0">Minus</span>
+                )}
+              </div>
             </div>
           </div>
         ))}

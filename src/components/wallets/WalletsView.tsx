@@ -230,8 +230,8 @@ export function WalletsView({ wallets, onRefresh, onOpenTransfer, onAddWallet }:
             </div>
 
             <div className="pt-2 border-t border-border/60 flex items-center justify-between">
-              <div className="space-y-0.5">
-                <span className="text-[11px] text-text-muted block">Saldo Tercatat</span>
+              <div className="space-y-0.5 min-w-0 flex-1 pr-2">
+                <span className="text-[10px] text-text-muted block">Saldo Tercatat</span>
                 <span className={`text-base sm:text-lg font-extrabold ${wallet.balance < 0 ? 'text-expense' : 'text-text'}`}>
                   {formatRupiah(wallet.balance)}
                 </span>
@@ -240,12 +240,20 @@ export function WalletsView({ wallets, onRefresh, onOpenTransfer, onAddWallet }:
                     (Minus / Overdraft)
                   </span>
                 )}
+                <span className="text-[10px] text-text-muted flex items-center gap-1 pt-0.5 truncate">
+                  <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${wallet.reconciled_at ? 'bg-primary' : 'bg-amber-500'}`} />
+                  <span>
+                    {wallet.reconciled_at
+                      ? `Rekom: ${new Date(wallet.reconciled_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}`
+                      : 'Belum pernah direkom'}
+                  </span>
+                </span>
               </div>
 
               <button
                 type="button"
                 onClick={() => handleOpenReconcile(wallet)}
-                className="px-2.5 py-1.5 bg-surface-2 hover:bg-surface-3 border border-border/70 rounded-xl text-xs font-bold text-text-muted hover:text-primary flex items-center gap-1 transition-all active:scale-95 shadow-2xs"
+                className="px-2.5 py-1.5 bg-surface-2 hover:bg-surface-3 border border-border/70 rounded-xl text-xs font-bold text-text-muted hover:text-primary flex items-center gap-1 transition-all active:scale-95 shadow-2xs shrink-0"
                 title="Cek & Samakan Saldo Rekening Riil"
               >
                 <ArrowsClockwise size={14} weight="bold" className="text-primary" />

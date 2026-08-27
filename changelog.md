@@ -3,6 +3,17 @@
 Log eksekusi plan. Entri baru ditambahkan di bagian paling atas.
 Format entri lihat `AGENTS.md` bagian "Langkah 3 — Catat ke Changelog".
 
+## [2026-08-27] Tampilan Riwayat Kapan Rekonsiliasi Terakhir pada Kartu Dompet
+
+**Plan**: `docs/plans/2026-08-27-fitur-tampilan-riwayat-kapan-rekonsiliasi-terakhir-di-dompet.md`
+
+### Berubah
+- **Informasi Tanggal Rekonsiliasi Terkini di Kartu Pos Kas**:
+  - Menambahkan label status dan tanggal rekonsiliasi terakhir (contoh: `Rekom: 27 Agu 2026` atau `Belum pernah direkom` dengan indikator titik hijau/kuning) pada kartu pos dompet di [WalletsView.tsx](src/components/wallets/WalletsView.tsx).
+  - Menambahkan baris informasi rekonsiliasi terakhir pada kartu ringkasan pos kas di beranda Dashboard [WalletScroller.tsx](src/components/dashboard/WalletScroller.tsx).
+- **Verifikasi**:
+  - 91 assertion audit unit test + 37 pengujian E2E lulus 100%.
+
 ## [2026-08-27] Fitur Otomatisasi Pembelian Aset, Jadwal Pajak, dan Perawatan Rutin/Insidental
 
 **Plan**: `docs/plans/2026-08-27-fitur-otomatisasi-pembelian-aset-jadwal-pajak-dan-maintenance.md`
