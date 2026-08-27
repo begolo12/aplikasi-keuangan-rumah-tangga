@@ -4,7 +4,6 @@ import React from 'react';
 import {
   TrendUp,
   TrendDown,
-  CalendarCheck,
   CheckCircle,
   WarningCircle,
   FileCsv,
@@ -33,14 +32,14 @@ export function IncomeStatementReport({
   const totalIncome = summary.total_income || 0;
   const totalOperatingExpense = summary.total_expense || 0;
 
-  // Beban Depresiasi Aset Bulan Ini (Non-Cash Expense)
+  // Estimasi Penyusutan Nilai Barang Bulan Ini
   const activeAssets = assets.filter((a) => !a.is_sold);
   const totalMonthlyDepreciation = activeAssets.reduce((sum, a) => sum + (a.monthly_depreciation || 0), 0);
 
-  // Total Pengeluaran & Beban Susut
+  // Total Belanja & Susut Nilai Barang
   const totalComprehensiveExpense = totalOperatingExpense + totalMonthlyDepreciation;
 
-  // Sisa Uang / Surplus Bersih Keluarga
+  // Sisa Uang Bersih Keluarga
   const comprehensiveNetSurplus = totalIncome - totalComprehensiveExpense;
   const isSurplus = comprehensiveNetSurplus >= 0;
 
@@ -66,7 +65,7 @@ export function IncomeStatementReport({
             <div>
               <div className="flex items-center gap-2 flex-wrap">
                 <h3 className="text-xs sm:text-sm md:text-base font-extrabold text-text">
-                  Laporan Pemasukan & Belanja ({INDONESIAN_MONTHS[selectedMonth - 1]} {selectedYear})
+                  Perbandingan Pemasukan & Belanja ({INDONESIAN_MONTHS[selectedMonth - 1]} {selectedYear})
                 </h3>
                 <span
                   className={`text-[10px] font-extrabold px-2.5 py-0.5 rounded-full border ${
@@ -75,11 +74,11 @@ export function IncomeStatementReport({
                       : 'bg-expense/10 text-expense border-expense/30 animate-pulse'
                   }`}
                 >
-                  {isSurplus ? 'Uang Bersih Surplus (+)' : 'Pengeluaran Defisit (-)'}
+                  {isSurplus ? 'Uang Masih Sisa (+)' : 'Pengeluaran Berlebih (-)'}
                 </span>
               </div>
               <p className="text-[10px] sm:text-[11px] text-text-muted">
-                Evaluasi seluruh uang masuk dikurangi belanja kebutuhan hidup & estimasi penyusutan nilai barang.
+                Ringkasan uang masuk dikurangi belanja kebutuhan hidup & estimasi penurunan nilai barang.
               </p>
             </div>
           </div>
@@ -91,7 +90,7 @@ export function IncomeStatementReport({
               className="self-start sm:self-center text-xs font-bold text-primary hover:underline flex items-center gap-1 min-h-[32px]"
             >
               <FileCsv size={15} weight="bold" />
-              <span>Ekspor Laporan</span>
+              <span>Ekspor Data</span>
             </button>
           )}
         </div>
@@ -99,11 +98,11 @@ export function IncomeStatementReport({
         {/* 3 Metric Grid (Mobile-friendly) */}
         <div className="grid grid-cols-3 gap-2 sm:gap-3 py-3">
           <div className="p-2.5 sm:p-3.5 bg-surface rounded-2xl border border-border/60 space-y-0.5 sm:space-y-1 text-center sm:text-left">
-            <span className="text-[10px] sm:text-xs text-text-muted font-semibold block">Total Pemasukan</span>
+            <span className="text-[10px] sm:text-xs text-text-muted font-semibold block">Total Uang Masuk</span>
             <p className="text-xs sm:text-sm md:text-lg font-extrabold text-income tabular-nums whitespace-nowrap">
               +{formatRupiah(totalIncome)}
             </p>
-            <span className="text-[9px] sm:text-[10px] text-text-muted hidden sm:block">Gaji & Hasil Lain</span>
+            <span className="text-[9px] sm:text-[10px] text-text-muted hidden sm:block">Gaji & Tambahan</span>
           </div>
 
           <div className="p-2.5 sm:p-3.5 bg-surface rounded-2xl border border-border/60 space-y-0.5 sm:space-y-1 text-center sm:text-left">
@@ -115,7 +114,7 @@ export function IncomeStatementReport({
           </div>
 
           <div className="p-2.5 sm:p-3.5 bg-surface rounded-2xl border border-border/60 space-y-0.5 sm:space-y-1 text-center sm:text-left">
-            <span className="text-[10px] sm:text-xs text-text-muted font-semibold block">Penyusutan Barang</span>
+            <span className="text-[10px] sm:text-xs text-text-muted font-semibold block">Penurunan Nilai Barang</span>
             <p className="text-xs sm:text-sm md:text-lg font-extrabold text-purple-600 dark:text-purple-400 tabular-nums whitespace-nowrap">
               -{formatRupiah(totalMonthlyDepreciation)}
             </p>
@@ -132,33 +131,33 @@ export function IncomeStatementReport({
           )}
           <p className="text-[11px] text-text-muted leading-relaxed">
             {isSurplus
-              ? `Setelah dipotong seluruh belanja keluarga dan estimasi penyusutan nilai barang (${formatRupiah(totalMonthlyDepreciation)}), keuangan keluarga Anda masih menghasilkan sisa uang bersih sebesar ${formatRupiah(comprehensiveNetSurplus)}.`
-              : `Total belanja dan penyusutan barang bulan ini melampaui pemasukan sebesar ${formatRupiah(Math.abs(comprehensiveNetSurplus))}.`}
+              ? `Setelah dipakai belanja kebutuhan hidup dan memperhitungkan penurunan nilai barang (${formatRupiah(totalMonthlyDepreciation)}), uang keluarga Anda masih sisa bersih sebesar ${formatRupiah(comprehensiveNetSurplus)}.`
+              : `Total belanja dan penurunan nilai barang bulan ini lebih besar daripada uang masuk sebesar ${formatRupiah(Math.abs(comprehensiveNetSurplus))}.`}
           </p>
         </div>
       </div>
 
-      {/* Desktop Detailed Statement (Full Format) */}
+      {/* Desktop Detailed Statement */}
       <div className="p-4 sm:p-5 bg-surface border border-border rounded-3xl space-y-3 shadow-2xs">
         <div className="flex items-center justify-between pb-2 border-b border-border">
           <h4 className="text-xs sm:text-sm font-bold text-text">
-            Rincian Lengkap Pemasukan vs Pengeluaran Keluarga
+            Rincian Pemasukan & Belanja Rumah Tangga
           </h4>
-          <span className="text-[11px] text-text-muted font-medium">Periode {INDONESIAN_MONTHS[selectedMonth - 1]} {selectedYear}</span>
+          <span className="text-[11px] text-text-muted font-medium">Bulan {INDONESIAN_MONTHS[selectedMonth - 1]} {selectedYear}</span>
         </div>
 
         <div className="space-y-2 text-xs divide-y divide-border/40">
           {/* 1. Pendapatan */}
           <div className="pt-2 space-y-1">
             <span className="font-bold text-text-muted uppercase text-[10px] tracking-wider block">
-              1. PEMASUKAN KELUARGA (INCOME)
+              1. SEMUA UANG MASUK (PEMASUKAN)
             </span>
             <div className="flex items-center justify-between py-1 px-2">
-              <span>Gaji Pokok, Tunjangan, Usaha & Hasil Tambahan</span>
+              <span>Gaji Pokok, Tunjangan, Usaha & Penghasilan Tambahan</span>
               <span className="font-bold text-income tabular-nums">+{formatRupiah(totalIncome)}</span>
             </div>
             <div className="flex items-center justify-between py-1 px-2 font-bold bg-surface-2/60 rounded-xl">
-              <span>Total Pemasukan Masuk:</span>
+              <span>Total Uang Masuk:</span>
               <span className="text-income tabular-nums">+{formatRupiah(totalIncome)}</span>
             </div>
           </div>
@@ -166,14 +165,14 @@ export function IncomeStatementReport({
           {/* 2. Pengeluaran Hidup */}
           <div className="pt-2 space-y-1">
             <span className="font-bold text-text-muted uppercase text-[10px] tracking-wider block">
-              2. BELANJA HIDUP & TAGIHAN RUTIN (EXPENSES)
+              2. BELANJA KEBUTUHAN HIDUP & TAGIHAN
             </span>
             <div className="flex items-center justify-between py-1 px-2">
-              <span>Belanja Dapur, Kebutuhan Rumah Tangga & Tagihan</span>
+              <span>Belanja Dapur, Kebutuhan Rumah, Tagihan Listrik & Lainnya</span>
               <span className="font-bold text-expense tabular-nums">-{formatRupiah(totalOperatingExpense)}</span>
             </div>
             <div className="flex items-center justify-between py-1 px-2 font-bold bg-surface-2/60 rounded-xl">
-              <span>Sisa Uang Kas Bulan Ini (Cashflow Bersih):</span>
+              <span>Sisa Kas Bulanan:</span>
               <span className={`tabular-nums ${summary.net_cash_flow >= 0 ? 'text-income' : 'text-expense'}`}>
                 {summary.net_cash_flow >= 0 ? '+' : ''}{formatRupiah(summary.net_cash_flow)}
               </span>
@@ -183,10 +182,10 @@ export function IncomeStatementReport({
           {/* 3. Beban Penyusutan Barang */}
           <div className="pt-2 space-y-1">
             <span className="font-bold text-text-muted uppercase text-[10px] tracking-wider block">
-              3. PENYUSUTAN NILAI BARANG / ASET (DEPRESIASI)
+              3. ESTIMASI PENYUSUTAN NILAI BARANG / ASET
             </span>
             <div className="flex items-center justify-between py-1 px-2">
-              <span>Estimasi Penurunan Nilai {activeAssets.length} Aset/Kendaraan Bulan Ini</span>
+              <span>Penurunan Nilai {activeAssets.length} Barang Berharga / Kendaraan</span>
               <span className="font-bold text-purple-600 dark:text-purple-400 tabular-nums">-{formatRupiah(totalMonthlyDepreciation)}</span>
             </div>
           </div>
@@ -194,7 +193,7 @@ export function IncomeStatementReport({
           {/* 4. Sisa Uang Bersih Akhir */}
           <div className="pt-3">
             <div className="flex items-center justify-between p-3 bg-primary/10 border border-primary/20 rounded-2xl font-extrabold text-sm">
-              <span className="text-primary">SISA UANG / SURPLUS BERSIH KELUARGA BULAN INI</span>
+              <span className="text-primary">TOTAL SISA UANG BERSIH KELUARGA BULAN INI</span>
               <span className={`tabular-nums ${isSurplus ? 'text-primary' : 'text-expense'}`}>
                 {isSurplus ? '+' : ''}{formatRupiah(comprehensiveNetSurplus)}
               </span>
@@ -205,4 +204,5 @@ export function IncomeStatementReport({
     </div>
   );
 }
+
 

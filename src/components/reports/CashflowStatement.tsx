@@ -66,7 +66,7 @@ export function CashflowStatement({
             <div>
               <div className="flex items-center gap-2">
                 <h3 className="text-sm sm:text-base font-extrabold text-text">
-                  Laporan Arus Kas (Cashflow Statement)
+                  Laporan Perputaran Kas & Tabungan
                 </h3>
                 <span
                   className={`text-[10px] font-extrabold px-2.5 py-0.5 rounded-full border ${
@@ -75,7 +75,7 @@ export function CashflowStatement({
                       : 'bg-expense/10 text-expense border-expense/30 animate-pulse'
                   }`}
                 >
-                  {isSurplus ? 'Bulan Ini Surplus' : 'Bulan Ini Defisit'}
+                  {isSurplus ? 'Bulan Ini Uang Bertambah (+)' : 'Bulan Ini Uang Berkurang (-)'}
                 </span>
               </div>
               <p className="text-[11px] text-text-muted">
