@@ -326,7 +326,7 @@ export function ReportsView({
           }`}
         >
           <BookOpen size={15} weight="bold" />
-          <span className="truncate">Laba Rugi (P&L)</span>
+          <span className="truncate">Pemasukan & Belanja</span>
         </button>
 
         <button

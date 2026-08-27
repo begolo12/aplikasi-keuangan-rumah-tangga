@@ -3,6 +3,21 @@
 Log eksekusi plan. Entri baru ditambahkan di bagian paling atas.
 Format entri lihat `AGENTS.md` bagian "Langkah 3 — Catat ke Changelog".
 
+## [2026-08-27] Penyempurnaan Bahasa Laporan Keuangan Keluarga (Human-Friendly Tone)
+
+**Plan**: `docs/plans/2026-08-27-penyempurnaan-bahasa-laporan-keuangan-keluarga.md`
+
+### Berubah
+- **Penyederhanaan Istilah Korporat Bisnis menjadi Istilah Keluarga**:
+  - Mengubah istilah kaku "Laba Rugi (P&L)" menjadi **"Laporan Pemasukan & Belanja (Surplus/Defisit)"** pada [IncomeStatementReport.tsx](src/components/reports/IncomeStatementReport.tsx) dan [ReportsView.tsx](src/components/reports/ReportsView.tsx).
+  - Mengubah "Laba Bersih / Operating Surplus" menjadi **"Sisa Uang / Surplus Bersih Keluarga"**.
+  - Mengubah "Beban Kas Operasional" menjadi **"Belanja Hidup & Tagihan Rutin"**.
+  - Mengubah "Beban Non-Kas Depresiasi" menjadi **"Penyusutan Nilai Barang/Aset"**.
+  - Mengubah istilah "Aktiva & Pasiva" menjadi **"Daftar Harta & Kekayaan (Aset)"** dan **"Kewajiban Hutang & Kekayaan Bersih"** pada [BalanceSheetReport.tsx](src/components/reports/BalanceSheetReport.tsx).
+  - Mengubah istilah "Capital Gain / Loss" menjadi **"Hasil Penjualan Untung (+)"** dan **"Hasil Penjualan Menyusut (-)"** pada [SellAssetModal.tsx](src/components/assets/SellAssetModal.tsx).
+- **Verifikasi**:
+  - 103 assertion audit unit test + 37 pengujian E2E lulus 100%.
+
 ## [2026-08-27] Fitur Laporan Rasio Keuangan (DER, DAR, DSR, Likuiditas) dan Kesimpulan Analisis
 
 **Plan**: `docs/plans/2026-08-27-fitur-laporan-rasio-keuangan-der-dan-kesimpulan-analisis.md`

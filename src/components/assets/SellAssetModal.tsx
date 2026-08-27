@@ -152,7 +152,7 @@ export function SellAssetModal({
                   <WarningCircle size={18} weight="fill" className="text-expense shrink-0" />
                 )}
                 <span className={isGainBook ? 'text-income' : 'text-expense'}>
-                  {isGainBook ? 'Penjualan Untung (Capital Gain)' : 'Penjualan Rugi / Depresiasi Pasar'}
+                  {isGainBook ? 'Hasil Penjualan Untung (+)' : 'Hasil Penjualan Menyusut (-)'}
                 </span>
               </div>
 
@@ -165,7 +165,7 @@ export function SellAssetModal({
               <div>
                 <span className="text-text-muted block">vs Sisa Nilai Buku:</span>
                 <span className={`font-bold tabular-nums ${isGainBook ? 'text-income' : 'text-expense'}`}>
-                  {isGainBook ? `Untung +${formatRupiah(gainLossBook)}` : `Rugi ${formatRupiah(gainLossBook)}`}
+                  {isGainBook ? `Untung +${formatRupiah(gainLossBook)}` : `Selisih Susut ${formatRupiah(gainLossBook)}`}
                 </span>
               </div>
               <div>
