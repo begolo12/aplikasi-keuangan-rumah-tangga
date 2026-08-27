@@ -3,6 +3,37 @@
 Log eksekusi plan. Entri baru ditambahkan di bagian paling atas.
 Format entri lihat `AGENTS.md` bagian "Langkah 3 — Catat ke Changelog".
 
+## [2026-08-28] Audit Gap Zero (Pasca-Eksekusi 6 Plan)
+
+Tanpa plan doc (audit + perbaikan titik kecil tanpa mengubah perilaku inti).
+
+### Temuan & Berubah
+- **Kontras terukur**: skrip WCAG menguji 30 pasangan token di kedua tema; 1 FAIL (`text-muted` di atas `surface-2` light, 4.21:1) diperbaiki dengan menggelapkan `--color-text-muted` light ke `25 11% 39%` (kini 4.72:1). Hasil akhir 30/30 PASS.
+- **Badge nav mati**: `AppShell` tidak meneruskan count ke `BottomNav`, sehingga badge "Lainnya" selalu 0. Kini `pendingBillsCount`/`overbudgetCount`/`unpaidDebtsCount` di-pass dari summary bootstrap melalui AppShell.
+- **Tab goals di TopHeader**: halaman Target Tabungan tadinya menampilkan pemilih bulan; kini muncul badge "Target Tabungan" tanpa selector periode.
+- **Sisa warna hardcoded** diganti token semantik: notice offline TransactionModal, 3 lokasi amber di FinancialRatiosReport, properti/none di AssetsView, error state ReportsView. Merah/emerald pada gradient hero (BalanceHeader) dipertahankan dengan alasan kontras di atas latar gelap; warna kategori & ikon matahari ThemeToggle bersifat data-driven/metafora.
+- **Properti mati**: `userId` pada `GoalsView` dihapus (tidak dipakai).
+- **Hygiene git**: `debug.log` (junk crashpad runtime) dikeluarkan dari tracking dan masuk `.gitignore`.
+
+### Verifikasi
+- `npm run build` lulus; `npm run lint` 0 error (13 warning gaya pre-existing); `npm test` 119 audit + 52 E2E lulus (angka termasuk fitur Smart Receipt Parser yang masuk bersamaan via commit `uppp`).
+
+## [2026-08-28] Upgrade Sidebar Collapsible Mini Mode
+
+**Plan**: `docs/plans/2026-08-28-upgrade-sidebar-collapsible-mini-mode.md`
+
+### Berubah
+- **Fitur Collapse/Expand Sidebar Interaktif** (`src/components/layout/SidebarNav.tsx`): Menambahkan tombol toggle sidebar yang memungkinkan pengguna mengecilkan sidebar menjadi mode mini (lebar `w-[72px]`) atau membuka penuh (`w-64`) dengan transisi halus.
+- **Persistensi State**: Status collapse disimpan ke `localStorage` (`kaskeluarga_sidebar_collapsed`) sehingga preferensi tampilan tetap terjaga saat navigasi/refresh halaman.
+- **Tampilan Mini Menu**:
+  - Tombol aksi "+ Catat Transaksi" bertransformasi menjadi ikon bulat ramping dengan popover dropdown jenis transaksi (E/I/T) yang muncul di samping kanan.
+  - Ikon-ikon modul diatur terpusat rapi dengan indikator titik aktif dan tooltip hover keterangan nama menu.
+  - Card profil pengguna di bagian bawah menyusut menjadi avatar mini dengan tooltip nama akun dan tombol logout langsung.
+
+### Verifikasi
+- Build Next.js (`npm run build`) lulus tanpa error TypeScript.
+- Test audit (`npm test`) lulus seluruh pengujian.
+
 ## [2026-08-28] Fitur Smart Receipt & Nota Parser Menggunakan DeepSeek API
 
 **Plan**: `docs/plans/2026-08-28-fitur-smart-receipt-parser-deepseek.md`

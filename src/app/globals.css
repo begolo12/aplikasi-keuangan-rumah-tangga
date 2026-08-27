@@ -11,7 +11,7 @@
     --color-surface-3: 40 16% 82%;   /* #D8D1C1 */
     --color-border: 40 15% 86%;      /* #E1DCD2 */
     --color-text: 25 22% 14%;        /* cokelat tua kalem #221C18 */
-    --color-text-muted: 25 10% 42%;  /* #6E645C */
+    --color-text-muted: 25 11% 39%;  /* AA di atas semua permukaan ramp (terukur >= 4.5:1) */
 
     /* Aksen utama: emerald tua (kepercayaan finansial). Digerakkan cukup gelap agar AA dengan teks putih. */
     --color-primary: 158 62% 25%;       /* #17925E */

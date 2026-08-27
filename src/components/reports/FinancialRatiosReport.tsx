@@ -237,7 +237,7 @@ export function FinancialRatiosReport({
       case 'safe':
         return <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-income/10 text-income border border-income/20">Aman</span>;
       case 'warning':
-        return <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">Waspada</span>;
+        return <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-warning/10 text-warning border border-warning/25">Waspada</span>;
       case 'danger':
         return <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-expense/10 text-expense border border-expense/20 animate-pulse">Berisiko</span>;
     }
@@ -262,7 +262,7 @@ export function FinancialRatiosReport({
                     : result.condition_status === 'good'
                     ? 'bg-income/10 text-income border-income/20'
                     : result.condition_status === 'warning'
-                    ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20'
+                    ? 'bg-warning/10 text-warning border-warning/25'
                     : 'bg-expense/10 text-expense border-expense/20 animate-pulse'
                 }`}
               >
@@ -326,7 +326,7 @@ export function FinancialRatiosReport({
       {/* Actionable Recommendations Plan */}
       <div className="p-4 sm:p-5 bg-surface border border-border rounded-3xl space-y-3 shadow-2xs">
         <div className="flex items-center gap-2 font-bold text-text text-xs sm:text-sm">
-          <Lightbulb size={18} weight="duotone" className="text-amber-500" />
+          <Lightbulb size={18} weight="duotone" className="text-warning" />
           <span>Rekomendasi Langkah Tindakan Finansial</span>
         </div>
 

@@ -99,7 +99,7 @@ export function TopHeader({
     <header className="sticky top-0 z-30 bg-background/80 backdrop-blur-md border-b border-border px-3 sm:px-4 md:px-8 py-2.5 sm:py-3 transition-colors">
       <div className="flex items-center justify-between max-w-7xl mx-auto gap-2 sm:gap-4">
         {/* Context-aware Left Header: Period Selector on period-tabs, or Section Badge on non-period tabs */}
-        {['assets', 'debts', 'wallets', 'settings'].includes(activeTab) ? (
+        {['assets', 'debts', 'wallets', 'goals', 'settings'].includes(activeTab) ? (
           <div className="flex items-center gap-2 px-1">
             <span className="text-xs sm:text-sm font-extrabold text-text capitalize">
               {activeTab === 'assets'
@@ -108,6 +108,8 @@ export function TopHeader({
                 ? 'Hutang & Piutang'
                 : activeTab === 'wallets'
                 ? 'Pos Kas & Rekening'
+                : activeTab === 'goals'
+                ? 'Target Tabungan'
                 : 'Pengaturan & Backup'}
             </span>
           </div>

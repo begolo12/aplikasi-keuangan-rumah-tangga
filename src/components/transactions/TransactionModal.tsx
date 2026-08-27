@@ -189,7 +189,7 @@ function TransactionForm({
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       {offlineNotice && (
-        <div role="status" className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-2xl text-amber-700 dark:text-amber-300 text-xs font-semibold flex items-center gap-2">
+        <div role="status" className="p-3 bg-warning/10 border border-warning/30 rounded-2xl text-warning text-xs font-semibold flex items-center gap-2">
           <WifiSlash size={18} className="shrink-0" />
           <span>Offline: Transaksi disimpan di perangkat & akan disinkronkan saat terhubung kembali.</span>
         </div>

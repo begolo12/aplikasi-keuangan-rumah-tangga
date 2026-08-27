@@ -47,7 +47,7 @@ interface AssetsApiResponse {
 const CATEGORY_MAP: Record<AssetCategory, { label: string; icon: React.ElementType; color: string }> = {
   kendaraan: { label: 'Kendaraan', icon: Car, color: 'bg-transfer/10 text-transfer border-transfer/25' },
   elektronik: { label: 'Elektronik', icon: Laptop, color: 'bg-indigo-500/10 text-indigo-600 border-indigo-500/20' },
-  properti: { label: 'Properti', icon: HouseLine, color: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20' },
+  properti: { label: 'Properti', icon: HouseLine, color: 'bg-income/10 text-income border-income/25' },
   perhiasan_emas: { label: 'Emas / Perhiasan', icon: Sparkle, color: 'bg-warning/10 text-warning border-warning/25' },
   alat_usaha: { label: 'Peralatan Usaha', icon: Wrench, color: 'bg-income/10 text-income border-income/25' },
   lainnya: { label: 'Lainnya', icon: DotsThree, color: 'bg-gray-500/10 text-gray-600 border-gray-500/20' },
@@ -56,7 +56,7 @@ const CATEGORY_MAP: Record<AssetCategory, { label: string; icon: React.ElementTy
 const METHOD_MAP: Record<DepreciationMethod, { label: string; tag: string }> = {
   straight_line: { label: 'Garis Lurus', tag: 'bg-primary/10 text-primary border-primary/20' },
   declining_balance: { label: 'Saldo Menurun', tag: 'bg-transfer/10 text-transfer border-transfer/25' },
-  none: { label: 'Tanpa Penyusutan', tag: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20' },
+  none: { label: 'Tanpa Penyusutan', tag: 'bg-primary-subtle text-primary border-primary/20' },
 };
 
 export function AssetsView({ onRefreshParent }: AssetsViewProps) {

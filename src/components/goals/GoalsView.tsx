@@ -19,7 +19,6 @@ import {
 } from '@phosphor-icons/react';
 
 interface GoalsViewProps {
-  userId: string;
   wallets: Wallet[];
 }
 

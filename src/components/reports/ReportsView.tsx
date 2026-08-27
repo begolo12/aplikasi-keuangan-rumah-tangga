@@ -200,8 +200,8 @@ export function ReportsView({
   if (error) {
     return (
       <div className="space-y-6">
-        <div className="rounded-2xl border border-red-200 bg-red-50 p-6 text-center space-y-3">
-          <p className="text-sm font-semibold text-red-700">{error}</p>
+        <div className="rounded-2xl border border-expense/25 bg-expense/5 p-6 text-center space-y-3">
+          <p className="text-sm font-semibold text-expense">{error}</p>
           <button
             type="button"
             onClick={retry}

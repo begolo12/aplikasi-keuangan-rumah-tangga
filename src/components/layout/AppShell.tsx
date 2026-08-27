@@ -23,6 +23,9 @@ interface AppShellProps {
   userId: string;
   onLogout: () => void;
   onDataRefresh?: () => void;
+  pendingBillsCount?: number;
+  overbudgetCount?: number;
+  unpaidDebtsCount?: number;
   children: React.ReactNode;
 }
 
@@ -40,6 +43,9 @@ export function AppShell({
   userId,
   onLogout,
   onDataRefresh,
+  pendingBillsCount = 0,
+  overbudgetCount = 0,
+  unpaidDebtsCount = 0,
   children,
 }: AppShellProps) {
   return (
@@ -85,6 +91,9 @@ export function AppShell({
         onTabChange={onTabChange}
         onOpenAddModal={onOpenAddModal}
         onOpenTypedModal={onOpenTypedModal}
+        pendingBillsCount={pendingBillsCount}
+        overbudgetCount={overbudgetCount}
+        unpaidDebtsCount={unpaidDebtsCount}
       />
 
       {/* iOS Safari Home Screen Banner */}

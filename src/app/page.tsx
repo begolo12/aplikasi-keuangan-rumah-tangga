@@ -377,6 +377,9 @@ export default function MainPage() {
       userId={user.id}
       onLogout={handleLogout}
       onDataRefresh={refetch}
+      pendingBillsCount={summary.bill_pending_count}
+      overbudgetCount={summary.budget_over_count}
+      unpaidDebtsCount={summary.payable_unpaid_count}
     >
       {/* Dynamic View Switcher */}
       {dataError ? (
@@ -497,7 +500,7 @@ export default function MainPage() {
           onRefresh={refetch}
         />
       ) : activeTab === 'goals' ? (
-        <GoalsView userId={user.id} wallets={wallets} />
+        <GoalsView wallets={wallets} />
       ) : activeTab === 'budget' ? (
         <BudgetView
           budgets={budgets}
