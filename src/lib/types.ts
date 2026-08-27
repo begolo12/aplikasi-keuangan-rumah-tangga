@@ -111,6 +111,17 @@ export interface FinancialSafetyPlan {
   gap_needed: number; // Kekurangan uang yang harus dimiliki dulu
   progress_pct: number;
   can_expand_expense: boolean; // True jika current_cash >= total_min_required
+  cold_money_amount: number; // Uang dingin yang bebas dipakai
+}
+
+export interface ColdMoneyInfo {
+  total_liquid_cash: number;
+  safety_reserve_required: number; // 4.4x Anggaran
+  pending_obligations: number; // Tagihan & Hutang
+  cold_money: number; // Uang dingin riil = max(0, Kas - Cadangan 4.4x - Kewajiban)
+  is_available: boolean;
+  status_title: string;
+  recommendations: string[];
 }
 
 export interface ExpenseProjection {

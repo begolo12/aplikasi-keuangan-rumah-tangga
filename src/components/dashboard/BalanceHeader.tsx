@@ -92,10 +92,10 @@ export function BalanceHeader({
             </div>
             <div className="min-w-0">
               <p className="text-[10px] text-white/75 font-semibold leading-tight hidden sm:block">
-                Sisa Dana Bebas Belanja (Safe-to-Spend):
+                Dana Bebas Belanja & Uang Dingin Rencana:
               </p>
               <p className="text-[10px] text-white/75 font-semibold leading-tight sm:hidden">
-                Dana Bebas Belanja:
+                Dana Bebas & Uang Dingin:
               </p>
               <p className="text-xs sm:text-sm font-extrabold text-white truncate">
                 {showBalance ? formatRupiah(effectiveSafeToSpend) : '••••••'}
@@ -113,7 +113,7 @@ export function BalanceHeader({
                 : 'bg-red-400/20 text-red-100 border-red-400/30'
             }`}
           >
-            {isHealthy ? 'Aman' : 'Melebihi Kas'}
+            {isHealthy ? 'Siap Pakai' : 'Defisit Kas'}
           </span>
         </div>
       </div>

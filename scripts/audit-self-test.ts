@@ -29,6 +29,7 @@ import { createSessionToken, verifySessionToken } from '../src/lib/auth';
 import { calculateAssetDepreciation } from '../src/app/api/assets/route';
 import { calculateFinancialSafetyPlan } from '../src/components/budget/FinancialSafetyPlanCard';
 import { calculateExpenseProjection } from '../src/components/budget/ExpenseProjectionCard';
+import { calculateColdMoney } from '../src/components/reports/ColdMoneyCard';
 
 let passed = 0;
 let failed = 0;
@@ -458,6 +459,27 @@ assert('sisa estimasi terbaca 300.000', projResult.remaining_estimated === 30000
 assert('proyeksi akhir bulan terhitung 1.300.000 (1jt + 300rb)', projResult.projected_total === 1300000);
 assert('potensi hemat terhitung 200.000 (1.5jt - 1.3jt)', projResult.projected_savings === 200000);
 assert('persentase hemat terhitung ~13%', projResult.savings_percentage === 13);
+
+// ── Validasi calculateColdMoney (Uang Dingin Rencana Jangka Pendek) ─────────
+console.log('\n[10d] calculateColdMoney (Uang Dingin Bebas Pakai)');
+
+const dummyColdWallets = [
+  { id: validUuid1, user_id: validUuid1, name: 'BCA', type: 'bank' as const, balance: 30000000, icon: '', color: '', is_default: true, sort_order: 0, created_at: '', updated_at: '' },
+]; // total kas = 30.000.000
+const dummyColdBudgets = [
+  { id: validUuid1, user_id: validUuid1, category_id: validUuid1, monthly_limit: 5000000, spent: 2000000, remaining: 3000000, percentage: 40, month: 8, year: 2026, created_at: '' },
+]; // anggaran = 5.000.000 -> cadangan wajib 4.4x = 22.000.000
+
+const coldInfoAvailable = calculateColdMoney(dummyColdWallets, dummyColdBudgets, 0, 1000000, 2000000);
+// Kas 30jt - Cadangan 22jt - Kewajiban 3jt = Uang Dingin 5.000.000
+assert('cadangan wajib 4.4x terhitung 22.000.000', coldInfoAvailable.safety_reserve_required === 22000000);
+assert('total kewajiban terhitung 3.000.000', coldInfoAvailable.pending_obligations === 3000000);
+assert('uang dingin terhitung akurat 5.000.000', coldInfoAvailable.cold_money === 5000000);
+assert('is_available bernilai true', coldInfoAvailable.is_available === true);
+
+const coldInfoZero = calculateColdMoney(dummyColdWallets, dummyColdBudgets, 0, 5000000, 5000000);
+// Kas 30jt - Cadangan 22jt - Kewajiban 10jt = -2jt -> max(0, -2jt) = 0
+assert('uang dingin bernilai 0 jika kas belum melampaui cadangan wajib & hutang', coldInfoZero.cold_money === 0 && coldInfoZero.is_available === false);
 
 // ── Validasi Auth Token & Session ───────────────────────────────────────────
 console.log('\n[11] auth session & JWT token');

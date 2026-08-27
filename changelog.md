@@ -3,6 +3,20 @@
 Log eksekusi plan. Entri baru ditambahkan di bagian paling atas.
 Format entri lihat `AGENTS.md` bagian "Langkah 3 — Catat ke Changelog".
 
+## [2026-08-27] Fitur Uang Dingin (Cold Money) dan Dana Bebas Rencana Jangka Pendek
+
+**Plan**: `docs/plans/2026-08-27-fitur-uang-dingin-dan-dana-bebas-rencana-jangka-pendek.md`
+
+### Berubah
+- **Perhitungan Alokasi Uang Dingin**:
+  - Mengimplementasikan helper `calculateColdMoney` pada [ColdMoneyCard.tsx](src/components/reports/ColdMoneyCard.tsx) yang menghitung kelebihan kas riil yang benar-benar bebas dari seluruh alokasi wajib:
+    $$\text{Uang Dingin} = \max(0, \text{Total Kas Likuid} - \text{Cadangan Wajib 4.4x Anggaran} - \text{Kewajiban Tagihan/Hutang})$$
+- **Kartu Khusus Uang Dingin di Menu Laporan & Dashboard**:
+  - Menampilkan [ColdMoneyCard.tsx](src/components/reports/ColdMoneyCard.tsx) di menu Laporan ([ReportsView.tsx](src/components/reports/ReportsView.tsx)) dengan rincian 4 kolom: **Total Kas Riil**, **Cadangan 4.4x Anggaran**, **Tagihan & Hutang**, dan **Uang Dingin (Bebas Pakai)** beserta rekomendasi pemanfaatan untuk investasi jangka pendek, liburan, hobi, atau modal baru.
+  - Memperbarui [BalanceHeader.tsx](src/components/dashboard/BalanceHeader.tsx) pada Dashboard agar menampilkan indikator status "Dana Bebas & Uang Dingin".
+- **Verifikasi**:
+  - 96 assertion audit unit test + 37 pengujian E2E lulus 100%.
+
 ## [2026-08-27] Laporan Keuangan Lengkap: Neraca Keuangan Keluarga (Balance Sheet) & Laba Rugi
 
 **Plan**: `docs/plans/2026-08-27-fitur-laporan-keuangan-lengkap-neraca-dan-laba-rugi.md`

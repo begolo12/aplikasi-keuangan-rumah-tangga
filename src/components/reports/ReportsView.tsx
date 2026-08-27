@@ -9,8 +9,10 @@ import { CashflowChart } from './CashflowChart';
 import { CashflowStatement } from './CashflowStatement';
 import { BalanceSheetReport } from './BalanceSheetReport';
 import { IncomeStatementReport } from './IncomeStatementReport';
+import { ColdMoneyCard } from './ColdMoneyCard';
 import { Button } from '../ui/Button';
 import { formatRupiah, INDONESIAN_MONTHS } from '@/lib/formatters';
+import { Budget } from '@/lib/types';
 import {
   FileCsv,
   ChartPieSlice,
@@ -75,6 +77,7 @@ export function ReportsView({
   const [dailyTrends, setDailyTrends] = useState<DailyTrend[]>([]);
   const [reportSummary, setReportSummary] = useState<MonthlySummaryType | null>(initialSummary || null);
   const [wallets, setWallets] = useState<Wallet[]>([]);
+  const [budgets, setBudgets] = useState<Budget[]>([]);
   const [debts, setDebts] = useState<Debt[]>([]);
   const [assets, setAssets] = useState<Asset[]>([]);
   const [historyList, setHistoryList] = useState<MonthHistoryItem[]>([]);
@@ -120,7 +123,7 @@ export function ReportsView({
       setIsLoading(true);
       setError(null);
       try {
-        const [catData, monthData, wData, dData, aData] = await Promise.all([
+        const [catData, monthData, wData, bData, dData, aData] = await Promise.all([
           apiFetch<{ categories?: CategoryDatum[]; total?: number }>(
             `${endpoints.reportsCategory(selectedMonth, selectedYear)}&type=expense`,
             { signal }
@@ -130,6 +133,7 @@ export function ReportsView({
             { signal }
           ),
           apiFetch<Wallet[]>(endpoints.wallets, { signal }).catch(() => []),
+          apiFetch<Budget[]>(endpoints.budgets, { signal }).catch(() => []),
           apiFetch<Debt[]>(endpoints.debts, { signal }).catch(() => []),
           apiFetch<{ assets?: Asset[] }>(endpoints.assets, { signal }).catch(() => ({ assets: [] })),
         ]);
@@ -140,6 +144,7 @@ export function ReportsView({
           setReportSummary(monthData.summary);
         }
         setWallets(wData || []);
+        setBudgets(bData || []);
         setDebts(dData || []);
         setAssets(aData?.assets || []);
 
@@ -350,6 +355,15 @@ export function ReportsView({
         />
       ) : (
         <>
+          {/* Uang Dingin & Dana Bebas Rencana Jangka Pendek Card */}
+          <ColdMoneyCard
+            wallets={wallets}
+            budgets={budgets}
+            totalExpense={reportSummary?.total_expense || 0}
+            pendingBills={reportSummary?.total_bills_pending_amount || 0}
+            payableDue={reportSummary?.total_payable_due || 0}
+          />
+
           {/* Arus Kas & Safe-to-Spend Liquidity Breakdown Card */}
           <div className="p-3.5 sm:p-4 md:p-5 bg-surface border border-border rounded-2xl sm:rounded-3xl space-y-2.5 sm:space-y-3.5 shadow-2xs">
             <div className="flex items-center justify-between gap-2 border-b border-border pb-2">

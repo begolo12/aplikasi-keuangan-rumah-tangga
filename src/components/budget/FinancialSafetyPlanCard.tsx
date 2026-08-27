@@ -48,6 +48,7 @@ export function calculateFinancialSafetyPlan(
   const gap_needed = Math.max(0, total_min_required - current_cash);
   const progress_pct = total_min_required > 0 ? Math.min(100, Math.round((current_cash / total_min_required) * 100)) : 0;
   const can_expand_expense = current_cash >= total_min_required;
+  const cold_money_amount = Math.max(0, current_cash - total_min_required);
 
   return {
     monthly_budget,
@@ -58,6 +59,7 @@ export function calculateFinancialSafetyPlan(
     gap_needed,
     progress_pct,
     can_expand_expense,
+    cold_money_amount,
   };
 }
 
