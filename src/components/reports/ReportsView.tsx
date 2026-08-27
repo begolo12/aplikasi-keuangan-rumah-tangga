@@ -1,12 +1,14 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { MonthlySummary as MonthlySummaryType } from '@/lib/types';
+import { MonthlySummary as MonthlySummaryType, Wallet, Debt, Asset } from '@/lib/types';
 import { DashboardSkeleton } from '@/components/ui/LoadingSkeleton';
 import { ApiError, apiFetch, endpoints } from '@/lib/apiFetch';
 import { CategoryChart } from './CategoryChart';
 import { CashflowChart } from './CashflowChart';
 import { CashflowStatement } from './CashflowStatement';
+import { BalanceSheetReport } from './BalanceSheetReport';
+import { IncomeStatementReport } from './IncomeStatementReport';
 import { Button } from '../ui/Button';
 import { formatRupiah, INDONESIAN_MONTHS } from '@/lib/formatters';
 import {
@@ -24,6 +26,8 @@ import {
   Calendar,
   ChartLineUp,
   Scales,
+  Coins,
+  BookOpen,
 } from '@phosphor-icons/react';
 
 interface CategoryDatum {
@@ -62,7 +66,7 @@ export function ReportsView({
   currentYear: initialYear,
   onPeriodChange,
 }: ReportsViewProps) {
-  const [selectedTab, setSelectedTab] = useState<'overview' | 'cashflow'>('overview');
+  const [selectedTab, setSelectedTab] = useState<'overview' | 'cashflow' | 'balancesheet' | 'incomestatement'>('overview');
   const [selectedMonth, setSelectedMonth] = useState(initialMonth);
   const [selectedYear, setSelectedYear] = useState(initialYear);
   const [reloadKey, setReloadKey] = useState(0);
@@ -70,6 +74,9 @@ export function ReportsView({
   const [categoryTotal, setCategoryTotal] = useState(0);
   const [dailyTrends, setDailyTrends] = useState<DailyTrend[]>([]);
   const [reportSummary, setReportSummary] = useState<MonthlySummaryType | null>(initialSummary || null);
+  const [wallets, setWallets] = useState<Wallet[]>([]);
+  const [debts, setDebts] = useState<Debt[]>([]);
+  const [assets, setAssets] = useState<Asset[]>([]);
   const [historyList, setHistoryList] = useState<MonthHistoryItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -113,7 +120,7 @@ export function ReportsView({
       setIsLoading(true);
       setError(null);
       try {
-        const [catData, monthData] = await Promise.all([
+        const [catData, monthData, wData, dData, aData] = await Promise.all([
           apiFetch<{ categories?: CategoryDatum[]; total?: number }>(
             `${endpoints.reportsCategory(selectedMonth, selectedYear)}&type=expense`,
             { signal }
@@ -122,6 +129,9 @@ export function ReportsView({
             endpoints.reportsMonthly(selectedMonth, selectedYear),
             { signal }
           ),
+          apiFetch<Wallet[]>(endpoints.wallets, { signal }).catch(() => []),
+          apiFetch<Debt[]>(endpoints.debts, { signal }).catch(() => []),
+          apiFetch<{ assets?: Asset[] }>(endpoints.assets, { signal }).catch(() => ({ assets: [] })),
         ]);
         setCategoryData(catData.categories || []);
         setCategoryTotal(catData.total || 0);
@@ -129,6 +139,9 @@ export function ReportsView({
         if (monthData.summary) {
           setReportSummary(monthData.summary);
         }
+        setWallets(wData || []);
+        setDebts(dData || []);
+        setAssets(aData?.assets || []);
 
         // Fetch 4 bulan ke belakang untuk perbandingan histori bulanan
         const historyPromises = [];
@@ -255,38 +268,82 @@ export function ReportsView({
         </div>
       </div>
 
-      {/* Sub-Tab Switcher: Ringkasan vs Laporan Khusus Cashflow */}
-      <div className="grid grid-cols-2 p-1 bg-surface border border-border rounded-2xl max-w-md shadow-xs">
+      {/* Sub-Tab Switcher: 4 Pilar Laporan Keuangan */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 p-1 bg-surface border border-border rounded-2xl shadow-xs gap-1">
         <button
           type="button"
           onClick={() => setSelectedTab('overview')}
-          className={`py-2 px-3 text-xs font-bold rounded-xl flex items-center justify-center gap-1.5 transition-all ${
+          className={`py-2 px-2 text-xs font-bold rounded-xl flex items-center justify-center gap-1.5 transition-all truncate ${
             selectedTab === 'overview'
               ? 'bg-primary text-white shadow-xs'
               : 'text-text-muted hover:text-text'
           }`}
         >
-          <ChartPieSlice size={16} weight="bold" />
-          <span>Ringkasan & Kategori</span>
+          <ChartPieSlice size={15} weight="bold" />
+          <span className="truncate">Ringkasan & Kategori</span>
         </button>
 
         <button
           type="button"
           onClick={() => setSelectedTab('cashflow')}
-          className={`py-2 px-3 text-xs font-bold rounded-xl flex items-center justify-center gap-1.5 transition-all ${
+          className={`py-2 px-2 text-xs font-bold rounded-xl flex items-center justify-center gap-1.5 transition-all truncate ${
             selectedTab === 'cashflow'
               ? 'bg-primary text-white shadow-xs'
               : 'text-text-muted hover:text-text'
           }`}
         >
-          <Scales size={16} weight="bold" />
-          <span>Laporan Khusus Cashflow</span>
+          <Scales size={15} weight="bold" />
+          <span className="truncate">Arus Kas (Cashflow)</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setSelectedTab('balancesheet')}
+          className={`py-2 px-2 text-xs font-bold rounded-xl flex items-center justify-center gap-1.5 transition-all truncate ${
+            selectedTab === 'balancesheet'
+              ? 'bg-primary text-white shadow-xs'
+              : 'text-text-muted hover:text-text'
+          }`}
+        >
+          <Coins size={15} weight="bold" />
+          <span className="truncate">Neraca Keuangan</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setSelectedTab('incomestatement')}
+          className={`py-2 px-2 text-xs font-bold rounded-xl flex items-center justify-center gap-1.5 transition-all truncate ${
+            selectedTab === 'incomestatement'
+              ? 'bg-primary text-white shadow-xs'
+              : 'text-text-muted hover:text-text'
+          }`}
+        >
+          <BookOpen size={15} weight="bold" />
+          <span className="truncate">Laba Rugi (P&L)</span>
         </button>
       </div>
 
       {selectedTab === 'cashflow' ? (
         <CashflowStatement
           summary={reportSummary}
+          selectedMonth={selectedMonth}
+          selectedYear={selectedYear}
+          onExportCsv={handleExportCsv}
+        />
+      ) : selectedTab === 'balancesheet' ? (
+        <BalanceSheetReport
+          summary={reportSummary}
+          wallets={wallets}
+          debts={debts}
+          assets={assets}
+          selectedMonth={selectedMonth}
+          selectedYear={selectedYear}
+          onExportCsv={handleExportCsv}
+        />
+      ) : selectedTab === 'incomestatement' ? (
+        <IncomeStatementReport
+          summary={reportSummary}
+          assets={assets}
           selectedMonth={selectedMonth}
           selectedYear={selectedYear}
           onExportCsv={handleExportCsv}

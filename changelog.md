@@ -3,6 +3,26 @@
 Log eksekusi plan. Entri baru ditambahkan di bagian paling atas.
 Format entri lihat `AGENTS.md` bagian "Langkah 3 — Catat ke Changelog".
 
+## [2026-08-27] Laporan Keuangan Lengkap: Neraca Keuangan Keluarga (Balance Sheet) & Laba Rugi
+
+**Plan**: `docs/plans/2026-08-27-fitur-laporan-keuangan-lengkap-neraca-dan-laba-rugi.md`
+
+### Berubah
+- **Neraca Keuangan Keluarga (Balance Sheet)**:
+  - Membuat komponen [BalanceSheetReport.tsx](src/components/reports/BalanceSheetReport.tsx) yang menyajikan kalkulasi formal posisi keuangan:
+    - **Aktiva (Harta)**: Aset Kas Likuid + Piutang Belum Diterima + Aset Tetap/Harta Berharga (Taksiran Pasar / Nilai Buku).
+    - **Pasiva (Kewajiban & Ekuitas)**: Liabilitas Jangka Pendek (Tagihan) + Hutang Pinjaman Aktif + Ekuitas/Kekayaan Bersih (*Net Worth*).
+    - Seimbang (*Balanced*): $\text{Total Aktiva} = \text{Total Pasiva}$.
+- **Laporan Laba Rugi Komprehensif (Income Statement / P&L)**:
+  - Membuat komponen [IncomeStatementReport.tsx](src/components/reports/IncomeStatementReport.tsx) yang memperhitungkan Pendapatan Total vs Beban Kas Hidup vs Beban Non-Kas (Penyusutan Nilai Aset) untuk menghasilkan Laba/Surplus Bersih Komprehensif.
+- **Desain Adaptif (Mobile Simple vs PC Full Data)**:
+  - **Di Handphone (Mobile)**: Tampilan bersih (*glanceable*) dengan kartu kesimpulan instan apakah kondisi keuangan **Baik (Sehat)** atau **Jelek/Waspada (Defisit)**, 3 angka inti (Total Harta, Total Hutang, Kekayaan Bersih), dan rasio solvabilitas.
+  - **Di PC (Desktop)**: Format neraca akuntansi berpasangan (*two-column balanced statement*), tabel rincian akun, dan ekspor CSV.
+- **Navigasi 4 Pilar Laporan di ReportsView**:
+  - Mengintegrasikan 4 sub-tab pada [ReportsView.tsx](src/components/reports/ReportsView.tsx): **Ringkasan & Kategori**, **Arus Kas (Cashflow)**, **Neraca Keuangan**, dan **Laba Rugi (P&L)**.
+- **Verifikasi**:
+  - 91 assertion audit unit test + 37 pengujian E2E lulus 100%.
+
 ## [2026-08-27] Tampilan Riwayat Kapan Rekonsiliasi Terakhir pada Kartu Dompet
 
 **Plan**: `docs/plans/2026-08-27-fitur-tampilan-riwayat-kapan-rekonsiliasi-terakhir-di-dompet.md`
