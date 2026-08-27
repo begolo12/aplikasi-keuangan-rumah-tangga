@@ -4,13 +4,7 @@ import React from 'react';
 import {
   Snowflake,
   Sparkle,
-  ShieldCheck,
-  LockKeyOpen,
   LockKey,
-  CheckCircle,
-  WarningCircle,
-  Coins,
-  TrendUp,
 } from '@phosphor-icons/react';
 import { formatRupiah } from '@/lib/formatters';
 import { Wallet, Budget, ColdMoneyInfo } from '@/lib/types';

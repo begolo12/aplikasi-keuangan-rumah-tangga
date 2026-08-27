@@ -3,14 +3,8 @@
 import React from 'react';
 import {
   Scales,
-  ShieldCheck,
-  ShieldWarning,
   Coins,
-  Vault,
-  Package,
-  Receipt,
   HandCoins,
-  Sparkle,
   CheckCircle,
   WarningCircle,
   FileCsv,

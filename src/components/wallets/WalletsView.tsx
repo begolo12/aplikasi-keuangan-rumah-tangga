@@ -17,8 +17,6 @@ import {
   ArrowsLeftRight,
   Wallet as WalletIcon,
   ArrowsClockwise,
-  CheckCircle,
-  Scales,
 } from '@phosphor-icons/react';
 
 const COLOR_NAMES: Record<string, string> = {

@@ -4,7 +4,6 @@ import { query, withTransaction } from '@/lib/db';
 import { transactionSchema, transactionListQuerySchema } from '@/lib/validations';
 import { handleRouteError, BusinessError, readJsonBody } from '@/lib/apiHelpers';
 import { Transaction } from '@/lib/types';
-import { formatRupiah } from '@/lib/formatters';
 
 const IDEMPOTENCY_KEY_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -148,7 +147,7 @@ export async function POST(req: NextRequest) {
         throw new BusinessError('Dompet tidak ditemukan.', 404);
       }
 
-      const sourceWallet = locked.rows.find((r: { id: string }) => r.id === validated.wallet_id);
+      const _sourceWallet = locked.rows.find((r: { id: string }) => r.id === validated.wallet_id);
       const destWallet = validated.to_wallet_id
         ? locked.rows.find((r: { id: string }) => r.id === validated.to_wallet_id)
         : null;

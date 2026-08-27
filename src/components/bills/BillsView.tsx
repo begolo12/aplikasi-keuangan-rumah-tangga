@@ -1,13 +1,13 @@
 'use client';
 
 import React, { useState } from 'react';
-import { RecurringBill, Wallet, Category, RecurringType } from '@/lib/types';
+import { RecurringBill, Wallet, Category } from '@/lib/types';
 import { BillItem } from './BillItem';
 import { Button } from '../ui/Button';
 import { Modal } from '../ui/Modal';
 import { AmountInput } from '../ui/AmountInput';
 import { EmptyState } from '../ui/EmptyState';
-import { Plus, Receipt, Lightning, ArrowDownLeft, ArrowUpRight, Sparkle } from '@phosphor-icons/react';
+import { Plus, Receipt, Lightning, ArrowDownLeft, Sparkle } from '@phosphor-icons/react';
 import { formatRupiah, INDONESIAN_MONTHS } from '@/lib/formatters';
 import { useBillForm } from './useBillForm';
 import { ApiError, apiFetch, endpoints } from '@/lib/apiFetch';

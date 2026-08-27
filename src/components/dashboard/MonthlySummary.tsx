@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { ArrowDownRight, ArrowUpRight, Scales, WarningCircle, CheckCircle, Sparkle } from '@phosphor-icons/react';
+import { ArrowDownRight, ArrowUpRight, Scales, WarningCircle, CheckCircle } from '@phosphor-icons/react';
 import { MonthlySummary as MonthlySummaryType } from '@/lib/types';
 import { formatCompactRupiah, formatRupiah, INDONESIAN_MONTHS } from '@/lib/formatters';
 

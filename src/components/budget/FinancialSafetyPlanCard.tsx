@@ -2,14 +2,10 @@
 
 import React from 'react';
 import {
-  ShieldCheck,
-  ShieldWarning,
   LockKeyOpen,
   LockKey,
-  Sparkle,
   WarningCircle,
   Vault,
-  ArrowsClockwise,
   CheckCircle,
 } from '@phosphor-icons/react';
 import { formatRupiah } from '@/lib/formatters';

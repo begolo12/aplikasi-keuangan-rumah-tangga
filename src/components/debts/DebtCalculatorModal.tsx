@@ -5,25 +5,19 @@ import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { AmountInput } from '../ui/AmountInput';
 import { formatRupiah } from '@/lib/formatters';
-import { MonthlySummary as MonthlySummaryType, Debt, Budget, Wallet } from '@/lib/types';
+import { MonthlySummary as MonthlySummaryType, Budget, Wallet } from '@/lib/types';
 import { ApiError, apiFetch, endpoints } from '@/lib/apiFetch';
 import {
   Calculator,
   ShieldCheck,
   ShieldWarning,
   WarningOctagon,
-  Sparkle,
-  TrendUp,
-  Receipt,
-  Vault,
-  Plus,
 } from '@phosphor-icons/react';
 
 interface DebtCalculatorModalProps {
   isOpen: boolean;
   onClose: () => void;
   summary: MonthlySummaryType | null;
-  debts: Debt[];
   budgets: Budget[];
   wallets: Wallet[];
   onSuccess: () => void;
@@ -33,7 +27,6 @@ export function DebtCalculatorModal({
   isOpen,
   onClose,
   summary,
-  debts,
   budgets,
   wallets,
   onSuccess,
@@ -84,13 +77,12 @@ export function DebtCalculatorModal({
   // c. Dampak ke Target Dana Darurat (Kewajiban bertambah sehingga 4x Anggaran naik)
   const newBaselineMonthly = baselineMonthly + monthlyInstallment;
   const newTargetEmergencyFund = newBaselineMonthly * 4;
-  const emergencyFundGap = Math.max(0, newTargetEmergencyFund - currentEmergencyFund);
 
   // d. Skor & Status Keamanan Finansial (KPI)
   let status: 'safe' | 'warning' | 'danger' = 'safe';
   let statusTitle = 'Aman & Layak Diambil';
   let badgeColor = 'bg-primary/10 text-primary border-primary/20';
-  let conclusions: string[] = [];
+  const conclusions: string[] = [];
 
   if (monthlyIncome <= 0) {
     status = 'danger';

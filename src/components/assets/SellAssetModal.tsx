@@ -11,10 +11,7 @@ import {
   CurrencyDollar,
   CheckCircle,
   WarningCircle,
-  Coins,
-  ShieldCheck,
   Lightning,
-  Sparkle,
 } from '@phosphor-icons/react';
 
 interface SellAssetModalProps {

@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { RecurringBill } from '@/lib/types';
 import { formatRupiah } from '@/lib/formatters';
-import { CheckCircle, WarningCircle, Clock, Trash, Receipt, ArrowDownLeft, ArrowUpRight, Lightning } from '@phosphor-icons/react';
+import { CheckCircle, WarningCircle, Clock, Trash, Receipt, ArrowDownLeft, Lightning } from '@phosphor-icons/react';
 
 interface BillItemProps {
   bill: RecurringBill;

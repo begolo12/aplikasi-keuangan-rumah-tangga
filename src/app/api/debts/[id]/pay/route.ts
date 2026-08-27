@@ -50,7 +50,8 @@ export async function POST(req: NextRequest, context: RouteContext) {
         throw new BusinessError('Dompet yang dipilih tidak ditemukan.', 404);
       }
 
-      const wallet = walletRes.rows[0];
+      const _wallet = walletRes.rows[0];
+      void _wallet;
 
       // 3. Mutasi saldo dompet (saldo diizinkan minus)
       if (debt.type === 'payable') {

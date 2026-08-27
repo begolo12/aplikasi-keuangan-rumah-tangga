@@ -3,13 +3,9 @@
 import React, { useState } from 'react';
 import {
   ChartLineUp,
-  TrendDown,
-  TrendUp,
-  Sparkle,
   PencilSimple,
   CheckCircle,
   WarningCircle,
-  CaretRight,
 } from '@phosphor-icons/react';
 import { formatRupiah, INDONESIAN_MONTHS } from '@/lib/formatters';
 import { Budget, ExpenseProjection } from '@/lib/types';

@@ -2,22 +2,12 @@
 
 import React from 'react';
 import {
-  Scales,
-  ShieldCheck,
-  ShieldWarning,
-  WarningOctagon,
   Sparkle,
-  TrendUp,
-  TrendDown,
-  Receipt,
-  Vault,
-  Package,
   CheckCircle,
-  WarningCircle,
   Lightbulb,
   FileCsv,
 } from '@phosphor-icons/react';
-import { formatRupiah, INDONESIAN_MONTHS } from '@/lib/formatters';
+import { formatRupiah } from '@/lib/formatters';
 import { Wallet, Debt, Asset, Budget, MonthlySummary as MonthlySummaryType, FinancialRatiosResult } from '@/lib/types';
 
 interface FinancialRatiosReportProps {
@@ -26,8 +16,8 @@ interface FinancialRatiosReportProps {
   debts: Debt[];
   assets: Asset[];
   budgets: Budget[];
-  selectedMonth: number;
-  selectedYear: number;
+  selectedMonth?: number;
+  selectedYear?: number;
   onExportCsv?: () => void;
 }
 

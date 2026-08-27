@@ -27,7 +27,6 @@ import {
   CalendarCheck,
   CalendarPlus,
   CurrencyDollar,
-  CheckCircle,
 } from '@phosphor-icons/react';
 
 interface AssetsViewProps {
@@ -362,7 +361,6 @@ export function AssetsView({ onRefreshParent }: AssetsViewProps) {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5 sm:gap-3">
           {assets.map((asset) => {
             const catMeta = CATEGORY_MAP[asset.category] || CATEGORY_MAP.lainnya;
-            const methodMeta = METHOD_MAP[asset.depreciation_method] || METHOD_MAP.straight_line;
             const CatIcon = catMeta.icon;
 
             const purchasePrice = asset.purchase_price || 0;

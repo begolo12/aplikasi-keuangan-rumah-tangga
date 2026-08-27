@@ -8,13 +8,7 @@ import { formatRupiah } from '@/lib/formatters';
 import { Asset, Wallet } from '@/lib/types';
 import { ApiError, apiFetch, endpoints } from '@/lib/apiFetch';
 import {
-  CalendarCheck,
   Wrench,
-  Receipt,
-  WarningOctagon,
-  Sparkle,
-  Plus,
-  ShieldCheck,
 } from '@phosphor-icons/react';
 
 interface AssetScheduleModalProps {

@@ -109,10 +109,11 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
         ])
       ).sort();
 
-      const locked = await client.query(
+      const _locked = await client.query(
         'SELECT id, name, balance FROM wallets WHERE id = ANY($1::uuid[]) AND user_id = $2 ORDER BY id FOR UPDATE',
         [lockIds, session.userId]
       );
+      void _locked;
 
       // 2. Balik efek saldo transaksi lama
       if (oldTrx.type === 'expense') {

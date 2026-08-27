@@ -2,9 +2,6 @@
 
 import React from 'react';
 import {
-  ArrowDownLeft,
-  ArrowUpRight,
-  Scales,
   CheckCircle,
   WarningCircle,
   Sparkle,

@@ -553,7 +553,6 @@ export function DebtsView({
         isOpen={isCalcOpen}
         onClose={() => setIsCalcOpen(false)}
         summary={summary}
-        debts={debts}
         budgets={budgets}
         wallets={wallets}
         onSuccess={onRefresh}
