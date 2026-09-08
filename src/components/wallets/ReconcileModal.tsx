@@ -1,12 +1,11 @@
-'use client';
-
+import { getLocalDateString } from '@/lib/formatters';
 import React, { useState } from 'react';
+
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
-import { AmountInput } from '../ui/AmountInput';
-import { formatRupiah } from '@/lib/formatters';
 import { Wallet } from '@/lib/types';
-import { ApiError, apiFetch, endpoints } from '@/lib/apiFetch';
+import { apiFetch, endpoints } from '@/lib/apiFetch';
+
 import {
   ArrowsClockwise,
   CheckCircle,
@@ -27,21 +26,19 @@ export function ReconcileModal({
   onSuccess,
 }: ReconcileModalProps) {
   const [actualBalance, setActualBalance] = useState<number>(() => wallet?.balance || 0);
-  const [reconcileDate, setReconcileDate] = useState(() => new Date().toISOString().split('T')[0]);
+  const [reconcileDate, setReconcileDate] = useState(() => getLocalDateString());
   const [notes, setNotes] = useState('');
   const [autoAdjust, setAutoAdjust] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Update initial value when wallet changes
-  React.useEffect(() => {
-    if (wallet) {
-      setActualBalance(wallet.balance);
-      setNotes('');
-      setAutoAdjust(true);
-      setError(null);
-    }
-  }, [wallet]);
+  const [prevWalletId, setPrevWalletId] = useState<string | null>(wallet?.id || null);
+  if (wallet && wallet.id !== prevWalletId) {
+    setPrevWalletId(wallet.id);
+    setActualBalance(wallet.balance);
+    setNotes('');
+    setReconcileDate(getLocalDateString());
+  }
 
   if (!wallet) return null;
 

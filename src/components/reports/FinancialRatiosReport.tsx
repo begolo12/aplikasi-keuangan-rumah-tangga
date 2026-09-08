@@ -49,6 +49,12 @@ export function calculateFinancialRatios(
     .reduce((sum, d) => sum + (d.remaining_amount || 0), 0);
 
   const pendingBills = summary?.total_bills_pending_amount || 0;
+  
+  // Hitung cicilan bulanan untuk DSR (bukan total pokok hutang)
+  const totalMonthlyInstallments = debts
+    .filter((d) => d.type === 'payable' && d.status !== 'paid')
+    .reduce((sum, d) => sum + (d.monthly_installment || 0), 0);
+  
   const totalLiabilities = totalPayables + pendingBills;
 
   // Total Harta & Net Worth
@@ -65,8 +71,8 @@ export function calculateFinancialRatios(
   // 2. DAR (Debt to Asset Ratio %) = (Total Hutang / Total Aset) * 100%
   const dar_ratio = totalAssets > 0 ? Math.round((totalLiabilities / totalAssets) * 100) : 0;
 
-  // 3. DSR / DTI (Debt Service Ratio %) = (Hutang Tertunda / Pemasukan Bulanan) * 100%
-  const dsr_ratio = monthlyIncome > 0 ? Math.round((totalLiabilities / monthlyIncome) * 100) : totalLiabilities > 0 ? 100 : 0;
+  // 3. DSR / DTI (Debt Service Ratio %) = (Beban Cicilan Bulanan / Pemasukan Bulanan) * 100%
+  const dsr_ratio = monthlyIncome > 0 ? Math.round(((totalMonthlyInstallments + pendingBills) / monthlyIncome) * 100) : 0;
 
   // 4. Liquidity Ratio (Ketahanan Kas dalam Bulan) = Kas Likuid / Anggaran Bulanan
   const liquidity_months = Math.round((totalCash / baselineExpense) * 10) / 10;
@@ -160,7 +166,7 @@ export function calculateFinancialRatios(
       value: `${dsr_ratio}%`,
       ideal: '<= 20% (Maks 30%)',
       status: dsr_ratio <= 20 ? ('safe' as const) : dsr_ratio <= 35 ? ('warning' as const) : ('danger' as const),
-      description: 'Persentase pemasukan bulanan yang terserap untuk melunasi kewajiban.',
+      description: 'Persentase pemasukan bulanan yang terserap untuk cicilan hutang.',
     },
     {
       name: 'Liquidity Ratio (Ketahanan Kas)',
@@ -226,8 +232,8 @@ export function FinancialRatiosReport({
   debts,
   assets,
   budgets,
-  selectedMonth,
-  selectedYear,
+  selectedMonth: _selectedMonth,
+  selectedYear: _selectedYear,
   onExportCsv,
 }: FinancialRatiosReportProps) {
   const result = calculateFinancialRatios(summary, wallets, debts, assets, budgets);

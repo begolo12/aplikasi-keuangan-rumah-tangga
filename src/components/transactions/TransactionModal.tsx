@@ -4,11 +4,10 @@ import React, { useRef, useState } from 'react';
 import { Modal } from '../ui/Modal';
 import { AmountInput } from '../ui/AmountInput';
 import { Button } from '../ui/Button';
-import { Wallet, Category, Transaction, TransactionType, AssetCategory, ParsedReceiptResult } from '@/lib/types';
+import { Wallet, Category, Transaction, TransactionType, AssetCategory, ParsedReceiptResult, Budget } from '@/lib/types';
 import { enqueueOfflineMutation } from '@/lib/offlineQueue';
-import { apiFetch } from '@/lib/apiFetch';
-import { formatRupiah } from '@/lib/formatters';
-import { WifiSlash, PencilSimple, Plus, Package, Sparkle } from '@phosphor-icons/react';
+import { apiFetch, endpoints } from '@/lib/apiFetch';
+import { formatRupiah, getLocalDateString, formatCurrency } from '@/lib/formatters';
 import { ReceiptParserModal } from './ReceiptParserModal';
 
 interface TransactionModalProps {
@@ -19,6 +18,7 @@ interface TransactionModalProps {
   wallets: Wallet[];
   categories: Category[];
   userId: string;
+  budgets?: Budget[];
   onSuccess: () => void;
   initialReceipt?: ParsedReceiptResult | null;
 }
@@ -29,6 +29,7 @@ interface TransactionFormProps {
   wallets: Wallet[];
   categories: Category[];
   userId: string;
+  budgets?: Budget[];
   onSuccess: () => void;
   onClose: () => void;
   onOpenReceiptParser?: () => void;
@@ -41,11 +42,13 @@ function TransactionForm({
   wallets,
   categories,
   userId,
+  budgets = [],
   onSuccess,
   onClose,
   onOpenReceiptParser,
   appliedReceipt,
 }: TransactionFormProps) {
+
   const isEditing = Boolean(editingTransaction);
 
   const defaultW = wallets.find((w) => w.is_default) || wallets[0];
@@ -76,9 +79,8 @@ function TransactionForm({
   const [assetName, setAssetName] = useState('');
   const [assetCategory, setAssetCategory] = useState<AssetCategory>('kendaraan');
   const [date, setDate] = useState(
-    () => appliedReceipt?.date || editingTransaction?.date || new Date().toISOString().split('T')[0]
+    () => appliedReceipt?.date || editingTransaction?.date || getLocalDateString()
   );
-
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [offlineNotice, setOfflineNotice] = useState(false);
@@ -108,6 +110,11 @@ function TransactionForm({
   const filteredCategories = categories.filter((c) => c.type === (type === 'income' ? 'income' : 'expense'));
   const selectedSourceWallet = wallets.find((w) => w.id === walletId);
 
+  // Peringatan pra-simpan (non-blokir): overdraft & lewati anggaran.
+  const debitPreview = type === 'transfer' ? amount + (adminFee || 0) : type === 'expense' ? amount : 0;
+  const overdraftPreview = type !== 'income' && selectedSourceWallet ? debitPreview > selectedSourceWallet.balance : false;
+  const budgetPreview = type === 'expense' && categoryId ? budgets.find((b) => b.category_id === categoryId) : undefined;
+  const overBudgetPreview = budgetPreview ? budgetPreview.spent + amount > (budgetPreview.effective_limit ?? budgetPreview.monthly_limit) : false;
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (submittingRef.current) return;
@@ -132,7 +139,7 @@ function TransactionForm({
       type,
       amount,
       admin_fee: adminFee,
-      category_id: type === 'transfer' ? null : categoryId || null,
+      category_id: type === 'transfer' ? (adminFee > 0 ? categoryId || null : null) : categoryId || null,
       wallet_id: walletId,
       to_wallet_id: type === 'transfer' ? toWalletId : null,
       create_asset: type === 'expense' && createAsset,
@@ -168,6 +175,21 @@ function TransactionForm({
       const method = isEditing ? 'PUT' : 'POST';
 
       await apiFetch(endpoint, { method, json: payload });
+
+      // AI receipt learning: simpan pemetaan merchant -> kategori dari kebiasaan user
+      // (fire-and-forget; kegagalan tidak boleh menggagalkan transaksi yang sudah tersimpan).
+      if (appliedReceipt?.merchant && !isEditing && categoryId) {
+        apiFetch(endpoints.aiMerchantMap, {
+          method: 'POST',
+          json: {
+            merchant_name: appliedReceipt.merchant,
+            category_id: categoryId,
+            was_override:
+              Boolean(appliedReceipt.suggested_category_id) &&
+              categoryId !== appliedReceipt.suggested_category_id,
+          },
+        }).catch(() => {});
+      }
 
       onSuccess();
       onClose();
@@ -254,18 +276,24 @@ function TransactionForm({
             <label htmlFor="tx-category" className="block text-xs font-semibold text-text-muted">
               Kategori Transaksi
             </label>
-            <select
-              id="tx-category"
-              value={categoryId}
-              onChange={(e) => setCategoryId(e.target.value)}
-              className="w-full h-11 px-3 bg-background border border-border rounded-xl text-sm font-medium focus:ring-2 focus:ring-primary focus:outline-none"
-            >
-              {filteredCategories.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
+            {filteredCategories.length === 0 ? (
+              <div className="p-3 bg-warning/10 border border-warning/20 rounded-xl text-xs font-semibold text-warning">
+                Belum ada kategori tipe ini. Buat kategori baru di Pengaturan terlebih dahulu.
+              </div>
+            ) : (
+              <select
+                id="tx-category"
+                value={categoryId}
+                onChange={(e) => setCategoryId(e.target.value)}
+                className="w-full h-11 px-3 bg-background border border-border rounded-xl text-sm font-medium focus:ring-2 focus:ring-primary focus:outline-none"
+              >
+                {filteredCategories.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
+            )}
           </div>
         )}
 
@@ -326,25 +354,39 @@ function TransactionForm({
       {/* 3. Amount Input with live formatting & presets */}
       <AmountInput value={amount} onChange={setAmount} />
 
-      {/* Extra fee for transfer */}
+      {/* Extra fee for transfer — use AmountInput agar konsisten & tidak ada input number mentah */}
       {type === 'transfer' && (
-        <div className="space-y-1">
-          <label htmlFor="tx-admin-fee" className="block text-xs font-semibold text-text-muted">
-            Biaya Admin Transfer (Opsional)
-          </label>
-          <input
-            id="tx-admin-fee"
-            type="number"
-            min="0"
-            value={adminFee || ''}
-            onChange={(e) => setAdminFee(e.target.value ? parseInt(e.target.value, 10) : 0)}
-            placeholder="0 (Contoh: 2500)"
-            className="w-full h-11 px-4 bg-background border border-border rounded-xl text-sm font-medium focus:ring-2 focus:ring-primary focus:outline-none"
-          />
-        </div>
+        <AmountInput
+          id="tx-admin-fee"
+          label="Biaya Admin Transfer (Opsional)"
+          value={adminFee}
+          onChange={setAdminFee}
+          placeholder="0"
+        />
       )}
 
       {/* 4. Date Selector */}
+      {/* Kategori biaya admin: fee dibukukan sebagai pengeluaran berkategori */}
+      {type === 'transfer' && adminFee > 0 && (
+        <div className="space-y-1">
+          <label htmlFor="tx-fee-category" className="block text-xs font-semibold text-text-muted">
+            Kategori Biaya Admin
+          </label>
+          <select
+            id="tx-fee-category"
+            value={categoryId}
+            onChange={(e) => setCategoryId(e.target.value)}
+            className="w-full h-11 px-3 bg-background border border-border rounded-xl text-sm font-medium focus:ring-2 focus:ring-primary focus:outline-none"
+          >
+            <option value="">Tanpa kategori</option>
+            {filteredCategories.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
       <div className="space-y-1">
         <label htmlFor="tx-date" className="block text-xs font-semibold text-text-muted">
           Tanggal Transaksi
@@ -356,16 +398,22 @@ function TransactionForm({
             required
             value={date}
             onChange={(e) => setDate(e.target.value)}
+            // eslint-disable-next-line react-hooks/purity
+            max={getLocalDateString(new Date(Date.now() + 24 * 60 * 60 * 1000))}
             className="flex-1 h-11 px-3 bg-background border border-border rounded-xl text-sm font-medium focus:ring-2 focus:ring-primary focus:outline-none"
           />
           <button
             type="button"
-            onClick={() => setDate(new Date().toISOString().split('T')[0])}
+            onClick={() => setDate(getLocalDateString())}
             className="px-3 h-11 bg-surface-2 hover:bg-surface-3 rounded-xl text-xs font-bold text-text-muted transition-colors"
           >
             Hari Ini
           </button>
         </div>
+        {/* eslint-disable-next-line react-hooks/purity */}
+        {date && new Date(date).getTime() > Date.now() + 7 * 24 * 60 * 60 * 1000 && (
+          <p className="text-xs text-warning font-medium">Tanggal lebih dari 7 hari ke depan, pastikan benar.</p>
+        )}
       </div>
 
       {/* 5. Description & Autocomplete suggestions */}
@@ -454,6 +502,24 @@ function TransactionForm({
         </div>
       )}
 
+      {/* Peringatan pra-simpan: informatif, tidak memblokir (overdraft didukung sistem) */}
+      {(overdraftPreview || overBudgetPreview) && (
+        <div role="status" className="p-3 bg-warning/10 border border-warning/30 rounded-2xl text-[11px] font-semibold text-warning space-y-0.5">
+          {overdraftPreview && (
+            <p>
+              Saldo {selectedSourceWallet?.name || 'dompet'} tidak cukup ({formatRupiah(selectedSourceWallet?.balance || 0)}):
+              saldo akan minus {formatRupiah(debitPreview - (selectedSourceWallet?.balance || 0))}.
+            </p>
+          )}
+          {overBudgetPreview && budgetPreview && (
+            <p>
+              Melewati anggaran {budgetPreview.category_name || 'kategori ini'}:
+              {formatRupiah(budgetPreview.spent)} + {formatRupiah(amount)} dari {formatRupiah(budgetPreview.effective_limit ?? budgetPreview.monthly_limit)}.
+            </p>
+          )}
+        </div>
+      )}
+
       {/* Submit Button */}
       <Button
         type="submit"
@@ -478,19 +544,21 @@ export function TransactionModal({
   wallets,
   categories,
   userId,
+  budgets = [],
   onSuccess,
   initialReceipt = null,
 }: TransactionModalProps) {
   const isEditing = Boolean(editingTransaction);
   const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false);
-  const [appliedReceipt, setAppliedReceipt] = useState<ParsedReceiptResult | null>(initialReceipt);
+  const [internalReceipt, setInternalReceipt] = useState<ParsedReceiptResult | null>(null);
+  const appliedReceipt = internalReceipt ?? initialReceipt;
 
   const handleApplyReceipt = (parsed: ParsedReceiptResult) => {
-    setAppliedReceipt(parsed);
+    setInternalReceipt(parsed);
   };
 
   const handleClose = () => {
-    setAppliedReceipt(null);
+    setInternalReceipt(null);
     onClose();
   };
 
@@ -524,6 +592,7 @@ export function TransactionModal({
             wallets={wallets}
             categories={categories}
             userId={userId}
+            budgets={budgets}
             onSuccess={onSuccess}
             onClose={handleClose}
             onOpenReceiptParser={() => setIsReceiptModalOpen(true)}
@@ -542,4 +611,3 @@ export function TransactionModal({
     </>
   );
 }
-

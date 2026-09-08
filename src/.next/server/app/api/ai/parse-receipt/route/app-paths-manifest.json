@@ -1,0 +1,3 @@
+{
+  "/api/ai/parse-receipt/route": "app/api/ai/parse-receipt/route.js"
+}

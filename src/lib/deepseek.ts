@@ -1,3 +1,4 @@
+import { getLocalDateString } from './formatters';
 import { ParsedReceiptResult } from './types';
 import { parsedReceiptResultSchema } from './validations';
 
@@ -18,7 +19,7 @@ export async function parseReceiptWithDeepSeek(payload: DeepSeekParsePayload): P
   const baseUrl = process.env.DEEPSEEK_BASE_URL || 'https://api.deepseek.com';
   const model = process.env.DEEPSEEK_MODEL || 'deepseek-v4-flash';
 
-  const today = new Date().toISOString().split('T')[0];
+  const today = getLocalDateString();
 
   // Fallback heuristik ringan bila API key belum diset atau offline
   if (!apiKey || apiKey.trim() === '' || apiKey.includes('your_deepseek_api_key_here')) {

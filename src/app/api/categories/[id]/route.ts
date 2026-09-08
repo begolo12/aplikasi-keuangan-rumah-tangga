@@ -51,6 +51,12 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
       );
       if (usedInTrx.rows.length > 0) return null;
 
+      const usedInBills = await client.query(
+        `SELECT id FROM recurring_bills WHERE category_id = $1 AND user_id = $2 LIMIT 1`,
+        [id, session.userId]
+      );
+      if (usedInBills.rows.length > 0) return null;
+
       const rows = await client.query(
         `DELETE FROM categories
          WHERE id = $1 AND user_id = $2
@@ -60,6 +66,9 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
            AND NOT EXISTS (
              SELECT 1 FROM budgets b WHERE b.category_id = categories.id AND b.user_id = $2
            )
+           AND NOT EXISTS (
+             SELECT 1 FROM recurring_bills r WHERE r.category_id = categories.id AND r.user_id = $2
+           )
          RETURNING id`,
         [id, session.userId]
       );
@@ -68,7 +77,7 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
 
     if (!deleted) {
       throw new BusinessError(
-        'Kategori ini masih dipakai oleh transaksi atau anggaran dan tidak dapat dihapus. Anda dapat mengubah nama atau ikonnya.'
+        'Kategori ini masih dipakai oleh transaksi, anggaran, atau tagihan rutin dan tidak dapat dihapus. Anda dapat mengubah nama atau ikonnya.'
       );
     }
 

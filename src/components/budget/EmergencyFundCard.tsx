@@ -20,7 +20,7 @@ export function EmergencyFundCard({
 }: EmergencyFundCardProps) {
   // 1. Total Anggaran Bulanan (atau fallback ke realisasi pengeluaran)
   const totalBudgetFromLimits = budgets.reduce((sum, b) => sum + (b.monthly_limit || 0), 0);
-  const baselineMonthly = totalBudgetFromLimits > 0 ? totalBudgetFromLimits : totalExpense > 0 ? totalExpense : 1000000;
+  const baselineMonthly = totalBudgetFromLimits > 0 ? totalBudgetFromLimits : totalExpense > 0 ? totalExpense : 0;
 
   // 2. Target Dana Darurat: Wajib 4x dari Anggaran
   const MULTIPLIER = 4;

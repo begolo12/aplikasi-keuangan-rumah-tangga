@@ -69,6 +69,8 @@ async function runE2ESuite() {
   const testName = 'Budi E2E Tester';
   const testFamily = 'Keluarga Mandiri Sejahtera';
   let userId = '';
+  let secondUserId = '';
+  let secondUserToken = '';
 
   try {
     // ── 1. REGISTRATION & SEEDING ──────────────────────────────────────────────
@@ -90,6 +92,27 @@ async function runE2ESuite() {
 
     userId = userRes.id;
     assert('User berhasil terdaftar dengan UUID valid', Boolean(userId && userId.length === 36));
+
+    // Daftarkan user kedua terpisah untuk pengujian isolasi multi-user (cross-user boundary)
+    const secondEmail = `e2e_second_${Date.now()}@kaskeluarga.test`;
+    const secondUserRes = await withTransaction(async (client) => {
+      const u = await client.query<{ id: string; name: string; email: string; family_name: string }>(
+        `INSERT INTO users (name, email, password_hash, family_name)
+         VALUES ($1, $2, $3, 'Keluarga Tetangga')
+         RETURNING id, name, email, family_name`,
+        ['Tetangga Asing', secondEmail, passwordHash]
+      );
+      const created = u.rows[0];
+      await seedUserData(client, created.id, created.family_name);
+      return created;
+    });
+    secondUserId = secondUserRes.id;
+    secondUserToken = await createSessionToken({
+      userId: secondUserId,
+      email: secondEmail,
+      name: 'Tetangga Asing',
+      familyName: 'Keluarga Tetangga',
+    });
 
     // Verify auto-seeded wallets, categories, and settings
     const seededWallets = await query<{ id: string; name: string; balance: string }>(
@@ -254,17 +277,11 @@ async function runE2ESuite() {
       );
 
       // Isolasi data: PUT dengan user lain harus ditolak (404).
-      const otherToken = await createSessionToken({
-        userId: '11111111-1111-1111-1111-111111111111',
-        email: 'intruder@test.com',
-        name: 'Intruder',
-        familyName: 'Asing',
-      });
       const foreignReq = new NextRequest(`http://localhost/api/transactions/${trxId}`, {
         method: 'PUT',
         headers: {
           'content-type': 'application/json',
-          cookie: `kas_session_token=${otherToken}`,
+          cookie: `kas_session_token=${secondUserToken}`,
         },
         body: JSON.stringify({
           type: 'expense',
@@ -565,11 +582,10 @@ async function runE2ESuite() {
         );
 
         // Isolasi user: contribute atas goal milik orang lain harus ditolak
-        const foreignToken = await createSessionToken({ userId: crypto.randomUUID(), email: 'x@x.test', name: 'X', familyName: 'Y' });
         const foreignRes = await import('../src/app/api/goals/[id]/contribute/route').then(({ POST }) =>
           POST(new NextRequest(`http://localhost/api/goals/${goalId}/contribute`, {
             method: 'POST',
-            headers: { 'content-type': 'application/json', cookie: `kas_session_token=${foreignToken}` },
+            headers: { 'content-type': 'application/json', cookie: `kas_session_token=${secondUserToken}` },
             body: JSON.stringify({ amount: 10000, wallet_id: mainWallet.id }),
           }), { params: Promise.resolve({ id: goalId }) })
         );
@@ -743,14 +759,20 @@ async function runE2ESuite() {
     // ── 12. CLEANUP TEST USER DATA ──────────────────────────────────────────────
     console.log('\n[12] Pembersihan Data Pengujian (Teardown)');
     await query('DELETE FROM users WHERE id = $1', [userId]);
-    const checkDeleted = await query('SELECT id FROM users WHERE id = $1', [userId]);
-    const checkAssetDeleted = await query('SELECT id FROM assets WHERE user_id = $1', [userId]);
+    if (secondUserId) {
+      await query('DELETE FROM users WHERE id = $1', [secondUserId]);
+    }
+    const checkDeleted = await query('SELECT id FROM users WHERE id = $1 OR id = $2', [userId, secondUserId || userId]);
+    const checkAssetDeleted = await query('SELECT id FROM assets WHERE user_id = $1 OR user_id = $2', [userId, secondUserId || userId]);
     assert('Cascade deletion membersihkan seluruh data user uji dan aset tanpa orphan records', checkDeleted.length === 0 && checkAssetDeleted.length === 0);
 
   } catch (err) {
     console.error('\n❌ E2E Execution Error:', err);
     if (userId) {
       await query('DELETE FROM users WHERE id = $1', [userId]).catch(() => {});
+    }
+    if (secondUserId) {
+      await query('DELETE FROM users WHERE id = $1', [secondUserId]).catch(() => {});
     }
     failed++;
   }

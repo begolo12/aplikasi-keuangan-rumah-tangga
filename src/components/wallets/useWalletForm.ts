@@ -18,6 +18,7 @@ export function useWalletForm({ onSuccess }: UseWalletFormOptions) {
   const [icon, setIcon] = useState('bank');
   const [color, setColor] = useState('blue');
   const [isDefault, setIsDefault] = useState(false);
+  const [isShared, setIsShared] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -29,6 +30,7 @@ export function useWalletForm({ onSuccess }: UseWalletFormOptions) {
     setIcon('bank');
     setColor('blue');
     setIsDefault(false);
+    setIsShared(false);
     setError(null);
     setIsAddOpen(true);
   };
@@ -59,6 +61,7 @@ export function useWalletForm({ onSuccess }: UseWalletFormOptions) {
       icon,
       color,
       is_default: isDefault,
+      is_shared: isShared && !editingWallet,
     };
 
     try {
@@ -91,6 +94,8 @@ export function useWalletForm({ onSuccess }: UseWalletFormOptions) {
     setColor,
     isDefault,
     setIsDefault,
+    isShared,
+    setIsShared,
     isLoading,
     error,
     openAddModal,

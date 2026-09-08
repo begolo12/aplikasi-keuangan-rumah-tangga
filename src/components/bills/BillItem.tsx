@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { RecurringBill } from '@/lib/types';
 import { formatRupiah } from '@/lib/formatters';
-import { CheckCircle, WarningCircle, Clock, Trash, Receipt, ArrowDownLeft, Lightning } from '@phosphor-icons/react';
+import { CheckCircle, WarningCircle, Clock, Trash, Receipt, ArrowDownLeft, Lightning, ArrowsLeftRight } from '@phosphor-icons/react';
 
 interface BillItemProps {
   bill: RecurringBill;
@@ -16,6 +16,24 @@ export function BillItem({ bill, onPay, onDelete }: BillItemProps) {
   const [isDeleting, setIsDeleting] = useState(false);
 
   const isIncome = bill.type === 'income';
+  const isTransfer = bill.type === 'transfer';
+
+  const getTypeBadge = () => {
+    if (isTransfer) {
+      return (
+        <span className="text-[10px] font-bold px-2 py-0.5 rounded-md border bg-primary/10 text-primary border-primary/20">
+          Transfer Amplop
+        </span>
+      );
+    }
+    return (
+      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md border ${
+        isIncome ? 'bg-income/10 text-income border-income/20' : 'bg-expense/10 text-expense border-expense/20'
+      }`}>
+        {isIncome ? 'Pemasukan Pasti' : 'Pengeluaran Pasti'}
+      </span>
+    );
+  };
 
   const getStatusBadge = () => {
     switch (bill.status) {
@@ -81,17 +99,18 @@ export function BillItem({ bill, onPay, onDelete }: BillItemProps) {
               : 'bg-primary/10 text-primary border-primary/20'
           }`}
         >
-          {isIncome ? <ArrowDownLeft size={22} weight="bold" /> : <Receipt size={22} weight="duotone" />}
+          {isIncome ? <ArrowDownLeft size={22} weight="bold" /> : isTransfer ? <ArrowsLeftRight size={22} weight="bold" /> : <Receipt size={22} weight="duotone" />}
         </div>
 
         <div className="space-y-1 min-w-0 flex-1">
           <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
             <h4 className="text-xs sm:text-sm md:text-base font-bold text-text truncate max-w-full">{bill.title}</h4>
-            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md border ${
-              isIncome ? 'bg-income/10 text-income border-income/20' : 'bg-expense/10 text-expense border-expense/20'
-            }`}>
-              {isIncome ? 'Pemasukan Pasti' : 'Pengeluaran Pasti'}
-            </span>
+            {getTypeBadge()}
+            {bill.debt_id && (
+              <span className="text-[10px] font-bold text-expense bg-expense/10 px-2 py-0.5 rounded-md border border-expense/20">
+                Cicilan Hutang
+              </span>
+            )}
             {bill.auto_record && (
               <span className="text-[10px] font-semibold text-primary bg-primary/10 px-1.5 py-0.5 rounded-md flex items-center gap-0.5">
                 <Lightning size={12} weight="fill" /> Auto
@@ -100,10 +119,19 @@ export function BillItem({ bill, onPay, onDelete }: BillItemProps) {
             {getStatusBadge()}
           </div>
           <p className="text-xs text-text-muted">
-            Nominal: <span className={`font-extrabold whitespace-nowrap tabular-nums ${isIncome ? 'text-income' : 'text-text'}`}>
-              {formatRupiah(bill.amount)}
-            </span>
-            {bill.category_name && ` • ${bill.category_name}`}
+            {isTransfer ? (
+              <>
+                Pindah: <span className="font-extrabold whitespace-nowrap tabular-nums text-primary">{formatRupiah(bill.amount)}</span>
+                {bill.to_wallet_name && ` → ${bill.to_wallet_name}`}
+              </>
+            ) : (
+              <>
+                Nominal: <span className={`font-extrabold whitespace-nowrap tabular-nums ${isIncome ? 'text-income' : 'text-text'}`}>
+                  {formatRupiah(bill.amount)}
+                </span>
+                {bill.category_name && ` • ${bill.category_name}`}
+              </>
+            )}
           </p>
         </div>
       </div>
@@ -116,7 +144,7 @@ export function BillItem({ bill, onPay, onDelete }: BillItemProps) {
               isIncome ? 'bg-income hover:opacity-90' : 'bg-primary hover:bg-primary-hover'
             }`}
           >
-            {isIncome ? 'Catat Masuk Kas' : 'Bayar Sekarang'}
+            {isIncome ? 'Catat Masuk Kas' : isTransfer ? 'Jalankan Transfer' : 'Bayar Sekarang'}
           </button>
         )}
 

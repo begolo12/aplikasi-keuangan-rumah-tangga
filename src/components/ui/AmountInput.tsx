@@ -9,9 +9,22 @@ interface AmountInputProps {
   disabled?: boolean;
   /** id for the input so an external <label htmlFor> can target it */
   id?: string;
+  /** Izinkan nilai negatif (untuk saldo awal overdraft) */
+  allowNegative?: boolean;
+  /** Placeholder kustom */
+  placeholder?: string;
 }
 
-export function AmountInput({ value, onChange, label = 'Nominal (Rp)', error, disabled, id }: AmountInputProps) {
+export function AmountInput({
+  value,
+  onChange,
+  label = 'Nominal (Rp)',
+  error,
+  disabled,
+  id,
+  allowNegative = false,
+  placeholder,
+}: AmountInputProps) {
   const inputId = id ?? `amount-${label.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
   const formatDisplay = (num: number) => {
     if (!num || num === 0) return '';
@@ -19,9 +32,11 @@ export function AmountInput({ value, onChange, label = 'Nominal (Rp)', error, di
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const raw = e.target.value.replace(/\D/g, '');
-    const num = raw ? parseInt(raw, 10) : 0;
-    onChange(num);
+    const raw = e.target.value.trim();
+    const isNegative = allowNegative && raw.startsWith('-');
+    const digits = raw.replace(/\D/g, '');
+    const num = digits ? parseInt(digits, 10) : 0;
+    onChange(isNegative ? -num : num);
   };
 
   const addPreset = (amountToAdd: number) => {
@@ -49,21 +64,24 @@ export function AmountInput({ value, onChange, label = 'Nominal (Rp)', error, di
         <span className="absolute left-4 text-base font-bold text-text-muted select-none">Rp</span>
         <input
           type="text"
-          inputMode="numeric"
+          inputMode={allowNegative ? 'text' : 'numeric'}
           id={inputId}
           disabled={disabled}
           value={formatDisplay(value)}
           onChange={handleInputChange}
-          placeholder="0"
+          placeholder={placeholder ?? '0'}
           aria-label={label ? undefined : 'Nominal (Rp)'}
+          aria-invalid={Boolean(error)}
+          aria-describedby={error ? `${inputId}-error` : undefined}
           className={`w-full h-14 pl-12 pr-10 text-xl font-bold bg-surface border rounded-2xl focus:bg-background focus:ring-2 focus:ring-primary focus:outline-none transition-all placeholder:text-text-muted/40 ${
             error ? 'border-expense ring-1 ring-expense' : 'border-border'
           }`}
         />
-        {value > 0 && !disabled && (
+        {value !== 0 && !disabled && (
           <button
             type="button"
             onClick={clear}
+            aria-label="Bersihkan nominal"
             className="absolute right-3 p-1 text-text-muted hover:text-text rounded-full"
           >
             <XCircle size={20} weight="fill" />
@@ -71,7 +89,11 @@ export function AmountInput({ value, onChange, label = 'Nominal (Rp)', error, di
         )}
       </div>
 
-      {error && <p className="text-xs text-expense font-medium">{error}</p>}
+      {error && (
+        <p id={`${inputId}-error`} role="alert" className="text-xs text-expense font-medium">
+          {error}
+        </p>
+      )}
 
       {/* Preset shortcut buttons */}
       <div className="flex flex-wrap gap-1.5 pt-1">

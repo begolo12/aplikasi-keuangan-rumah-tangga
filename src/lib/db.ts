@@ -15,6 +15,10 @@ export function getDbPool(): Pool {
       idleTimeoutMillis: 30000,
       connectionTimeoutMillis: 5000,
     });
+    // Tangani error tak terduga pada idle client di pool agar tidak melempar uncaught exception
+    pool.on('error', (err) => {
+      console.error('[DB] Unexpected error on idle database client:', err.message);
+    });
   }
   return pool;
 }

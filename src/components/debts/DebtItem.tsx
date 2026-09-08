@@ -124,6 +124,11 @@ export function DebtItem({ debt, onPay, onDelete }: DebtItemProps) {
               <h4 className="text-xs sm:text-sm md:text-base font-bold text-text truncate max-w-full">
                 {debt.person_name}
               </h4>
+              {debt.start_date && (
+                <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-md bg-surface-2 text-text-muted border border-border">
+                  Mulai {formatDate(debt.start_date, 'short')}
+                </span>
+              )}
               {categoryLabel && (
                 <span className="text-[9px] font-extrabold px-1.5 py-0.5 rounded-md bg-surface-2 text-text-muted border border-border">
                   {categoryLabel}
@@ -217,7 +222,12 @@ export function DebtItem({ debt, onPay, onDelete }: DebtItemProps) {
         </div>
 
         <div className="flex items-center justify-between text-[11px] text-text-muted">
-          <span>Sudah Dibayar: <span className="font-semibold text-text whitespace-nowrap tabular-nums">{formatRupiah(debt.paid_amount)}</span></span>
+          <span>
+            Sudah Dibayar: <span className="font-semibold text-text whitespace-nowrap tabular-nums">{formatRupiah(debt.paid_amount)}</span>
+            {debt.monthly_installment && debt.tenor_months && debt.monthly_installment > 0
+              ? ` (Bulan ke-${Math.min(debt.tenor_months, Math.round(debt.paid_amount / debt.monthly_installment))} dari ${debt.tenor_months})`
+              : ''}
+          </span>
           <span className="font-bold">{percentage}%</span>
         </div>
       </div>

@@ -313,6 +313,88 @@ async function initializeSchema(req: NextRequest): Promise<NextResponse> {
       CREATE INDEX IF NOT EXISTS idx_goal_contributions_user ON goal_contributions(user_id);
     `);
 
+    // Subscription tracking untuk langganan berulang (Netflix, Spotify, dll)
+  await client.query(`
+      CREATE TABLE IF NOT EXISTS subscriptions (
+        id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_id         UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        provider        VARCHAR(100) NOT NULL,
+        amount          NUMERIC(15,2) NOT NULL CHECK (amount > 0),
+        cycle           VARCHAR(20) NOT NULL CHECK (cycle IN ('daily','weekly','monthly','yearly')),
+        next_charge_date DATE NOT NULL DEFAULT CURRENT_DATE,
+        category_id     UUID REFERENCES categories(id) ON DELETE SET NULL,
+        wallet_id       UUID REFERENCES wallets(id) ON DELETE SET NULL,
+        notes           TEXT,
+        is_active       BOOLEAN NOT NULL DEFAULT TRUE,
+        created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+      CREATE INDEX IF NOT EXISTS idx_subscriptions_user ON subscriptions(user_id);
+      CREATE INDEX IF NOT EXISTS idx_subscriptions_cycle ON subscriptions(cycle);
+      CREATE INDEX IF NOT EXISTS idx_subscriptions_active_next ON subscriptions(is_active, next_charge_date);
+    `);
+
+    // Budget templates: pre-defined templates per user untuk quick-start budgeting.
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS budgets_templates (
+        id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_id         UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        name            VARCHAR(100) NOT NULL,
+        description     TEXT,
+        rule_type       VARCHAR(50) NOT NULL CHECK (rule_type IN ('50_30_20', 'zero_based', 'custom')),
+        is_default      BOOLEAN NOT NULL DEFAULT FALSE,
+        allocations     JSONB NOT NULL DEFAULT '[]'::jsonb,
+        created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+      CREATE INDEX IF NOT EXISTS idx_budgets_templates_user ON budgets_templates(user_id);
+      CREATE INDEX IF NOT EXISTS idx_budgets_templates_default ON budgets_templates(is_default) WHERE is_default = TRUE;
+    `);
+
+    // Indeks pelengkap query laporan per bulan.
+    // Financial calendar events: bonus, insurance renewal, tax deadline, investment contributions
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS financial_events (
+        id                   UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_id              UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        title                VARCHAR(150) NOT NULL,
+        type                 VARCHAR(50) NOT NULL CHECK (type IN ('bonus', 'insurance_renewal', 'tax_deadline', 'investment_contribution')),
+        date                 DATE NOT NULL DEFAULT CURRENT_DATE,
+        amount               NUMERIC(15,2),
+        description          TEXT,
+        recurrence_rule      VARCHAR(255),
+        notification_days_before INTEGER NOT NULL DEFAULT 1,
+        is_active            BOOLEAN NOT NULL DEFAULT TRUE,
+        created_at           TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at           TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+      CREATE INDEX IF NOT EXISTS idx_events_user_date ON financial_events(user_id, date DESC);
+      CREATE INDEX IF NOT EXISTS idx_events_user_active ON financial_events(user_id, is_active);
+      CREATE INDEX IF NOT EXISTS idx_events_user_active_date ON financial_events(user_id, is_active, date ASC);
+      CREATE INDEX IF NOT EXISTS idx_events_month_year 
+      ON financial_events(user_id, EXTRACT(YEAR FROM date)::INT, EXTRACT(MONTH FROM date)::INT) 
+      WHERE is_active = TRUE;
+    `);
+    
+    // Trigger untuk updated_at otomatis
+    await client.query(`
+      CREATE OR REPLACE FUNCTION update_updated_at_column()
+      RETURNS TRIGGER AS $$
+      BEGIN
+        NEW.updated_at = NOW();
+        RETURN NEW;
+      END;
+      $$ LANGUAGE plpgsql;
+    `);
+    
+    await client.query(`
+      DROP TRIGGER IF EXISTS update_financial_events_updated_at ON financial_events;
+      CREATE TRIGGER update_financial_events_updated_at
+        BEFORE UPDATE ON financial_events
+        FOR EACH ROW
+        EXECUTE FUNCTION update_updated_at_column();
+    `);
+    
     // Indeks pelengkap query laporan per bulan.
     await client.query(`CREATE INDEX IF NOT EXISTS idx_bills_user_active ON recurring_bills(user_id, is_active);`);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_bill_payments_user_month ON bill_payments(user_id, year, month);`);
@@ -339,3 +421,4 @@ export async function POST(req: NextRequest) {
     return handleRouteError(error, 'init:post');
   }
 }
+

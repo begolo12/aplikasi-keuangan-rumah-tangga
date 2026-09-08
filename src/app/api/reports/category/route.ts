@@ -42,7 +42,7 @@ export async function GET(req: NextRequest) {
         COUNT(t.id)::text as transaction_count
        FROM transactions t
        LEFT JOIN categories c ON t.category_id = c.id AND c.user_id = t.user_id
-       WHERE t.user_id = $1
+       WHERE (t.user_id = $1 OR t.wallet_id IN (SELECT id FROM wallets WHERE is_shared = TRUE AND household_id IN (SELECT household_id FROM household_members WHERE user_id = $1)))
          AND t.type = $2
          AND EXTRACT(MONTH FROM t.date) = $3
          AND EXTRACT(YEAR FROM t.date) = $4

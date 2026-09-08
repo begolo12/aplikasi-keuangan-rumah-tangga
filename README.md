@@ -34,6 +34,12 @@ Aplikasi pencatatan dan manajemen keuangan keluarga modern berstandar **PWA (*Pr
 
 ---
 
+## 🔐 Privasi
+
+Fitur "Scan Struk (AI)" mengirim teks hasil scan struk ke API AI (DeepSeek) di sisi server untuk mengisi form transaksi secara otomatis. Pengiriman ini dilakukan lewat endpoint server milik aplikasi, dan API key DeepSeek disimpan sebagai environment variable server sehingga tidak pernah dikirim ke browser. Teks struk hanya dipakai untuk proses ekstraksi tersebut dan tidak disimpan ke database.
+
+---
+
 ## 🚀 Panduan Menjalankan Secara Lokal
 
 1. **Clone Repositori**:

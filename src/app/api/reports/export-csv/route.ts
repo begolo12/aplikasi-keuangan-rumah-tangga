@@ -30,9 +30,9 @@ export async function GET(req: NextRequest) {
         t.description
       FROM transactions t
       LEFT JOIN categories c ON t.category_id = c.id AND c.user_id = t.user_id
-      LEFT JOIN wallets w ON t.wallet_id = w.id AND w.user_id = t.user_id
-      LEFT JOIN wallets tw ON t.to_wallet_id = tw.id AND tw.user_id = t.user_id
-      WHERE t.user_id = $1
+      LEFT JOIN wallets w ON t.wallet_id = w.id AND (w.user_id = t.user_id OR (w.is_shared = TRUE AND w.household_id IN (SELECT household_id FROM household_members WHERE user_id = $1)))
+      LEFT JOIN wallets tw ON t.to_wallet_id = tw.id AND (tw.user_id = t.user_id OR (tw.is_shared = TRUE AND tw.household_id IN (SELECT household_id FROM household_members WHERE user_id = $1)))
+       WHERE (t.user_id = $1 OR t.wallet_id IN (SELECT id FROM wallets WHERE is_shared = TRUE AND household_id IN (SELECT household_id FROM household_members WHERE user_id = $1)))
     `;
 
     const params: unknown[] = [session.userId];
@@ -68,7 +68,12 @@ export async function GET(req: NextRequest) {
       const dateFormatted = `${day}/${m}/${y}`;
 
       const typeLabel = r.type === 'expense' ? 'Pengeluaran' : r.type === 'income' ? 'Pemasukan' : 'Transfer';
-      const escape = (str: string | null | undefined) => `"${(str || '').replace(/"/g, '""')}"`;
+      // Mitigasi CSV formula injection: nilai berawalan =, +, -, @ diberi prefiks apostrof.
+      const escape = (str: string | null | undefined) => {
+        let v = str || '';
+        if (/^[=+\-@]/.test(v)) v = `'${v}`;
+        return `"${v.replace(/"/g, '""')}"`;
+      };
       const numeric = (value: string | null) => parseFloat(value || '0').toFixed(2);
 
       return [
@@ -92,6 +97,7 @@ export async function GET(req: NextRequest) {
       headers: {
         'Content-Type': 'text/csv; charset=utf-8',
         'Content-Disposition': `attachment; filename="${filename}"`,
+        'Cache-Control': 'no-store',
       },
     });
   } catch (error) {

@@ -1,13 +1,14 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Asset, AssetCategory, DepreciationMethod, Wallet } from '@/lib/types';
+import { Asset, AssetCategory, Debt, DepreciationMethod, Wallet } from '@/lib/types';
 import { apiFetch, endpoints } from '@/lib/apiFetch';
 import { formatRupiah, formatDate } from '@/lib/formatters';
 import { Button } from '../ui/Button';
 import { AssetModal } from './AssetModal';
 import { AssetScheduleModal } from './AssetScheduleModal';
 import { SellAssetModal } from './SellAssetModal';
+import { ConfirmModal } from '../ui/ConfirmModal';
 import { DashboardSkeleton } from '../ui/LoadingSkeleton';
 import {
   Package,
@@ -53,15 +54,10 @@ const CATEGORY_MAP: Record<AssetCategory, { label: string; icon: React.ElementTy
   lainnya: { label: 'Lainnya', icon: DotsThree, color: 'bg-gray-500/10 text-gray-600 border-gray-500/20' },
 };
 
-const METHOD_MAP: Record<DepreciationMethod, { label: string; tag: string }> = {
-  straight_line: { label: 'Garis Lurus', tag: 'bg-primary/10 text-primary border-primary/20' },
-  declining_balance: { label: 'Saldo Menurun', tag: 'bg-transfer/10 text-transfer border-transfer/25' },
-  none: { label: 'Tanpa Penyusutan', tag: 'bg-primary-subtle text-primary border-primary/20' },
-};
-
 export function AssetsView({ onRefreshParent }: AssetsViewProps) {
   const [assets, setAssets] = useState<Asset[]>([]);
   const [wallets, setWallets] = useState<Wallet[]>([]);
+  const [debts, setDebts] = useState<Debt[]>([]);
   const [summary, setSummary] = useState<AssetsApiResponse['summary']>({
     total_assets_count: 0,
     total_purchase_value: 0,
@@ -94,6 +90,11 @@ export function AssetsView({ onRefreshParent }: AssetsViewProps) {
     apiFetch<Wallet[]>(endpoints.wallets)
       .then((res) => {
         if (isMounted) setWallets(res || []);
+      })
+      .catch(() => {});
+    apiFetch<Debt[]>(endpoints.debts)
+      .then((res) => {
+        if (isMounted) setDebts(res || []);
       })
       .catch(() => {});
     return () => {
@@ -163,15 +164,18 @@ export function AssetsView({ onRefreshParent }: AssetsViewProps) {
     onRefreshParent?.();
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('Apakah Anda yakin ingin menghapus catatan aset ini?')) return;
-    setDeletingId(id);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+
+  const handleDeleteConfirm = async () => {
+    if (!confirmDeleteId) return;
+    setDeletingId(confirmDeleteId);
     try {
-      await apiFetch(endpoints.asset(id), { method: 'DELETE' });
+      await apiFetch(endpoints.asset(confirmDeleteId), { method: 'DELETE' });
       setReloadKey((k) => k + 1);
       onRefreshParent?.();
+      setConfirmDeleteId(null);
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Gagal menghapus aset');
+      console.error('Gagal menghapus aset:', err);
     } finally {
       setDeletingId(null);
     }
@@ -453,7 +457,7 @@ export function AssetsView({ onRefreshParent }: AssetsViewProps) {
                       <PencilSimple size={15} />
                     </button>
                     <button
-                      onClick={() => handleDelete(asset.id)}
+                      onClick={() => setConfirmDeleteId(asset.id)}
                       disabled={deletingId === asset.id}
                       title="Hapus Aset"
                       className="p-1.5 text-text-muted hover:text-expense hover:bg-expense/10 rounded-lg transition-colors"
@@ -554,10 +558,21 @@ export function AssetsView({ onRefreshParent }: AssetsViewProps) {
         }}
         asset={sellingAsset}
         wallets={wallets}
+        debts={debts}
         onSuccess={() => {
           setReloadKey((k) => k + 1);
           onRefreshParent?.();
         }}
+      />
+
+      {/* Confirm Delete Modal */}
+      <ConfirmModal
+        isOpen={Boolean(confirmDeleteId)}
+        onClose={() => setConfirmDeleteId(null)}
+        onConfirm={handleDeleteConfirm}
+        title="Hapus Catatan Aset"
+        message="Apakah Anda yakin ingin menghapus catatan aset ini? Tindakan ini tidak dapat dibatalkan."
+        isLoading={Boolean(deletingId)}
       />
     </div>
   );

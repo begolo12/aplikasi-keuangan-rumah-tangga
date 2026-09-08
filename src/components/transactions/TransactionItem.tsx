@@ -4,15 +4,32 @@ import React, { useState } from 'react';
 import { Transaction } from '@/lib/types';
 import { formatRupiah, formatDate } from '@/lib/formatters';
 import { CategoryIcon } from '../ui/CategoryIcon';
-import { Trash, ArrowsLeftRight, PencilSimple } from '@phosphor-icons/react';
+import { Trash, ArrowsLeftRight, PencilSimple, UserCircle } from '@phosphor-icons/react';
 
 interface TransactionItemProps {
   transaction: Transaction;
   onDelete: (id: string) => Promise<void>;
   onEdit?: (transaction: Transaction) => void;
+  highlight?: string;
 }
 
-export function TransactionItem({ transaction, onDelete, onEdit }: TransactionItemProps) {
+function HighlightMatch({ text, query }: { text: string; query?: string }) {
+  if (!query || !text || query.trim() === '') return <>{text}</>;
+  const idx = text.toLowerCase().indexOf(query.toLowerCase());
+  if (idx === -1) return <>{text}</>;
+  const before = text.slice(0, idx);
+  const match = text.slice(idx, idx + query.length);
+  const after = text.slice(idx + query.length);
+  return (
+    <>
+      {before}
+      <mark className="bg-primary/15 text-primary rounded px-0.5">{match}</mark>
+      {after}
+    </>
+  );
+}
+
+export function TransactionItem({ transaction, onDelete, onEdit, highlight }: TransactionItemProps) {
   const [isDeleting, setIsDeleting] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
 
@@ -29,6 +46,12 @@ export function TransactionItem({ transaction, onDelete, onEdit }: TransactionIt
   const isExpense = transaction.type === 'expense';
   const isIncome = transaction.type === 'income';
   const isTransfer = transaction.type === 'transfer';
+  const isAssetSale = Boolean(
+    transaction.asset_id &&
+      (transaction.description?.includes('Penjualan Aset') ||
+        transaction.description?.startsWith('Laba Penjualan') ||
+        transaction.description?.startsWith('Rugi Penjualan'))
+  );
 
   return (
     <div className="flex items-center justify-between p-3 sm:p-3.5 md:p-4 bg-surface hover:bg-surface-2/60 border border-border rounded-2xl transition-all shadow-2xs group min-w-0">
@@ -40,7 +63,7 @@ export function TransactionItem({ transaction, onDelete, onEdit }: TransactionIt
           </div>
         ) : (
           <CategoryIcon
-            name={transaction.category_icon || (isIncome ? 'wallet' : 'dots-three')}
+            name={transaction.category_icon || 'tag'}
             color={transaction.category_color || (isIncome ? 'emerald' : 'gray')}
             size={18}
             className="w-9 h-9 sm:w-10 sm:h-10 shrink-0"
@@ -50,9 +73,14 @@ export function TransactionItem({ transaction, onDelete, onEdit }: TransactionIt
         {/* Title & Metadata */}
         <div className="min-w-0 flex-1">
           <p className="text-xs sm:text-sm font-bold text-text truncate">
-            {isTransfer
-              ? `Transfer: ${transaction.wallet_name} → ${transaction.to_wallet_name}`
-              : transaction.description || transaction.category_name || 'Transaksi Kas'}
+            {isTransfer ? (
+              <>
+                Transfer: <HighlightMatch text={transaction.wallet_name || ''} query={highlight} /> →{' '}
+                <HighlightMatch text={transaction.to_wallet_name || ''} query={highlight} />
+              </>
+            ) : (
+              <HighlightMatch text={transaction.description || transaction.category_name || 'Transaksi Kas'} query={highlight} />
+            )}
           </p>
           <div className="flex items-center gap-1.5 text-[10px] sm:text-[11px] text-text-muted mt-0.5 flex-wrap">
             <span>{formatDate(transaction.date, 'short')}</span>
@@ -69,7 +97,21 @@ export function TransactionItem({ transaction, onDelete, onEdit }: TransactionIt
               </>
             )}
             <span>•</span>
-            <span className="truncate max-w-[120px]">{transaction.wallet_name}</span>
+            <span className="truncate max-w-[120px]">
+              <HighlightMatch text={transaction.wallet_name || ''} query={highlight} />
+            </span>
+            {transaction.recorder_name && (
+              <>
+                <span>•</span>
+                <span
+                  className="inline-flex items-center gap-0.5 font-semibold text-primary"
+                  title={`Dicatat oleh ${transaction.recorder_name}`}
+                >
+                  <UserCircle size={11} weight="fill" />
+                  {transaction.recorder_name}
+                </span>
+              </>
+            )}
             {transaction.admin_fee > 0 && (
               <>
                 <span>•</span>
@@ -91,7 +133,14 @@ export function TransactionItem({ transaction, onDelete, onEdit }: TransactionIt
           {formatRupiah(transaction.amount)}
         </span>
 
-        {showConfirm ? (
+        {isAssetSale ? (
+          <span
+            className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-surface-2 text-text-muted border border-border"
+            title="Transaksi pembukuan penjualan aset (dikelola melalui menu Aset)"
+          >
+            Aset
+          </span>
+        ) : showConfirm ? (
           <div className="flex items-center gap-1">
             <button
               onClick={handleDelete}

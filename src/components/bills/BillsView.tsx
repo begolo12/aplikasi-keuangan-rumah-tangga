@@ -5,6 +5,7 @@ import { RecurringBill, Wallet, Category } from '@/lib/types';
 import { BillItem } from './BillItem';
 import { Button } from '../ui/Button';
 import { Modal } from '../ui/Modal';
+import { ConfirmModal } from '../ui/ConfirmModal';
 import { AmountInput } from '../ui/AmountInput';
 import { EmptyState } from '../ui/EmptyState';
 import { Plus, Receipt, Lightning, ArrowDownLeft, Sparkle } from '@phosphor-icons/react';
@@ -29,7 +30,7 @@ export function BillsView({
   currentYear = new Date().getFullYear(),
   onRefresh,
 }: BillsViewProps) {
-  const [activeFilter, setActiveFilter] = useState<'all' | 'expense' | 'income'>('all');
+  const [activeFilter, setActiveFilter] = useState<'all' | 'expense' | 'income' | 'transfer'>('all');
   const [isPayOpen, setIsPayOpen] = useState(false);
   const [selectedBill, setSelectedBill] = useState<RecurringBill | null>(null);
   const [listError, setListError] = useState<string | null>(null);
@@ -38,7 +39,7 @@ export function BillsView({
 
   // Form states for Pay / Record Bill
   const [payWalletId, setPayWalletId] = useState('');
-  const [payDate, setPayDate] = useState(() => new Date().toISOString().split('T')[0]);
+  const [payDate, setPayDate] = useState(() => getLocalDateString());
   const [isPaying, setIsPaying] = useState(false);
   const [payError, setPayError] = useState<string | null>(null);
 
@@ -56,6 +57,8 @@ export function BillsView({
     setCategoryId,
     walletId,
     setWalletId,
+    toWalletId,
+    setToWalletId,
     autoRecord,
     setAutoRecord,
     isLoading,
@@ -66,13 +69,13 @@ export function BillsView({
   } = useBillForm({ wallets, categories, onSuccess: onRefresh });
 
   const filteredBills = bills.filter((b) => {
-    if (activeFilter === 'expense' && b.type !== 'expense') return false;
-    if (activeFilter === 'income' && b.type !== 'income') return false;
+    if (activeFilter !== 'all' && b.type !== activeFilter) return false;
     return true;
   });
 
   const expenseBills = bills.filter((b) => b.type === 'expense');
   const incomeBills = bills.filter((b) => b.type === 'income');
+  const transferBills = bills.filter((b) => b.type === 'transfer');
 
   const totalExpenseScheduled = expenseBills.reduce((s, b) => s + b.amount, 0);
   const totalIncomeScheduled = incomeBills.reduce((s, b) => s + b.amount, 0);
@@ -82,7 +85,7 @@ export function BillsView({
     setSelectedBill(bill);
     const targetW = wallets.find((w) => w.id === bill.wallet_id) || wallets.find((w) => w.is_default) || wallets[0];
     if (targetW) setPayWalletId(targetW.id);
-    setPayDate(new Date().toISOString().split('T')[0]);
+    setPayDate(getLocalDateString());
     setPayError(null);
     setIsPayOpen(true);
   };
@@ -111,14 +114,13 @@ export function BillsView({
     }
   };
 
-  const handleAutoProcessAll = async () => {
-    if (!confirm(`Proses & catat otomatis semua transaksi rutin yang belum tercatat untuk ${INDONESIAN_MONTHS[currentMonth - 1]} ${currentYear}?`)) {
-      return;
-    }
+  const [isAutoProcessConfirmOpen, setIsAutoProcessConfirmOpen] = useState(false);
 
+  const handleAutoProcessAll = async () => {
     setIsAutoProcessing(true);
     setAutoProcessResult(null);
     setListError(null);
+    setIsAutoProcessConfirmOpen(false);
 
     try {
       const res = await apiFetch<{ message: string; processed_count: number }>(
@@ -136,7 +138,6 @@ export function BillsView({
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Apakah Anda yakin ingin menghapus transaksi rutin ini?')) return;
     try {
       await apiFetch(endpoints.bill(id), { method: 'DELETE' });
       setListError(null);
@@ -165,7 +166,7 @@ export function BillsView({
               variant="outline"
               size="md"
               leftIcon={<Lightning size={18} weight="fill" className="text-warning" />}
-              onClick={handleAutoProcessAll}
+              onClick={() => setIsAutoProcessConfirmOpen(true)}
               isLoading={isAutoProcessing}
             >
               Catat Otomatis ({pendingCount})
@@ -271,6 +272,19 @@ export function BillsView({
         >
           Pemasukan Pasti ({incomeBills.length})
         </button>
+        {transferBills.length > 0 && (
+          <button
+            type="button"
+            onClick={() => setActiveFilter('transfer')}
+            className={`min-h-[36px] px-3.5 text-xs font-bold rounded-xl transition-colors shrink-0 ${
+              activeFilter === 'transfer'
+                ? 'bg-primary text-white'
+                : 'bg-surface border border-border text-text-muted hover:text-text'
+            }`}
+          >
+            Transfer Amplop ({transferBills.length})
+          </button>
+        )}
       </div>
 
       {/* Bills List */}
@@ -300,7 +314,7 @@ export function BillsView({
           )}
 
           {/* Type Segmented */}
-          <div className="grid grid-cols-2 gap-1.5 p-1 bg-surface-2 rounded-2xl">
+          <div className="grid grid-cols-3 gap-1 p-1 bg-surface-2 rounded-2xl">
             <button
               type="button"
               onClick={() => {
@@ -308,11 +322,11 @@ export function BillsView({
                 const expCats = categories.filter((c) => c.type === 'expense');
                 if (expCats.length > 0) setCategoryId(expCats[0].id);
               }}
-              className={`py-2 text-xs font-bold rounded-xl transition-all ${
+              className={`py-2 text-[11px] sm:text-xs font-bold rounded-xl transition-all ${
                 type === 'expense' ? 'bg-expense text-white shadow-xs' : 'text-text-muted hover:text-text'
               }`}
             >
-              Pengeluaran Pasti (Listrik/Cicilan)
+              Pengeluaran
             </button>
             <button
               type="button"
@@ -321,17 +335,33 @@ export function BillsView({
                 const incCats = categories.filter((c) => c.type === 'income');
                 if (incCats.length > 0) setCategoryId(incCats[0].id);
               }}
-              className={`py-2 text-xs font-bold rounded-xl transition-all ${
+              className={`py-2 text-[11px] sm:text-xs font-bold rounded-xl transition-all ${
                 type === 'income' ? 'bg-income text-white shadow-xs' : 'text-text-muted hover:text-text'
               }`}
             >
-              Pemasukan Pasti (Gaji/Bonus)
+              Pemasukan
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setType('transfer');
+                setCategoryId('');
+                if (!toWalletId) {
+                  const envelope = wallets.find((w) => w.type === 'envelope' || w.linked_goal_id);
+                  if (envelope) setToWalletId(envelope.id);
+                }
+              }}
+              className={`py-2 text-[11px] sm:text-xs font-bold rounded-xl transition-all ${
+                type === 'transfer' ? 'bg-primary text-white shadow-xs' : 'text-text-muted hover:text-text'
+              }`}
+            >
+              Transfer Amplop
             </button>
           </div>
 
           <div className="space-y-1">
             <label htmlFor="billTitle" className="block text-xs font-semibold text-text-muted">
-              {type === 'income' ? 'Nama Pemasukan Rutin' : 'Nama Pengeluaran Rutin / Tagihan'}
+              {type === 'income' ? 'Nama Pemasukan Rutin' : type === 'transfer' ? 'Nama Rencana Transfer' : 'Nama Pengeluaran Rutin / Tagihan'}
             </label>
             <input
               type="text"
@@ -339,7 +369,7 @@ export function BillsView({
               required
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder={type === 'income' ? 'Contoh: Gaji Bulanan Kantor, Bonus Rutin' : 'Contoh: Listrik PLN, Wi-Fi Indihome, Cicilan KPR'}
+              placeholder={type === 'income' ? 'Contoh: Gaji Bulanan Kantor, Bonus Rutin' : type === 'transfer' ? 'Contoh: Alokasi Tabungan Darurat, Amplop Liburan' : 'Contoh: Listrik PLN, Wi-Fi Indihome, Cicilan KPR'}
               className="w-full h-11 px-4 bg-background border border-border rounded-xl text-sm font-medium focus:ring-2 focus:ring-primary focus:outline-none"
             />
           </div>
@@ -361,26 +391,28 @@ export function BillsView({
               />
             </div>
 
-            <div className="space-y-1">
-              <label htmlFor="billCategory" className="block text-xs font-semibold text-text-muted">Kategori</label>
-              <select
-                id="billCategory"
-                value={categoryId}
-                onChange={(e) => setCategoryId(e.target.value)}
-                className="w-full h-11 px-3 bg-background border border-border rounded-xl text-sm font-medium focus:ring-2 focus:ring-primary focus:outline-none"
-              >
-                {filteredCategories.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                  </option>
-                ))}
-              </select>
-            </div>
+            {type !== 'transfer' && (
+              <div className="space-y-1">
+                <label htmlFor="billCategory" className="block text-xs font-semibold text-text-muted">Kategori</label>
+                <select
+                  id="billCategory"
+                  value={categoryId}
+                  onChange={(e) => setCategoryId(e.target.value)}
+                  className="w-full h-11 px-3 bg-background border border-border rounded-xl text-sm font-medium focus:ring-2 focus:ring-primary focus:outline-none"
+                >
+                  {filteredCategories.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
           </div>
 
           <div className="space-y-1">
             <label htmlFor="billWallet" className="block text-xs font-semibold text-text-muted">
-              {type === 'income' ? 'Masuk ke Rekening / Dompet Default' : 'Debet dari Rekening / Dompet Default'}
+              {type === 'income' ? 'Masuk ke Rekening / Dompet Default' : type === 'transfer' ? 'Dari Dompet / Rekening' : 'Debet dari Rekening / Dompet Default'}
             </label>
             <select
               id="billWallet"
@@ -395,6 +427,31 @@ export function BillsView({
               ))}
             </select>
           </div>
+
+          {type === 'transfer' && (
+            <div className="space-y-1">
+              <label htmlFor="billToWallet" className="block text-xs font-semibold text-text-muted">
+                Ke Dompet Tujuan (Amplop / Target Tabungan)
+              </label>
+              <select
+                id="billToWallet"
+                value={toWalletId}
+                onChange={(e) => setToWalletId(e.target.value)}
+                required
+                className="w-full h-11 px-3 bg-background border border-border rounded-xl text-sm font-medium focus:ring-2 focus:ring-primary focus:outline-none"
+              >
+                <option value="">Pilih dompet tujuan...</option>
+                {wallets.filter((w) => w.id !== walletId).map((w) => (
+                  <option key={w.id} value={w.id}>
+                    {w.name} (Saldo: {formatRupiah(w.balance)})
+                  </option>
+                ))}
+              </select>
+              <p className="text-[11px] text-text-muted">
+                Setiap bulan nominal dipindahkan otomatis dari dompet asal ke dompet ini (bukan pengeluaran).
+              </p>
+            </div>
+          )}
 
           <div className="flex items-center gap-2 pt-1">
             <input
@@ -411,12 +468,12 @@ export function BillsView({
 
           <Button
             type="submit"
-            variant={type === 'income' ? 'primary' : 'danger'}
+            variant={type === 'income' ? 'primary' : type === 'transfer' ? 'primary' : 'danger'}
             size="lg"
             isLoading={isLoading}
             className="w-full mt-4 font-bold"
           >
-            Simpan {type === 'income' ? 'Pemasukan Pasti' : 'Pengeluaran Pasti'}
+            Simpan {type === 'income' ? 'Pemasukan Pasti' : type === 'transfer' ? 'Rencana Transfer' : 'Pengeluaran Pasti'}
           </Button>
         </form>
       </Modal>
@@ -425,7 +482,13 @@ export function BillsView({
       <Modal
         isOpen={isPayOpen}
         onClose={() => setIsPayOpen(false)}
-        title={selectedBill?.type === 'income' ? `Catat Pemasukan: ${selectedBill?.title}` : `Pelunasan: ${selectedBill?.title}`}
+        title={
+          selectedBill?.type === 'income'
+            ? `Catat Pemasukan: ${selectedBill?.title}`
+            : selectedBill?.type === 'transfer'
+            ? `Jalankan Transfer: ${selectedBill?.title}`
+            : `Pelunasan: ${selectedBill?.title}`
+        }
       >
         <form onSubmit={handlePaySubmit} className="space-y-4">
           {payError && (
@@ -436,16 +499,25 @@ export function BillsView({
 
           <div className="p-4 bg-surface-2 rounded-2xl space-y-1">
             <p className="text-xs text-text-muted">
-              {selectedBill?.type === 'income' ? 'Nominal yang akan dimasukkan ke kas' : 'Nominal yang akan dibayarkan'}
+              {selectedBill?.type === 'income'
+                ? 'Nominal yang akan dimasukkan ke kas'
+                : selectedBill?.type === 'transfer'
+                ? 'Nominal yang akan dipindahkan'
+                : 'Nominal yang akan dibayarkan'}
             </p>
-            <p className={`text-xl font-extrabold ${selectedBill?.type === 'income' ? 'text-income' : 'text-text'}`}>
+            <p className={`text-xl font-extrabold ${selectedBill?.type === 'expense' ? 'text-text' : 'text-income'}`}>
               {selectedBill ? formatRupiah(selectedBill.amount) : 'Rp 0'}
             </p>
+            {selectedBill?.type === 'transfer' && selectedBill.to_wallet_name && (
+              <p className="text-[11px] text-text-muted">
+                Tujuan: <span className="font-bold text-text">{selectedBill.to_wallet_name}</span>
+              </p>
+            )}
           </div>
 
           <div className="space-y-1">
             <label htmlFor="payWallet" className="block text-xs font-semibold text-text-muted">
-              {selectedBill?.type === 'income' ? 'Terima ke Dompet / Rekening' : 'Bayar Menggunakan Dompet / Rekening'}
+              {selectedBill?.type === 'income' ? 'Terima ke Dompet / Rekening' : selectedBill?.type === 'transfer' ? 'Dari Dompet / Rekening' : 'Bayar Menggunakan Dompet / Rekening'}
             </label>
             <select
               id="payWallet"
@@ -476,15 +548,27 @@ export function BillsView({
 
           <Button
             type="submit"
-            variant={selectedBill?.type === 'income' ? 'primary' : 'danger'}
+            variant={selectedBill?.type === 'expense' ? 'danger' : 'primary'}
             size="lg"
             isLoading={isPaying}
             className="w-full mt-4 font-bold"
           >
-            {selectedBill?.type === 'income' ? 'Konfirmasi Catat Pemasukan Kas' : 'Konfirmasi Bayar & Catat Pengeluaran'}
+            {selectedBill?.type === 'income' ? 'Konfirmasi Catat Pemasukan Kas' : selectedBill?.type === 'transfer' ? 'Konfirmasi Transfer Dana' : 'Konfirmasi Bayar & Catat Pengeluaran'}
           </Button>
         </form>
       </Modal>
+
+      {/* Confirm Auto Process Modal */}
+      <ConfirmModal
+        isOpen={isAutoProcessConfirmOpen}
+        onClose={() => setIsAutoProcessConfirmOpen(false)}
+        onConfirm={handleAutoProcessAll}
+        title="Proses Otomatis Transaksi Rutin"
+        message={`Proses dan catat otomatis semua transaksi rutin yang belum tercatat untuk ${INDONESIAN_MONTHS[currentMonth - 1]} ${currentYear}?`}
+        confirmLabel="Ya, Proses Semua"
+        variant="primary"
+        isLoading={isAutoProcessing}
+      />
     </div>
   );
 }

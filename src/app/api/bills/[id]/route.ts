@@ -75,7 +75,49 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
     uuidIdParam.parse(id);
 
     // Payment log dan bill dihapus bersama dalam satu transaksi.
+    // Bila tagihan terhubung ke hutang, paid_amount hutang dikembalikan sebesar
+    // baris sinkronisasi otomatis yang ikut terhapus (jurnal-balik, bukan dibiarkan menggantung).
     await withTransaction(async (client) => {
+      const billRows = await client.query(
+        'SELECT id, debt_id FROM recurring_bills WHERE id = $1 AND user_id = $2 FOR UPDATE',
+        [id, session.userId]
+      );
+      if (billRows.rows.length === 0) {
+        throw new BusinessError('Tagihan tidak ditemukan', 404);
+      }
+      const debtId = billRows.rows[0]?.debt_id ?? null;
+      if (debtId) {
+        await client.query('SELECT id FROM debts WHERE id = $1 AND user_id = $2 FOR UPDATE', [debtId, session.userId]);
+        const paidMonths = await client.query(
+          'SELECT month, year FROM bill_payments WHERE bill_id = $1 AND user_id = $2',
+          [id, session.userId]
+        );
+        let reversed = 0;
+        if (paidMonths.rows.length > 0) {
+          const pairs = paidMonths.rows.map((r) => `(${Number(r.month)},${Number(r.year)})`).join(',');
+          const autoRows = await client.query(
+            `DELETE FROM debt_payments
+             WHERE debt_id = $1 AND user_id = $2
+               AND (notes = 'Pembayaran cicilan via tagihan' OR notes LIKE 'Cicilan berjalan (%')
+               AND (EXTRACT(MONTH FROM payment_date)::int, EXTRACT(YEAR FROM payment_date)::int) IN (${pairs})
+             RETURNING amount`,
+            [debtId, session.userId]
+          );
+          reversed = autoRows.rows.reduce((acc, r) => acc + Number(r.amount), 0);
+        }
+        await client.query(
+          `UPDATE debts
+           SET paid_amount = GREATEST(0, paid_amount - $1),
+               status = CASE
+                 WHEN GREATEST(0, paid_amount - $1) >= total_amount THEN 'paid'
+                 WHEN GREATEST(0, paid_amount - $1) > 0 THEN 'partial'
+                 ELSE 'unpaid'
+               END,
+               updated_at = NOW()
+           WHERE id = $2 AND user_id = $3`,
+          [reversed, debtId, session.userId]
+        );
+      }
       await client.query('DELETE FROM bill_payments WHERE bill_id = $1 AND user_id = $2', [id, session.userId]);
       await client.query('DELETE FROM recurring_bills WHERE id = $1 AND user_id = $2', [id, session.userId]);
     });

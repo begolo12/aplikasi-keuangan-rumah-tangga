@@ -1,0 +1,3 @@
+{
+  "/api/budgets/ai/recommend/route": "app/api/budgets/ai/recommend/route.js"
+}

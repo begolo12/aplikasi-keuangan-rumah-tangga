@@ -3,6 +3,7 @@ import { getAuthSession } from '@/lib/auth';
 import { withTransaction } from '@/lib/db';
 import { uuidIdParam, goalContributionSchema } from '@/lib/validations';
 import { handleRouteError, BusinessError, readJsonBody } from '@/lib/apiHelpers';
+import { walletAccessCondition } from '@/lib/household';
 
 /**
  * Alokasikan dana ke sebuah target tabungan.
@@ -31,10 +32,13 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         throw new BusinessError('Atur dompet penampung target ini terlebih dahulu di form Ubah.');
       }
 
-      // Dompet sumber + tujuan dikunci urut UUID untuk menghindari deadlock transfer silang
+      // Dompet sumber + tujuan dikunci urut UUID untuk menghindari deadlock transfer silang.
+      // Operasional: dompet milik sendiri atau dompet bersama household boleh dipakai.
       const lockIds = [validated.wallet_id, destWalletId].sort();
       const wallets = await client.query(
-        'SELECT id, balance FROM wallets WHERE id = ANY($1::uuid[]) AND user_id = $2 ORDER BY id FOR UPDATE',
+        `SELECT id, balance FROM wallets WHERE id = ANY($1::uuid[])
+         AND ${walletAccessCondition(2)}
+         ORDER BY id FOR UPDATE`,
         [lockIds, session.userId]
       );
       if (wallets.rows.length < 2 || !wallets.rows.find((w: { id: string }) => w.id === validated.wallet_id)) {
@@ -53,14 +57,18 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       );
       const trxId: string = trxRes.rows[0].id;
 
-      await client.query(
-        'UPDATE wallets SET balance = balance - $1, updated_at = NOW() WHERE id = $2 AND user_id = $3',
+      const sourceUpdate = await client.query(
+        `UPDATE wallets SET balance = balance - $1, updated_at = NOW() WHERE id = $2
+         AND ${walletAccessCondition(3)}`,
         [validated.amount, validated.wallet_id, session.userId]
       );
-      await client.query(
-        'UPDATE wallets SET balance = balance + $1, updated_at = NOW() WHERE id = $2 AND user_id = $3',
+      const destinationUpdate = await client.query(
+        `UPDATE wallets SET balance = balance + $1, updated_at = NOW() WHERE id = $2
+         AND ${walletAccessCondition(3)}`,
         [validated.amount, destWalletId, session.userId]
       );
+
+      if (sourceUpdate.rowCount !== 1 || destinationUpdate.rowCount !== 1) throw new BusinessError('Saldo dompet tidak dapat diperbarui.', 409);
 
       // 2. Tautkan ke progres goal; UNIQUE(transaction_id) mencegah dobel hitung
       await client.query(
@@ -70,8 +78,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       );
 
       const savedRes = await client.query(
-        'SELECT COALESCE(SUM(amount), 0)::float AS saved FROM goal_contributions WHERE goal_id = $1',
-        [id]
+        `SELECT CASE WHEN EXISTS (SELECT 1 FROM wallets WHERE id = $2 AND type = 'envelope' AND ${walletAccessCondition(3)}) THEN (SELECT balance::float FROM wallets WHERE id = $2) ELSE LEAST(COALESCE(SUM(amount), 0)::float, COALESCE((SELECT balance::float FROM wallets WHERE id = $2), 0)) END AS saved FROM goal_contributions WHERE goal_id = $1 AND user_id = $3`,
+        [id, destWalletId, session.userId]
       );
 
       return { transactionId: trxId, savedAmount: savedRes.rows[0].saved };

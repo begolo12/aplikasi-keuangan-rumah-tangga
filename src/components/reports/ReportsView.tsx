@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { MonthlySummary as MonthlySummaryType, Wallet, Debt, Asset } from '@/lib/types';
+import { MonthlySummary as MonthlySummaryType, Wallet, Debt, Asset, RecurringBill } from '@/lib/types';
 import { DashboardSkeleton } from '@/components/ui/LoadingSkeleton';
 import { ApiError, apiFetch, endpoints } from '@/lib/apiFetch';
 import { CategoryChart } from './CategoryChart';
@@ -11,6 +11,7 @@ import { BalanceSheetReport } from './BalanceSheetReport';
 import { IncomeStatementReport } from './IncomeStatementReport';
 import { FinancialRatiosReport } from './FinancialRatiosReport';
 import { ColdMoneyCard } from './ColdMoneyCard';
+import { YearlyReport } from './YearlyReport';
 import { Button } from '../ui/Button';
 import { formatRupiah, INDONESIAN_MONTHS } from '@/lib/formatters';
 import { Budget } from '@/lib/types';
@@ -31,6 +32,7 @@ import {
   Scales,
   BookOpen,
   ChartDonut,
+  Printer,
 } from '@phosphor-icons/react';
 
 interface CategoryDatum {
@@ -69,7 +71,7 @@ export function ReportsView({
   currentYear: initialYear,
   onPeriodChange,
 }: ReportsViewProps) {
-  const [selectedTab, setSelectedTab] = useState<'overview' | 'cashflow' | 'balancesheet' | 'incomestatement' | 'ratios'>('overview');
+  const [selectedTab, setSelectedTab] = useState<'overview' | 'yearly' | 'cashflow' | 'balancesheet' | 'incomestatement' | 'ratios'>('overview');
   const [selectedMonth, setSelectedMonth] = useState(initialMonth);
   const [selectedYear, setSelectedYear] = useState(initialYear);
   const [reloadKey, setReloadKey] = useState(0);
@@ -80,17 +82,17 @@ export function ReportsView({
   const [wallets, setWallets] = useState<Wallet[]>([]);
   const [budgets, setBudgets] = useState<Budget[]>([]);
   const [debts, setDebts] = useState<Debt[]>([]);
+  const [bills, setBills] = useState<RecurringBill[]>([]);
   const [assets, setAssets] = useState<Asset[]>([]);
   const [historyList, setHistoryList] = useState<MonthHistoryItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
-
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setSelectedMonth(initialMonth);
     setSelectedYear(initialYear);
   }, [initialMonth, initialYear]);
-
   const handlePrevMonth = () => {
     let m = selectedMonth - 1;
     let y = selectedYear;
@@ -124,7 +126,7 @@ export function ReportsView({
       setIsLoading(true);
       setError(null);
       try {
-        const [catData, monthData, wData, bData, dData, aData] = await Promise.all([
+        const [catData, monthData, wData, bData, dData, aData, billsData] = await Promise.all([
           apiFetch<{ categories?: CategoryDatum[]; total?: number }>(
             `${endpoints.reportsCategory(selectedMonth, selectedYear)}&type=expense`,
             { signal }
@@ -137,6 +139,7 @@ export function ReportsView({
           apiFetch<Budget[]>(endpoints.budgets, { signal }).catch(() => []),
           apiFetch<Debt[]>(endpoints.debts, { signal }).catch(() => []),
           apiFetch<{ assets?: Asset[] }>(endpoints.assets, { signal }).catch(() => ({ assets: [] })),
+          apiFetch<RecurringBill[]>(endpoints.bills, { signal }).catch(() => []),
         ]);
         setCategoryData(catData.categories || []);
         setCategoryTotal(catData.total || 0);
@@ -147,9 +150,10 @@ export function ReportsView({
         setWallets(wData || []);
         setBudgets(bData || []);
         setDebts(dData || []);
+        setBills(billsData || []);
         setAssets(aData?.assets || []);
 
-        // Fetch 4 bulan ke belakang untuk perbandingan histori bulanan
+        // Fetch 4 bulan ke belakang untuk perbandingan histori bulanan — dengan timeout 8 detik per request agar tidak menggantung
         const historyPromises = [];
         for (let i = 0; i < 4; i++) {
           let hm = selectedMonth - i;
@@ -158,18 +162,18 @@ export function ReportsView({
             hm += 12;
             hy -= 1;
           }
-          historyPromises.push(
-            apiFetch<{ summary?: MonthlySummaryType }>(endpoints.reportsMonthly(hm, hy), { signal })
-              .then((res) => ({
-                month: hm,
-                year: hy,
-                label: `${INDONESIAN_MONTHS[hm - 1]} ${hy}`,
-                income: res.summary?.total_income || 0,
-                expense: res.summary?.total_expense || 0,
-                net: res.summary?.net_cash_flow || 0,
-              }))
-              .catch(() => null)
-          );
+          const fetchWithTimeout = Promise.race([
+            apiFetch<{ summary?: MonthlySummaryType }>(endpoints.reportsMonthly(hm, hy), { signal }).then((res) => ({
+              month: hm,
+              year: hy,
+              label: `${INDONESIAN_MONTHS[hm - 1]} ${hy}`,
+              income: res.summary?.total_income || 0,
+              expense: res.summary?.total_expense || 0,
+              net: res.summary?.net_cash_flow || 0,
+            })),
+            new Promise<null>((resolve) => setTimeout(() => resolve(null), 8000)),
+          ]).catch(() => null);
+          historyPromises.push(fetchWithTimeout);
         }
 
         const historyResults = await Promise.all(historyPromises);
@@ -263,19 +267,35 @@ export function ReportsView({
             </button>
           </div>
 
-          <Button
-            variant="outline"
-            size="sm"
-            leftIcon={<FileCsv size={16} weight="bold" className="text-primary" />}
-            onClick={handleExportCsv}
-          >
-            Ekspor CSV
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              leftIcon={<Printer size={16} weight="bold" className="text-text-muted" />}
+              onClick={() => {
+                if (typeof window !== 'undefined') {
+                  window.print();
+                }
+              }}
+              className="no-print"
+            >
+              Cetak PDF
+            </Button>
+
+            <Button
+              variant="outline"
+              size="sm"
+              leftIcon={<FileCsv size={16} weight="bold" className="text-primary" />}
+              onClick={handleExportCsv}
+              className="no-print"
+            >
+              Ekspor CSV
+            </Button>
+          </div>
         </div>
       </div>
-
-      {/* Sub-Tab Switcher: 5 Pilar Laporan Keuangan */}
-      <div className="grid grid-cols-2 sm:grid-cols-5 p-1 bg-surface border border-border rounded-2xl shadow-xs gap-1">
+      {/* Sub-Tab Switcher: 6 Pilar Laporan Keuangan */}
+      <div className="grid grid-cols-3 sm:grid-cols-6 p-1 bg-surface border border-border rounded-2xl shadow-xs gap-1">
         <button
           type="button"
           onClick={() => setSelectedTab('overview')}
@@ -287,6 +307,19 @@ export function ReportsView({
         >
           <ChartPieSlice size={15} weight="bold" />
           <span className="truncate">Ringkasan</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setSelectedTab('yearly')}
+          className={`py-2 px-2 text-xs font-bold rounded-xl flex items-center justify-center gap-1.5 transition-all truncate ${
+            selectedTab === 'yearly'
+              ? 'bg-primary text-white shadow-xs'
+              : 'text-text-muted hover:text-text'
+          }`}
+        >
+          <ChartLineUp size={15} weight="bold" />
+          <span className="truncate">Tahunan</span>
         </button>
 
         <button
@@ -342,7 +375,9 @@ export function ReportsView({
         </button>
       </div>
 
-      {selectedTab === 'cashflow' ? (
+      {selectedTab === 'yearly' ? (
+        <YearlyReport initialYear={selectedYear} />
+      ) : selectedTab === 'cashflow' ? (
         <CashflowStatement
           summary={reportSummary}
           selectedMonth={selectedMonth}
@@ -387,6 +422,8 @@ export function ReportsView({
             totalExpense={reportSummary?.total_expense || 0}
             pendingBills={reportSummary?.total_bills_pending_amount || 0}
             payableDue={reportSummary?.total_payable_due || 0}
+            bills={bills}
+            debts={debts}
           />
 
           {/* Arus Kas & Safe-to-Spend Liquidity Breakdown Card */}

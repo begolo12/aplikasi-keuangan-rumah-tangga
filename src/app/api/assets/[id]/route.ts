@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { query } from '@/lib/db';
 import { getAuthSession } from '@/lib/auth';
-import { assetSchema } from '@/lib/validations';
+import { assetSchema, uuidIdParam } from '@/lib/validations';
 import { BusinessError, handleRouteError, readJsonBody } from '@/lib/apiHelpers';
 import { Asset } from '@/lib/types';
 import { calculateAssetDepreciation } from '../route';
@@ -14,10 +14,11 @@ export async function GET(
     const session = await getAuthSession(req);
     if (!session) return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
     const { id } = await params;
+    const assetId = uuidIdParam.parse(id);
 
     const rows = await query<Asset>(
       `SELECT * FROM assets WHERE id = $1 AND user_id = $2`,
-      [id, session.userId]
+      [assetId, session.userId]
     );
 
     if (rows.length === 0) {
@@ -51,12 +52,25 @@ export async function PUT(
     const session = await getAuthSession(req);
     if (!session) return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
     const { id } = await params;
+    const assetId = uuidIdParam.parse(id);
     const body = await readJsonBody(req);
+    const raw = body as Record<string, unknown>;
+    if (
+      raw &&
+      typeof raw === 'object' &&
+      (raw.record_purchase_transaction === true ||
+        raw.schedule_tax_amount != null ||
+        raw.schedule_maintenance_amount != null)
+    ) {
+      throw new BusinessError(
+        'Pembaruan aset tidak dapat mengubah saldo kas atau jadwal rutin. Gunakan transaksi/jadwal terpisah.',
+        400
+      );
+    }
     const data = assetSchema.parse(body);
-
     const existing = await query<Asset>(
       `SELECT id FROM assets WHERE id = $1 AND user_id = $2`,
-      [id, session.userId]
+      [assetId, session.userId]
     );
 
     if (existing.length === 0) {
@@ -91,7 +105,7 @@ export async function PUT(
         data.useful_life_years,
         data.salvage_value,
         data.notes || null,
-        id,
+        assetId,
         session.userId,
       ]
     );
@@ -123,10 +137,11 @@ export async function DELETE(
     const session = await getAuthSession(req);
     if (!session) return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
     const { id } = await params;
+    const assetId = uuidIdParam.parse(id);
 
     const result = await query(
       `DELETE FROM assets WHERE id = $1 AND user_id = $2 RETURNING id`,
-      [id, session.userId]
+      [assetId, session.userId]
     );
 
     if (result.length === 0) {

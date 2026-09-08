@@ -10,6 +10,8 @@ import {
   Gear,
   UserCircle,
   CaretDown,
+  Eye,
+  EyeSlash,
 } from '@phosphor-icons/react';
 import { INDONESIAN_MONTHS } from '@/lib/formatters';
 import { ThemeToggle } from '@/components/ui/ThemeToggle';
@@ -41,7 +43,35 @@ export function TopHeader({
 }: TopHeaderProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  const [isPrivacyMode, setIsPrivacyMode] = useState(false);
 
+  // Init privacy mode from localStorage
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('privacy_mode') === 'true';
+      if (saved) {
+        queueMicrotask(() => setIsPrivacyMode(true));
+        document.documentElement.classList.add('privacy-mode');
+      }
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  const togglePrivacyMode = () => {
+    const next = !isPrivacyMode;
+    setIsPrivacyMode(next);
+    try {
+      localStorage.setItem('privacy_mode', String(next));
+      if (next) {
+        document.documentElement.classList.add('privacy-mode');
+      } else {
+        document.documentElement.classList.remove('privacy-mode');
+      }
+    } catch {
+      /* ignore */
+    }
+  };
   // Close dropdown on click outside or escape key
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -99,7 +129,7 @@ export function TopHeader({
     <header className="sticky top-0 z-30 bg-background/80 backdrop-blur-md border-b border-border px-3 sm:px-4 md:px-8 py-2.5 sm:py-3 transition-colors">
       <div className="flex items-center justify-between max-w-7xl mx-auto gap-2 sm:gap-4">
         {/* Context-aware Left Header: Period Selector on period-tabs, or Section Badge on non-period tabs */}
-        {['assets', 'debts', 'wallets', 'goals', 'settings'].includes(activeTab) ? (
+        {['assets', 'debts', 'wallets', 'goals', 'reports', 'settings'].includes(activeTab) ? (
           <div className="flex items-center gap-2 px-1">
             <span className="text-xs sm:text-sm font-extrabold text-text capitalize">
               {activeTab === 'assets'
@@ -110,6 +140,8 @@ export function TopHeader({
                 ? 'Pos Kas & Rekening'
                 : activeTab === 'goals'
                 ? 'Target Tabungan'
+                : activeTab === 'reports'
+                ? 'Laporan & Ekspor'
                 : 'Pengaturan & Backup'}
             </span>
           </div>
@@ -141,9 +173,23 @@ export function TopHeader({
         )}
 
         {/* Right Corner Actions: Theme Toggle & User Profile */}
+        {/* Right Corner Actions: Privacy Toggle, Theme Toggle & User Profile */}
         <div className="flex items-center gap-1.5 sm:gap-2.5">
-          <ThemeToggle />
+          <button
+            type="button"
+            onClick={togglePrivacyMode}
+            title={isPrivacyMode ? 'Tampilkan Nominal Saldo' : 'Sensor Nominal Saldo (Mode Privasi)'}
+            aria-label={isPrivacyMode ? 'Tampilkan Nominal Saldo' : 'Sensor Nominal Saldo (Mode Privasi)'}
+            className={`w-9 h-9 flex items-center justify-center rounded-2xl border transition-colors shadow-2xs ${
+              isPrivacyMode
+                ? 'bg-warning/15 text-warning border-warning/30'
+                : 'bg-surface text-text-muted hover:text-text border-border'
+            }`}
+          >
+            {isPrivacyMode ? <EyeSlash size={16} weight="bold" /> : <Eye size={16} weight="bold" />}
+          </button>
 
+          <ThemeToggle />
           {/* User Profile Avatar & Dropdown Menu */}
           <div className="relative" ref={menuRef}>
           <button

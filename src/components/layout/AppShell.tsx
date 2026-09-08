@@ -26,6 +26,7 @@ interface AppShellProps {
   pendingBillsCount?: number;
   overbudgetCount?: number;
   unpaidDebtsCount?: number;
+  householdActivityCount?: number;
   children: React.ReactNode;
 }
 
@@ -46,6 +47,7 @@ export function AppShell({
   pendingBillsCount = 0,
   overbudgetCount = 0,
   unpaidDebtsCount = 0,
+  householdActivityCount = 0,
   children,
 }: AppShellProps) {
   return (
@@ -59,6 +61,9 @@ export function AppShell({
         userName={userName}
         familyName={familyName}
         onLogout={onLogout}
+        pendingBillsCount={pendingBillsCount}
+        overbudgetCount={overbudgetCount}
+        unpaidDebtsCount={unpaidDebtsCount}
       />
 
       {/* Main Container Area */}
@@ -94,6 +99,7 @@ export function AppShell({
         pendingBillsCount={pendingBillsCount}
         overbudgetCount={overbudgetCount}
         unpaidDebtsCount={unpaidDebtsCount}
+        householdActivityCount={householdActivityCount}
       />
 
       {/* iOS Safari Home Screen Banner */}

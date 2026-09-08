@@ -40,6 +40,27 @@ export async function POST(req: NextRequest, context: RouteContext) {
         );
       }
 
+      // Samakan semantik duplikat dengan bayar via tagihan: tolak bila periode tagihan terkait sudah dibayar.
+      // Mencegah kas terpotong dua kali + paid_amount ganda saat bulan yang sama dibayar via dua jalur.
+      const payDateObj = new Date(validated.payment_date);
+      const payMonth = payDateObj.getMonth() + 1;
+      const payYear = payDateObj.getFullYear();
+      const linkedBillRes = await client.query(
+        'SELECT id, category_id FROM recurring_bills WHERE debt_id = $1 AND user_id = $2 LIMIT 1 FOR UPDATE',
+        [debtId, user.userId]
+      );
+      const linkedBillId = linkedBillRes.rows[0]?.id ?? null;
+      const linkedBillCategory = linkedBillRes.rows[0]?.category_id ?? null;
+      if (linkedBillId && !isNaN(payDateObj.getTime())) {
+        const dupPay = await client.query(
+          'SELECT id FROM bill_payments WHERE bill_id = $1 AND user_id = $2 AND month = $3 AND year = $4',
+          [linkedBillId, user.userId, payMonth, payYear]
+        );
+        if (dupPay.rows.length > 0) {
+          throw new BusinessError(`Cicilan periode ${payMonth}/${payYear} sudah dibayar.`, 409);
+        }
+      }
+
       // 2. Ambil dan kunci dompet
       const walletRes = await client.query(
         `SELECT id, name, balance::float AS balance FROM wallets WHERE id = $1 AND user_id = $2 FOR UPDATE`,
@@ -83,15 +104,17 @@ export async function POST(req: NextRequest, context: RouteContext) {
           type,
           amount,
           admin_fee,
+          category_id,
           wallet_id,
           description,
           date
-        ) VALUES ($1, $2, $3, 0, $4, $5, $6)
+        ) VALUES ($1, $2, $3, 0, $4, $5, $6, $7)
         `,
         [
           user.userId,
           trxType,
           validated.amount,
+          linkedBillCategory,
           validated.wallet_id,
           trxDesc,
           validated.payment_date,
@@ -148,6 +171,20 @@ export async function POST(req: NextRequest, context: RouteContext) {
         `,
         [newPaidAmount, newStatus, debtId, user.userId]
       );
+
+      // 7. Sync to recurring_bills jika ada tagihan otomatis terkait cicilan ini
+      if (linkedBillId) {
+        // Create bill payment to mark this month's bill as paid (only if not already paid)
+        await client.query(
+          `INSERT INTO bill_payments (user_id, bill_id, paid_date, amount, month, year)
+           SELECT $1, $2, $3, $4, $5, $6
+           WHERE NOT EXISTS (
+              SELECT 1 FROM bill_payments
+              WHERE bill_id = $2 AND user_id = $1 AND month = $5 AND year = $6
+           )`,
+          [user.userId, linkedBillId, validated.payment_date, validated.amount, payMonth, payYear],
+        );
+      }
 
       return {
         debt: updatedDebtRes.rows[0],

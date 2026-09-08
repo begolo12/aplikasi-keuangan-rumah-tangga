@@ -24,29 +24,48 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
       }
 
       const trx = trxRows.rows[0];
+
+      // Tolak hapus bila transaksi terkait penjualan aset yang telah berstatus terjual
+      if (trx.asset_id) {
+        const assetCheck = await client.query<{ is_sold: boolean }>(
+          'SELECT is_sold FROM assets WHERE id = $1 AND user_id = $2',
+          [trx.asset_id, session.userId]
+        );
+        if (assetCheck.rows.length > 0 && assetCheck.rows[0].is_sold) {
+          throw new BusinessError('Transaksi terkait penjualan aset tidak dapat dihapus langsung dari riwayat transaksi.', 400);
+        }
+      }
+
       const amount = parseFloat(trx.amount);
       const adminFee = parseFloat(trx.admin_fee || 0);
 
-      // 2. Balik saldo dompet; semua akses wallet difilter user_id.
+      // 2. Balik saldo dompet; akses wallet via household_id atau user_id.
+      const walletIdParam = trx.wallet_id;
+      const toWalletIdParam = trx.to_wallet_id;
+      const sessionUserIdParam = session.userId;
+      
       if (trx.type === 'expense') {
-        await client.query(
-          'UPDATE wallets SET balance = balance + $1, updated_at = NOW() WHERE id = $2 AND user_id = $3',
-          [amount, trx.wallet_id, session.userId]
+        const reversed = await client.query(
+          'UPDATE wallets SET balance = balance + $1, updated_at = NOW() WHERE id = $2 AND (user_id = $3 OR (is_shared = TRUE AND household_id IN (SELECT household_id FROM household_members WHERE user_id = $3)))',
+          [amount + adminFee, walletIdParam, sessionUserIdParam]
         );
+        if (reversed.rowCount !== 1) throw new BusinessError('Saldo dompet tidak dapat dikembalikan.', 409);
       } else if (trx.type === 'income') {
-        await client.query(
-          'UPDATE wallets SET balance = balance - $1, updated_at = NOW() WHERE id = $2 AND user_id = $3',
-          [amount, trx.wallet_id, session.userId]
+        const reversed = await client.query(
+          'UPDATE wallets SET balance = balance - $1, updated_at = NOW() WHERE id = $2 AND (user_id = $3 OR (is_shared = TRUE AND household_id IN (SELECT household_id FROM household_members WHERE user_id = $3)))',
+          [amount, walletIdParam, sessionUserIdParam]
         );
+        if (reversed.rowCount !== 1) throw new BusinessError('Saldo dompet tidak dapat dikembalikan.', 409);
       } else if (trx.type === 'transfer') {
-        await client.query(
-          'UPDATE wallets SET balance = balance + $1, updated_at = NOW() WHERE id = $2 AND user_id = $3',
-          [amount + adminFee, trx.wallet_id, session.userId]
+        const reversedSource = await client.query(
+          'UPDATE wallets SET balance = balance + $1, updated_at = NOW() WHERE id = $2 AND (user_id = $3 OR (is_shared = TRUE AND household_id IN (SELECT household_id FROM household_members WHERE user_id = $3)))',
+          [amount + adminFee, walletIdParam, sessionUserIdParam]
         );
-        await client.query(
-          'UPDATE wallets SET balance = balance - $1, updated_at = NOW() WHERE id = $2 AND user_id = $3',
-          [amount, trx.to_wallet_id, session.userId]
+        const reversedDestination = await client.query(
+          'UPDATE wallets SET balance = balance - $1, updated_at = NOW() WHERE id = $2 AND (user_id = $3 OR (is_shared = TRUE AND household_id IN (SELECT household_id FROM household_members WHERE user_id = $3)))',
+          [amount, toWalletIdParam, sessionUserIdParam]
         );
+        if (reversedSource.rowCount !== 1 || reversedDestination.rowCount !== 1) throw new BusinessError('Saldo transfer tidak dapat dikembalikan.', 409);
       }
 
       // 3. Hapus catatan transaksi.
@@ -91,6 +110,17 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 
       const oldTrx = trxRows.rows[0];
 
+      // Tolak edit bila transaksi terkait penjualan aset yang telah berstatus terjual
+      if (oldTrx.asset_id) {
+        const assetCheck = await client.query<{ is_sold: boolean }>(
+          'SELECT is_sold FROM assets WHERE id = $1 AND user_id = $2',
+          [oldTrx.asset_id, session.userId]
+        );
+        if (assetCheck.rows.length > 0 && assetCheck.rows[0].is_sold) {
+          throw new BusinessError('Transaksi terkait penjualan aset tidak dapat diedit langsung dari riwayat transaksi.', 400);
+        }
+      }
+
       if (
         expectedUpdatedAt &&
         new Date(oldTrx.updated_at as string | Date).getTime() >
@@ -119,6 +149,16 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
           throw new BusinessError('Tipe kategori tidak cocok dengan tipe transaksi.');
         }
       }
+      // Biaya admin era baru dibukukan sebagai transaksi pendamping terpisah:
+      // tolak fee yang baru dimunculkan via edit (kas akan terdebit tanpa jejak).
+      const newFee = validated.admin_fee || 0;
+      const oldFee = parseFloat(oldTrx.admin_fee || 0);
+      if (validated.type === 'income' && newFee > 0) {
+        throw new BusinessError('Biaya admin hanya berlaku untuk pengeluaran dan transfer.', 400);
+      }
+      if (newFee > 0 && oldFee === 0 && validated.type !== 'income') {
+        throw new BusinessError('Biaya admin baru dicatat sebagai transaksi terpisah. Hapus lalu catat ulang bila perlu menambah biaya.', 400);
+      }
 
       // Kunci semua dompet yang terlibat (lama + baru) dengan urutan UUID kanonik untuk hindari deadlock
       const lockIds = Array.from(
@@ -131,36 +171,39 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       ).sort();
 
       const _locked = await client.query(
-        'SELECT id, name, balance FROM wallets WHERE id = ANY($1::uuid[]) AND user_id = $2 ORDER BY id FOR UPDATE',
+        'SELECT id, name, balance FROM wallets WHERE id = ANY($1::uuid[]) AND (user_id = $2 OR (is_shared = TRUE AND household_id IN (SELECT household_id FROM household_members WHERE user_id = $2))) ORDER BY id FOR UPDATE',
         [lockIds, session.userId]
       );
-      void _locked;
+      if (_locked.rows.length !== lockIds.length) throw new BusinessError('Dompet transaksi tidak ditemukan.', 404);
 
       // 2. Balik efek saldo transaksi lama
       if (oldTrx.type === 'expense') {
-        await client.query(
-          'UPDATE wallets SET balance = balance + $1, updated_at = NOW() WHERE id = $2 AND user_id = $3',
-          [oldAmount, oldTrx.wallet_id, session.userId]
-        );
-      } else if (oldTrx.type === 'income') {
-        await client.query(
-          'UPDATE wallets SET balance = balance - $1, updated_at = NOW() WHERE id = $2 AND user_id = $3',
-          [oldAmount, oldTrx.wallet_id, session.userId]
-        );
-      } else if (oldTrx.type === 'transfer') {
-        await client.query(
-          'UPDATE wallets SET balance = balance + $1, updated_at = NOW() WHERE id = $2 AND user_id = $3',
+        const reversed = await client.query(
+          'UPDATE wallets SET balance = balance + $1, updated_at = NOW() WHERE id = $2 AND (user_id = $3 OR (is_shared = TRUE AND household_id IN (SELECT household_id FROM household_members WHERE user_id = $3)))',
           [oldAmount + oldAdminFee, oldTrx.wallet_id, session.userId]
         );
-        await client.query(
-          'UPDATE wallets SET balance = balance - $1, updated_at = NOW() WHERE id = $2 AND user_id = $3',
+        if (reversed.rowCount !== 1) throw new BusinessError('Saldo dompet tidak dapat dikembalikan.', 409);
+      } else if (oldTrx.type === 'income') {
+        const reversed = await client.query(
+          'UPDATE wallets SET balance = balance - $1, updated_at = NOW() WHERE id = $2 AND (user_id = $3 OR (is_shared = TRUE AND household_id IN (SELECT household_id FROM household_members WHERE user_id = $3)))',
+          [oldAmount, oldTrx.wallet_id, session.userId]
+        );
+        if (reversed.rowCount !== 1) throw new BusinessError('Saldo dompet tidak dapat dikembalikan.', 409);
+      } else if (oldTrx.type === 'transfer') {
+        const reversedSource = await client.query(
+          'UPDATE wallets SET balance = balance + $1, updated_at = NOW() WHERE id = $2 AND (user_id = $3 OR (is_shared = TRUE AND household_id IN (SELECT household_id FROM household_members WHERE user_id = $3)))',
+          [oldAmount + oldAdminFee, oldTrx.wallet_id, session.userId]
+        );
+        const reversedDestination = await client.query(
+          'UPDATE wallets SET balance = balance - $1, updated_at = NOW() WHERE id = $2 AND (user_id = $3 OR (is_shared = TRUE AND household_id IN (SELECT household_id FROM household_members WHERE user_id = $3)))',
           [oldAmount, oldTrx.to_wallet_id, session.userId]
         );
+        if (reversedSource.rowCount !== 1 || reversedDestination.rowCount !== 1) throw new BusinessError('Saldo transfer tidak dapat dikembalikan.', 409);
       }
 
       // Refresh saldo terkini dompet setelah pembalikan
       const refreshedWallets = await client.query(
-        'SELECT id, name, balance FROM wallets WHERE id = ANY($1::uuid[]) AND user_id = $2',
+        'SELECT id, name, balance FROM wallets WHERE id = ANY($1::uuid[]) AND (user_id = $2 OR (is_shared = TRUE AND household_id IN (SELECT household_id FROM household_members WHERE user_id = $2)))',
         [lockIds, session.userId]
       );
 
@@ -182,21 +225,21 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       // 3. Terapkan efek saldo transaksi baru (saldo diizinkan minus)
       if (validated.type === 'expense') {
         await client.query(
-          'UPDATE wallets SET balance = balance - $1, updated_at = NOW() WHERE id = $2 AND user_id = $3',
-          [validated.amount, validated.wallet_id, session.userId]
+          'UPDATE wallets SET balance = balance - $1, updated_at = NOW() WHERE id = $2 AND (user_id = $3 OR (is_shared = TRUE AND household_id IN (SELECT household_id FROM household_members WHERE user_id = $3)))',
+          [validated.amount + (validated.admin_fee || 0), validated.wallet_id, session.userId]
         );
       } else if (validated.type === 'income') {
         await client.query(
-          'UPDATE wallets SET balance = balance + $1, updated_at = NOW() WHERE id = $2 AND user_id = $3',
+          'UPDATE wallets SET balance = balance + $1, updated_at = NOW() WHERE id = $2 AND (user_id = $3 OR (is_shared = TRUE AND household_id IN (SELECT household_id FROM household_members WHERE user_id = $3)))',
           [validated.amount, validated.wallet_id, session.userId]
         );
       } else if (destWallet) {
         await client.query(
-          'UPDATE wallets SET balance = balance - $1, updated_at = NOW() WHERE id = $2 AND user_id = $3',
+          'UPDATE wallets SET balance = balance - $1, updated_at = NOW() WHERE id = $2 AND (user_id = $3 OR (is_shared = TRUE AND household_id IN (SELECT household_id FROM household_members WHERE user_id = $3)))',
           [totalDebit, validated.wallet_id, session.userId]
         );
         await client.query(
-          'UPDATE wallets SET balance = balance + $1, updated_at = NOW() WHERE id = $2 AND user_id = $3',
+          'UPDATE wallets SET balance = balance + $1, updated_at = NOW() WHERE id = $2 AND (user_id = $3 OR (is_shared = TRUE AND household_id IN (SELECT household_id FROM household_members WHERE user_id = $3)))',
           [validated.amount, validated.to_wallet_id, session.userId]
         );
       }

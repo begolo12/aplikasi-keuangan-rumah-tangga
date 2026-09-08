@@ -5,7 +5,7 @@ import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { AmountInput } from '../ui/AmountInput';
 import { formatRupiah } from '@/lib/formatters';
-import { Asset, Wallet } from '@/lib/types';
+import { Asset, Debt, Wallet } from '@/lib/types';
 import { ApiError, apiFetch, endpoints } from '@/lib/apiFetch';
 import {
   CurrencyDollar,
@@ -19,6 +19,7 @@ interface SellAssetModalProps {
   onClose: () => void;
   asset: Asset | null;
   wallets: Wallet[];
+  debts?: Debt[];
   onSuccess: () => void;
 }
 
@@ -27,25 +28,29 @@ export function SellAssetModal({
   onClose,
   asset,
   wallets,
+  debts = [],
   onSuccess,
 }: SellAssetModalProps) {
   const [sellingPrice, setSellingPrice] = useState<number>(0);
-  const [soldDate, setSoldDate] = useState(() => new Date().toISOString().split('T')[0]);
+  const [soldDate, setSoldDate] = useState(() => getLocalDateString());
   const [walletId, setWalletId] = useState('');
   const [notes, setNotes] = useState('');
+  const [payoffDebtId, setPayoffDebtId] = useState('');
+  const [payoffAmount, setPayoffAmount] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  React.useEffect(() => {
-    if (asset) {
-      const defaultW = wallets.find((w) => w.is_default) || wallets[0];
-      if (defaultW) setWalletId(defaultW.id);
-      const suggestedPrice = asset.current_value > 0 ? asset.current_value : (asset.book_value ?? asset.purchase_price);
-      setSellingPrice(suggestedPrice);
-      setNotes('');
-      setError(null);
-    }
-  }, [asset, wallets]);
+  const [prevAssetId, setPrevAssetId] = useState<string | null>(asset?.id || null);
+  if (asset && asset.id !== prevAssetId) {
+    setPrevAssetId(asset.id);
+    const defaultW = wallets.find((w) => w.is_default) || wallets[0];
+    if (defaultW) setWalletId(defaultW.id);
+    const suggestedPrice = asset.current_value > 0 ? asset.current_value : (asset.book_value ?? asset.purchase_price);
+    setSellingPrice(suggestedPrice);
+    setNotes('');
+    setPayoffDebtId('');
+    setPayoffAmount(0);
+  }
 
   if (!asset) return null;
 
@@ -77,6 +82,8 @@ export function SellAssetModal({
           sold_date: soldDate,
           wallet_id: walletId,
           notes: notes.trim() || null,
+          debt_id: payoffDebtId || null,
+          debt_payment_amount: payoffDebtId && payoffAmount > 0 ? payoffAmount : null,
         },
       });
 
@@ -211,6 +218,46 @@ export function SellAssetModal({
           </div>
         </div>
 
+        {/* Lunasi hutang dari hasil jual (opsional) */}
+        {debts.filter((d) => d.type === 'payable' && d.status !== 'paid').length > 0 && (
+          <div className="p-3 bg-surface-2 border border-border rounded-2xl space-y-2">
+            <div className="space-y-1">
+              <label htmlFor="sellPayoffDebt" className="block text-xs font-semibold text-text-muted">
+                Lunasi Hutang dari Hasil Jual (Opsional)
+              </label>
+              <select
+                id="sellPayoffDebt"
+                value={payoffDebtId}
+                onChange={(e) => {
+                  const nextId = e.target.value;
+                  setPayoffDebtId(nextId);
+                  const target = debts.find((d) => d.id === nextId);
+                  if (target) setPayoffAmount(Math.min(target.remaining_amount, sellingPrice));
+                }}
+                className="w-full h-11 px-3 bg-background border border-border rounded-xl text-sm font-medium focus:ring-2 focus:ring-primary focus:outline-none"
+              >
+                <option value="">Tanpa pelunasan</option>
+                {debts
+                  .filter((d) => d.type === 'payable' && d.status !== 'paid')
+                  .map((d) => (
+                    <option key={d.id} value={d.id}>
+                      {d.person_name} (Sisa: {formatRupiah(d.remaining_amount)})
+                    </option>
+                  ))}
+              </select>
+            </div>
+            {payoffDebtId && (
+              <AmountInput
+                id="sellPayoffAmount"
+                label="Nominal Pelunasan (Rp)"
+                value={payoffAmount}
+                onChange={setPayoffAmount}
+                placeholder="0"
+              />
+            )}
+          </div>
+        )}
+
         {/* Notes */}
         <div className="space-y-1">
           <label htmlFor="sellNotes" className="block text-xs font-semibold text-text-muted">
@@ -234,8 +281,8 @@ export function SellAssetModal({
           </div>
           <p className="leading-relaxed">
             • Uang penjualan <span className="font-bold text-text">{formatRupiah(sellingPrice)}</span> akan otomatis masuk ke dompet Anda.<br />
+            • Yang tercatat di laporan hanya laba/rugi vs nilai buku, bukan seluruh harga jual.<br />
             • Aset ini akan dikeluarkan dari aset aktif.<br />
-            • Seluruh jadwal tagihan pajak & servis rutin terkait aset ini otomatis dinonaktifkan.
           </p>
         </div>
 

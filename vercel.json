@@ -1,4 +1,14 @@
 {
   "framework": "nextjs",
-  "regions": ["sin1"]
+  "regions": ["sin1"],
+  "crons": [
+    {
+      "path": "/api/push/cron",
+      "schedule": "0 1 * * *"
+    },
+    {
+      "path": "/api/bills/cron",
+      "schedule": "0 2 * * *"
+    }
+  ]
 }

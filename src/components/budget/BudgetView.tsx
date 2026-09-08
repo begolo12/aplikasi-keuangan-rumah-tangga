@@ -1,15 +1,17 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Budget, Category, Wallet } from '@/lib/types';
+import { Budget, Category, Wallet, RecurringBill, Debt, BudgetTemplate } from '@/lib/types';
 import { BudgetProgressBar } from './BudgetProgressBar';
 import { FinancialSafetyPlanCard, calculateFinancialSafetyPlan } from './FinancialSafetyPlanCard';
 import { ExpenseProjectionCard } from './ExpenseProjectionCard';
 import { Button } from '../ui/Button';
 import { Modal } from '../ui/Modal';
+import { ConfirmModal } from '../ui/ConfirmModal';
 import { AmountInput } from '../ui/AmountInput';
 import { EmptyState } from '../ui/EmptyState';
 import { Plus, Vault, Warning } from '@phosphor-icons/react';
+import { BudgetTemplateSelectorModal } from './BudgetTemplateSelectorModal';
 import { formatRupiah } from '@/lib/formatters';
 import { ApiError, apiFetch, endpoints } from '@/lib/apiFetch';
 
@@ -20,6 +22,8 @@ interface BudgetViewProps {
   totalExpense?: number;
   currentMonth: number;
   currentYear: number;
+  bills?: RecurringBill[];
+  debts?: Debt[];
   onRefresh: () => void;
   onNavigateToWallets?: () => void;
 }
@@ -31,6 +35,8 @@ export function BudgetView({
   totalExpense = 0,
   currentMonth,
   currentYear,
+  bills = [],
+  debts = [],
   onRefresh,
   onNavigateToWallets,
 }: BudgetViewProps) {
@@ -38,21 +44,30 @@ export function BudgetView({
   const [editingBudget, setEditingBudget] = useState<Budget | null>(null);
   const [categoryId, setCategoryId] = useState('');
   const [limit, setLimit] = useState(0);
+  const [rolloverOn, setRolloverOn] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [listError, setListError] = useState<string | null>(null);
+  const [isTemplateModalOpen, setIsTemplateModalOpen] = useState(false);
 
-  const plan = calculateFinancialSafetyPlan(budgets, wallets, totalExpense);
+  const plan = calculateFinancialSafetyPlan(budgets, wallets, totalExpense, bills, debts);
   const expenseCategories = categories.filter((c) => c.type === 'expense');
 
   const openAddModal = () => {
     setEditingBudget(null);
     setLimit(0);
+    setRolloverOn(false);
     setError(null);
     if (expenseCategories.length > 0) {
-      // Find category without budget
       const unused = expenseCategories.find((c) => !budgets.some((b) => b.category_id === c.id));
-      setCategoryId(unused ? unused.id : expenseCategories[0].id);
+      if (!unused) {
+        setError('Semua kategori belanja sudah memiliki anggaran bulan ini.');
+        setCategoryId('');
+      } else {
+        setCategoryId(unused.id);
+      }
+    } else {
+      setCategoryId('');
     }
     setIsModalOpen(true);
   };
@@ -61,8 +76,28 @@ export function BudgetView({
     setEditingBudget(budget);
     setCategoryId(budget.category_id);
     setLimit(budget.monthly_limit);
+    setRolloverOn(Boolean(budget.rollover_enabled));
     setError(null);
     setIsModalOpen(true);
+  };
+
+  const handleOpenTemplateSelector = () => {
+    setIsModalOpen(false);
+    setIsTemplateModalOpen(true);
+  };
+
+  const handleApplyTemplate = async (templateId: string) => {
+    try {
+      await apiFetch(endpoints.budgets.templates.apply, {
+        method: 'POST',
+        json: { template_id: templateId, month: currentMonth, year: currentYear },
+      });
+      
+      onRefresh();
+      setIsTemplateModalOpen(false);
+    } catch (error) {
+      console.error('Failed to apply template:', error);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -71,13 +106,17 @@ export function BudgetView({
       setError('Batas anggaran harus lebih dari 0.');
       return;
     }
+    if (!editingBudget && !categoryId) {
+      setError('Semua kategori sudah dianggarkan. Tidak ada kategori tersisa.');
+      return;
+    }
 
     setIsLoading(true);
     setError(null);
 
     try {
       if (editingBudget) {
-        await apiFetch(endpoints.budget(editingBudget.id), { method: 'PUT', json: { monthly_limit: limit } });
+        await apiFetch(endpoints.budget(editingBudget.id), { method: 'PUT', json: { monthly_limit: limit, rollover_enabled: rolloverOn } });
       } else {
         await apiFetch(endpoints.budgets, {
           method: 'POST',
@@ -86,6 +125,7 @@ export function BudgetView({
             monthly_limit: limit,
             month: currentMonth,
             year: currentYear,
+            rollover_enabled: rolloverOn,
           },
         });
       }
@@ -99,12 +139,15 @@ export function BudgetView({
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('Apakah Anda yakin ingin menghapus anggaran kategori ini?')) return;
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+
+  const handleDeleteConfirm = async () => {
+    if (!confirmDeleteId) return;
     try {
-      await apiFetch(endpoints.budget(id), { method: 'DELETE' });
+      await apiFetch(endpoints.budget(confirmDeleteId), { method: 'DELETE' });
       setListError(null);
       onRefresh();
+      setConfirmDeleteId(null);
     } catch (err) {
       setListError(err instanceof ApiError ? err.message : 'Gagal menghapus anggaran.');
     }
@@ -112,20 +155,24 @@ export function BudgetView({
 
   return (
     <div className="space-y-6">
-      {/* Resume Rencana Keuangan: Cadangan 4 Bulan + Cadangan Risiko 10% */}
+      {/* Resume Rencana Keuangan: Cadangan 4 Bulan + Cadangan Risiko 10% — otomatis termasuk tagihan rutin & cicilan */}
       <FinancialSafetyPlanCard
         budgets={budgets}
         wallets={wallets}
         totalExpense={totalExpense}
+        bills={bills}
+        debts={debts}
         onNavigateToWallets={onNavigateToWallets}
       />
 
-      {/* Proyeksi Pengeluaran Bulanan: Rencana vs Realisasi vs Sisa Estimasi */}
+      {/* Proyeksi Pengeluaran Bulanan: Rencana vs Realisasi vs Sisa Estimasi — otomatis termasuk tagihan rutin & cicilan */}
       <ExpenseProjectionCard
         budgets={budgets}
         totalExpense={totalExpense}
         currentMonth={currentMonth}
         currentYear={currentYear}
+        bills={bills}
+        debts={debts}
       />
 
       {/* Header */}
@@ -137,14 +184,25 @@ export function BudgetView({
           </p>
         </div>
 
-        <Button
-          variant={plan.can_expand_expense ? 'primary' : 'outline'}
-          size="md"
-          leftIcon={<Plus size={18} weight="bold" />}
-          onClick={openAddModal}
-        >
-          Tetapkan Anggaran {plan.can_expand_expense ? '' : '(Perlu Cadangan)'}
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            size="md"
+            onClick={handleOpenTemplateSelector}
+            className="bg-gradient-to-r from-purple-50 to-indigo-50 border-purple-200 text-purple-900 hover:from-purple-100 hover:to-indigo-100"
+          >
+            <Sparkle size={18} />
+            Gunakan Template
+          </Button>
+          <Button
+            variant={plan.can_expand_expense ? 'primary' : 'outline'}
+            size="md"
+            leftIcon={<Plus size={18} weight="bold" />}
+            onClick={openAddModal}
+          >
+            Tetapkan Anggaran {plan.can_expand_expense ? '' : '(Perlu Cadangan)'}
+          </Button>
+        </div>
       </div>
 
       {/* Delete Error */}
@@ -153,7 +211,7 @@ export function BudgetView({
           {listError}
         </div>
       )}
-
+      {/* Delete Error */}
       {/* Budgets List */}
       {budgets.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -162,7 +220,7 @@ export function BudgetView({
               key={budget.id}
               budget={budget}
               onEdit={openEditModal}
-              onDelete={handleDelete}
+              onDelete={(id) => setConfirmDeleteId(id)}
             />
           ))}
         </div>
@@ -205,19 +263,27 @@ export function BudgetView({
           {!editingBudget && (
             <div className="space-y-1">
               <label htmlFor="budgetCategory" className="block text-xs font-semibold text-text-muted">Pilih Kategori Belanja</label>
-              <select
-                id="budgetCategory"
-                value={categoryId}
-                onChange={(e) => setCategoryId(e.target.value)}
-                required
-                className="w-full h-11 px-3 bg-background border border-border rounded-xl text-sm font-medium focus:ring-2 focus:ring-primary focus:outline-none"
-              >
-                {expenseCategories.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                  </option>
-                ))}
-              </select>
+              {expenseCategories.filter((c) => !budgets.some((b) => b.category_id === c.id)).length === 0 ? (
+                <div className="p-3 bg-surface-2 border border-border rounded-xl text-xs text-text-muted font-semibold">
+                  Semua kategori sudah dianggarkan, tidak ada kategori tersisa untuk bulan ini.
+                </div>
+              ) : (
+                <select
+                  id="budgetCategory"
+                  value={categoryId}
+                  onChange={(e) => setCategoryId(e.target.value)}
+                  required
+                  className="w-full h-11 px-3 bg-background border border-border rounded-xl text-sm font-medium focus:ring-2 focus:ring-primary focus:outline-none"
+                >
+                  {expenseCategories
+                    .filter((c) => !budgets.some((b) => b.category_id === c.id))
+                    .map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name}
+                      </option>
+                    ))}
+                </select>
+              )}
             </div>
           )}
 
@@ -227,6 +293,22 @@ export function BudgetView({
             value={limit}
             onChange={setLimit}
           />
+
+          <div className="flex items-start gap-2 pt-1">
+            <input
+              type="checkbox"
+              id="budgetRollover"
+              checked={rolloverOn}
+              onChange={(e) => setRolloverOn(e.target.checked)}
+              className="mt-0.5 w-4 h-4 text-primary rounded border-border focus:ring-primary"
+            />
+            <label htmlFor="budgetRollover" className="text-xs font-semibold text-text cursor-pointer leading-relaxed">
+              Bawa sisa anggaran bulan lalu
+              <span className="block text-[11px] font-normal text-text-muted">
+                Sisa bulan lalu ditambahkan ke limit bulan ini. Bulan lalu overbudget? Selisihnya dipotong.
+              </span>
+            </label>
+          </div>
 
           <Button
             type="submit"
@@ -239,6 +321,23 @@ export function BudgetView({
           </Button>
         </form>
       </Modal>
+
+      {/* Confirm Delete Modal */}
+      <ConfirmModal
+        isOpen={Boolean(confirmDeleteId)}
+        onClose={() => setConfirmDeleteId(null)}
+        onConfirm={handleDeleteConfirm}
+        title="Hapus Batas Anggaran"
+        message="Apakah Anda yakin ingin menghapus batas anggaran belanja untuk kategori ini?"
+      />
+
+      {/* Template Selector Modal */}
+      <BudgetTemplateSelectorModal
+        isOpen={isTemplateModalOpen}
+        onClose={() => setIsTemplateModalOpen(false)}
+        onSelectTemplate={handleApplyTemplate}
+        categories={categories}
+      />
     </div>
   );
 }

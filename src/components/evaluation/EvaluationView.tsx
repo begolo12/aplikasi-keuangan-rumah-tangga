@@ -1,12 +1,14 @@
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { MonthlySummary as MonthlySummaryType, Debt, Asset, Budget, Wallet } from '@/lib/types';
+import { MonthlySummary as MonthlySummaryType, Debt, Asset, Budget, Wallet, RecurringBill } from '@/lib/types';
 import { apiFetch, endpoints } from '@/lib/apiFetch';
 import { formatRupiah, INDONESIAN_MONTHS } from '@/lib/formatters';
 import { calculateColdMoney } from '../reports/ColdMoneyCard';
 import { buildMonthlyDecision } from '@/lib/decisionSummary';
 import { DecisionCard } from './DecisionCard';
+import { CollapseForecastCard } from './CollapseForecastCard';
+import { ScenarioSimulator } from './ScenarioSimulator';
 import { DashboardSkeleton } from '../ui/LoadingSkeleton';
 import {
   Heartbeat,
@@ -28,6 +30,7 @@ interface EvaluationViewProps {
   debts?: Debt[];
   budgets?: Budget[];
   wallets?: Wallet[];
+  bills?: RecurringBill[];
 }
 
 interface PrevSummary {
@@ -43,10 +46,14 @@ export function EvaluationView({
   debts = [],
   budgets = [],
   wallets = [],
+  bills: billsProp,
 }: EvaluationViewProps) {
   const [assets, setAssets] = useState<Asset[]>([]);
+  const [billsState, setBillsState] = useState<RecurringBill[]>([]);
   const [isLoadingAssets, setIsLoadingAssets] = useState(true);
   const [prev, setPrev] = useState<PrevSummary | null>(null);
+
+  const bills = (billsProp && billsProp.length > 0) ? billsProp : billsState;
 
   useEffect(() => {
     let isMounted = true;
@@ -58,10 +65,18 @@ export function EvaluationView({
       .finally(() => {
         if (isMounted) setIsLoadingAssets(false);
       });
+    // Jika bills tidak dikirim via prop, fetch mandiri (fallback untuk akses langsung)
+    if (!billsProp || billsProp.length === 0) {
+      apiFetch<{ bills: RecurringBill[] }>(endpoints.bills)
+        .then((res) => {
+          if (isMounted && res.bills) setBillsState(res.bills);
+        })
+        .catch(() => {});
+    }
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [billsProp]);
 
   useEffect(() => {
     let isMounted = true;
@@ -98,9 +113,11 @@ export function EvaluationView({
         budgets,
         safeSummary.total_expense,
         safeSummary.total_bills_pending_amount,
-        safeSummary.total_payable_due
+        safeSummary.total_payable_due,
+        bills,
+        debts
       ),
-    [wallets, budgets, safeSummary.total_expense, safeSummary.total_bills_pending_amount, safeSummary.total_payable_due]
+    [wallets, budgets, safeSummary.total_expense, safeSummary.total_bills_pending_amount, safeSummary.total_payable_due, bills, debts]
   );
 
   const topOverspentCategory = useMemo(() => {
@@ -162,8 +179,14 @@ export function EvaluationView({
   const netWorth = totalCash + totalAssetBookValue + totalReceivableRemaining - totalPayableRemaining;
 
   // Emergency Fund & Risk Buffer KPI: Wajib 4 Bulan Biaya + 10% Cadangan Risiko (4.4x Anggaran)
+  // Kebutuhan bulanan otomatis = anggaran manual + tagihan rutin aktif + cicilan hutang (ponytail: sum konservatif)
   const totalBudgetFromLimits = budgets.reduce((sum, b) => sum + (b.monthly_limit || 0), 0);
-  const expenseBenchmark = totalBudgetFromLimits > 0 ? totalBudgetFromLimits : monthlyExpense > 0 ? monthlyExpense : 1000000;
+  const activeBillsTotal = bills.filter((b) => b.is_active && (b.type ?? 'expense') === 'expense').reduce((sum, b) => sum + (b.amount || 0), 0);
+  const activeDebtInstallments = debts
+    .filter((d) => d.type === 'payable' && d.status !== 'paid' && (d.monthly_installment || 0) > 0)
+    .reduce((sum, d) => sum + (d.monthly_installment || 0), 0);
+  const combinedBudgetForBenchmark = totalBudgetFromLimits + activeBillsTotal + activeDebtInstallments;
+  const expenseBenchmark = combinedBudgetForBenchmark > 0 ? combinedBudgetForBenchmark : monthlyExpense > 0 ? monthlyExpense : 0;
   const reserve4Months = expenseBenchmark * 4;
   const riskBuffer10Pct = reserve4Months * 0.1;
   const totalMinSafetyRequired = reserve4Months + riskBuffer10Pct; // 4.4x
@@ -174,9 +197,10 @@ export function EvaluationView({
     ? Math.max(0, savingsWallets.reduce((s, w) => s + (w.balance || 0), 0))
     : Math.max(0, totalCash);
     
-  const emergencyFundMonths = Math.round((currentEmergencyFund / expenseBenchmark) * 10) / 10;
+  const emergencyFundMonths = expenseBenchmark > 0 ? Math.round((currentEmergencyFund / expenseBenchmark) * 10) / 10 : 0;
   const safetyPlanProgressPct = totalMinSafetyRequired > 0 ? Math.min(100, Math.round((currentEmergencyFund / totalMinSafetyRequired) * 100)) : 0;
-  const isSafetyPlanMet = currentEmergencyFund >= totalMinSafetyRequired;
+  // Bila belum ada kebutuhan bulanan (expenseBenchmark 0) → anggap belum ada target, jadi tidak "terpenuhi" secara semu
+  const isSafetyPlanMet = expenseBenchmark > 0 && currentEmergencyFund >= totalMinSafetyRequired;
 
   // Savings Rate %
   const savingsRate = monthlyIncome > 0
@@ -255,12 +279,18 @@ export function EvaluationView({
     });
   }
 
-  if (!isSafetyPlanMet) {
+  if (expenseBenchmark === 0) {
+    insights.push({
+      type: 'info',
+      title: 'Belum Ada Kebutuhan Anggaran Bulanan',
+      desc: `Belum ada anggaran manual, tagihan rutin, atau cicilan yang tercatat. Tetapkan anggaran atau catat tagihan rutin/cicilan agar KPI cadangan 4.4x dapat dihitung otomatis. Kas saat ini ${formatRupiah(currentEmergencyFund)} belum memiliki pembanding.`,
+    });
+  } else if (!isSafetyPlanMet) {
     const gap = totalMinSafetyRequired - currentEmergencyFund;
     insights.push({
       type: 'warning',
       title: 'Cadangan Dana Belum Mencapai Target Keamanan (4 Bulan Biaya + 10% Risiko)',
-      desc: `Aturan KPI keuangan keluarga mensyaratkan memiliki cadangan minimal sebesar ${formatRupiah(totalMinSafetyRequired)} (Cadangan 4 Bulan ${formatRupiah(reserve4Months)} + Cadangan Risiko 10% ${formatRupiah(riskBuffer10Pct)}). Saat ini baru terkumpul ${formatRupiah(currentEmergencyFund)} (${safetyPlanProgressPct}% / setara ${emergencyFundMonths} bulan). Anda wajib memenuhi kekurangan ${formatRupiah(gap)} sebelum menambah pos pengeluaran lain.`,
+      desc: `Aturan KPI keuangan keluarga mensyaratkan memiliki cadangan minimal sebesar ${formatRupiah(totalMinSafetyRequired)} (Cadangan 4 Bulan ${formatRupiah(reserve4Months)} + Cadangan Risiko 10% ${formatRupiah(riskBuffer10Pct)}). Saat ini baru terkumpul ${formatRupiah(currentEmergencyFund)} (${safetyPlanProgressPct}% / setara ${emergencyFundMonths} bulan). Anda wajib memenuhi kekurangan ${formatRupiah(Math.max(0, gap))} sebelum menambah pos pengeluaran lain.`,
     });
   } else {
     insights.push({
@@ -380,6 +410,19 @@ export function EvaluationView({
           </div>
         )}
       </div>
+
+      {/* Forecasting Colapse: jika pendapatan mati hari ini */}
+      <CollapseForecastCard totalCash={totalCash} monthlyBurn={expenseBenchmark} />
+
+      {/* Simulasi What-If: proyeksi hemat & tambah beban — dengan vonis + proyeksi 12 bulan */}
+      <ScenarioSimulator
+        monthlyIncome={safeSummary.total_income}
+        monthlyExpense={safeSummary.total_expense}
+        totalCash={totalCash}
+        safetyReserve={totalMinSafetyRequired}
+        currentMonth={currentMonth}
+        currentYear={currentYear}
+      />
 
       {/* 4 Financial Ratios Grid */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5">

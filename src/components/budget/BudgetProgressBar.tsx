@@ -13,8 +13,10 @@ interface BudgetProgressBarProps {
 }
 
 export function BudgetProgressBar({ budget, onEdit, onDelete }: BudgetProgressBarProps) {
+  const effectiveLimit = budget.effective_limit ?? budget.monthly_limit;
+  const rollover = budget.rollover_amount ?? 0;
   const percentage = Math.min(budget.percentage || 0, 100);
-  const isOver = (budget.spent || 0) > budget.monthly_limit;
+  const isOver = (budget.spent || 0) > effectiveLimit;
   const isWarning = budget.percentage >= 70 && budget.percentage < 90;
   const isCritical = budget.percentage >= 90 && !isOver;
 
@@ -41,7 +43,16 @@ export function BudgetProgressBar({ budget, onEdit, onDelete }: BudgetProgressBa
             <p className="text-[11px] sm:text-xs text-text-muted mt-0.5 flex flex-wrap items-center gap-1">
               <span>Terpakai: <span className="font-bold text-text whitespace-nowrap tabular-nums">{formatRupiah(budget.spent)}</span></span>
               <span>/</span>
-              <span className="whitespace-nowrap tabular-nums">{formatRupiah(budget.monthly_limit)}</span>
+              <span className="whitespace-nowrap tabular-nums">{formatRupiah(effectiveLimit)}</span>
+              {rollover !== 0 && (
+                <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md border whitespace-nowrap ${
+                  rollover > 0
+                    ? 'text-income bg-income/10 border-income/20'
+                    : 'text-expense bg-expense/10 border-expense/20'
+                }`}>
+                  Rollover {rollover > 0 ? '+' : ''}{formatRupiah(rollover)}
+                </span>
+              )}
             </p>
           </div>
         </div>

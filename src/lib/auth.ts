@@ -5,10 +5,10 @@ import { BusinessError } from './apiHelpers';
 
 function getJwtSecret(): Uint8Array {
   const secret = process.env.JWT_SECRET;
-  if (!secret && process.env.NODE_ENV === 'production') {
+  if (!secret || secret.length < 32) {
     throw new Error('JWT_SECRET environment variable is required in production.');
   }
-  return new TextEncoder().encode(secret || 'dev_jwt_secret_fallback_key');
+  return new TextEncoder().encode(secret);
 }
 
 const COOKIE_NAME = 'kas_session_token';
@@ -19,13 +19,14 @@ export interface SessionPayload {
   email: string;
   name: string;
   familyName: string;
+  tokenVersion?: number;
 }
 
 /**
- * Sign a JWT token for the user session.
+ * Sign a JWT token for the user session. Claim tv = tokenVersion (0 bila tak diset).
  */
 export async function createSessionToken(payload: SessionPayload): Promise<string> {
-  return new SignJWT({ ...payload })
+  return new SignJWT({ ...payload, tv: payload.tokenVersion ?? 0 })
     .setProtectedHeader({ alg: 'HS256' })
     .setIssuedAt()
     .setExpirationTime(`${EXPIRY_DAYS}d`)
@@ -33,7 +34,8 @@ export async function createSessionToken(payload: SessionPayload): Promise<strin
 }
 
 /**
- * Verify a JWT session token.
+ * Verify a JWT session token. Murni tanpa DB: klaim tv dianggap 0 bila tak ada,
+ * sehingga token lama (sebelum kolom token_version) tetap valid.
  */
 export async function verifySessionToken(token: string): Promise<SessionPayload | null> {
   try {
@@ -43,6 +45,7 @@ export async function verifySessionToken(token: string): Promise<SessionPayload 
       email: payload.email as string,
       name: payload.name as string,
       familyName: payload.familyName as string,
+      tokenVersion: typeof payload.tv === 'number' ? payload.tv : 0,
     };
   } catch {
     return null;
@@ -51,6 +54,9 @@ export async function verifySessionToken(token: string): Promise<SessionPayload 
 
 /**
  * Get current authenticated user session from NextRequest or cookies().
+ * Setelah verifikasi token, satu query DB membandingkan token_version DB dengan
+ * klaim tv payload. Import db dinamis agar modul ini tetap aman dipakai skrip
+ * test tanpa efek samping koneksi database saat module-load.
  */
 export async function getAuthSession(req?: NextRequest): Promise<SessionPayload | null> {
   let token: string | undefined;
@@ -63,7 +69,17 @@ export async function getAuthSession(req?: NextRequest): Promise<SessionPayload 
   }
 
   if (!token) return null;
-  return verifySessionToken(token);
+  const payload = await verifySessionToken(token);
+  if (!payload) return null;
+
+  const { query } = await import('./db');
+  const rows = await query<{ token_version: number }>(
+    'SELECT token_version FROM users WHERE id = $1',
+    [payload.userId]
+  );
+  if (rows.length === 0) return null;
+  if (rows[0].token_version !== (payload.tokenVersion ?? 0)) return null;
+  return payload;
 }
 
 /**

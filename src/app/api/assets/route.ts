@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { query, withTransaction } from '@/lib/db';
 import { getAuthSession } from '@/lib/auth';
 import { assetSchema, assetQuerySchema } from '@/lib/validations';
-import { handleRouteError, readJsonBody } from '@/lib/apiHelpers';
+import { handleRouteError, BusinessError, readJsonBody } from '@/lib/apiHelpers';
 import { Asset, DepreciationMethod } from '@/lib/types';
 
 export function calculateAssetDepreciation(asset: {
@@ -203,10 +203,11 @@ export async function POST(req: NextRequest) {
       // 2. Jika opsi record_purchase_transaction aktif dan dompet dipilih, potong saldo & catat transaksi
       if (data.record_purchase_transaction && data.wallet_id) {
         // Potong saldo dompet (diizinkan minus)
-        await client.query(
+        const walletUpdate = await client.query(
           'UPDATE wallets SET balance = balance - $1, updated_at = NOW() WHERE id = $2 AND user_id = $3',
           [data.purchase_price, data.wallet_id, session.userId]
         );
+        if (walletUpdate.rowCount !== 1) throw new BusinessError('Dompet pembelian tidak ditemukan.', 404);
 
         // Catat transaksi pembelian aset
         await client.query(

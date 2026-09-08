@@ -1,0 +1,3 @@
+module.exports=[54799,(e,t,r)=>{t.exports=e.x("crypto",()=>require("crypto"))},14239,e=>{e.v(e=>Promise.resolve().then(()=>e(43793)))},79678,e=>{"use strict";let t=new Map;e.s(["checkRateLimit",0,function(e,r,n){let o=Date.now(),i=t.get(e),l=i?i.filter(e=>o-e<n):[];return(l.push(o),t.set(e,l),l.length>r)?{ok:!1,retryAfterSec:Math.max(1,Math.ceil((n-(o-l[0]))/1e3))}:{ok:!0,retryAfterSec:0}},"getClientIp",0,function(e){let t=e.headers.get("x-forwarded-for");if(t){let e=t.split(",")[0]?.trim();if(e)return e}return"unknown"}])}];
+
+//# sourceMappingURL=%5Broot-of-the-server%5D__1wispyw._.js.map

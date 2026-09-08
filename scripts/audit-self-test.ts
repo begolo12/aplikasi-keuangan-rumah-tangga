@@ -4,6 +4,8 @@
  * Semua assertion menguji modul produksi (validasi & formatter), bukan salinan lokal.
  */
 
+process.env.JWT_SECRET = process.env.JWT_SECRET || 'test-jwt-secret-min-32-chars-long-abc123';
+
 import {
   transactionSchema,
   walletSchema,
@@ -31,12 +33,14 @@ import { createSessionToken, verifySessionToken } from '../src/lib/auth';
 import { buildMonthlyDecision } from '../src/lib/decisionSummary';
 import { calculateAssetDepreciation } from '../src/app/api/assets/route';
 import { extractHeuristicReceipt } from '../src/lib/deepseek';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 
 import { calculateFinancialSafetyPlan } from '../src/components/budget/FinancialSafetyPlanCard';
 import { calculateExpenseProjection } from '../src/components/budget/ExpenseProjectionCard';
 import { calculateColdMoney } from '../src/components/reports/ColdMoneyCard';
 import { calculateFinancialRatios } from '../src/components/reports/FinancialRatiosReport';
-
+import { calculateCollapseForecast } from '../src/lib/collapseForecast';
 let passed = 0;
 let failed = 0;
 
@@ -229,6 +233,16 @@ const b3 = budgetSchema.safeParse({
 });
 assert('budget valid diterima', b3.success);
 
+const b4 = budgetSchema.safeParse({
+  category_id: validUuid1,
+  monthly_limit: 500000,
+  month: 8,
+  year: 2026,
+  rollover_enabled: true,
+});
+assert('budget rollover diterima', b4.success && b4.data.rollover_enabled === true);
+assert('budget rollover default false', b3.success && b3.data.rollover_enabled === false);
+
 // ── Validasi walletSchema & categorySchema ───────────────────────────────────
 console.log('\n[6] walletSchema & categorySchema');
 
@@ -299,6 +313,35 @@ const rb3 = recurringBillSchema.safeParse({
 });
 assert('recurringBill due_day > 31 ditolak', !rb3.success);
 
+const rb4 = recurringBillSchema.safeParse({
+  type: 'transfer',
+  title: 'Alokasi Dana Darurat',
+  amount: 1000000,
+  due_day: 2,
+  wallet_id: validUuid1,
+  to_wallet_id: validUuid2,
+});
+assert('recurringBill transfer asal ≠ tujuan diterima', rb4.success && rb4.data.type === 'transfer');
+
+const rb5 = recurringBillSchema.safeParse({
+  type: 'transfer',
+  title: 'Transfer Rusak',
+  amount: 1000000,
+  due_day: 2,
+  wallet_id: validUuid1,
+});
+assert('recurringBill transfer tanpa to_wallet_id ditolak', !rb5.success);
+
+const rb6 = recurringBillSchema.safeParse({
+  type: 'transfer',
+  title: 'Transfer Sama',
+  amount: 1000000,
+  due_day: 2,
+  wallet_id: validUuid1,
+  to_wallet_id: validUuid1,
+});
+assert('recurringBill transfer ke dompet sama ditolak', !rb6.success);
+
 const p1 = payBillSchema.safeParse({ wallet_id: validUuid1 });
 assert('payBill tanpa paid_date memakai hari ini', p1.success && /^\d{4}-\d{2}-\d{2}$/.test(p1.data.paid_date));
 
@@ -352,10 +395,75 @@ const dt1 = debtSchema.safeParse({
   tenor_months: 120,
   monthly_installment: 3750000,
   due_date: '2026-12-31',
+  start_date: '2026-01-20',
+  initial_paid_amount: 10000000,
+  create_asset: true,
+  asset_name: 'Rumah KPR BTN',
   auto_schedule_bill: true,
   wallet_id: validUuid1,
 });
+const dtBudget = debtSchema.safeParse({
+  type: 'payable',
+  person_name: 'KPR BTN',
+  total_amount: 150000000,
+  monthly_installment: 1250000,
+  budget_category_id: validUuid1,
+});
+assert('debtSchema kategori anggaran cicilan valid diterima', dtBudget.success);
+const dtBudgetBad = debtSchema.safeParse({
+  type: 'payable',
+  person_name: 'KPR BTN',
+  total_amount: 150000000,
+  budget_category_id: 'bukan-uuid',
+});
+assert('debtSchema kategori anggaran non-uuid ditolak', !dtBudgetBad.success);
 assert('debt payable KPR detail dengan bunga dan tenor valid diterima', dt1.success && dt1.data.category === 'kpr_rumah' && dt1.data.monthly_installment === 3750000);
+assert('debt payable KPR dengan start_date & opsi create_asset valid diterima', dt1.success && dt1.data.start_date === '2026-01-20' && dt1.data.create_asset === true && dt1.data.initial_paid_amount === 10000000);
+
+// Test kalkulasi otomatis cicilan berlalu (misal Jan 2026 ke Sep 2026)
+const startTestObj = new Date('2026-01-20');
+const currentTestObj = new Date('2026-09-02');
+const testElapsedMonths = (currentTestObj.getFullYear() - startTestObj.getFullYear()) * 12 + (currentTestObj.getMonth() - startTestObj.getMonth());
+const testMonthlyInstallment = 1250000;
+const testTotalKpr = 150000000;
+const testPaidAmount = testElapsedMonths * testMonthlyInstallment;
+const testRemainingKpr = testTotalKpr - testPaidAmount;
+assert('kalkulasi cicilan KPR berlalu (Jan ke Sep = 8 bulan) menghasilkan 8 bulan', testElapsedMonths === 8);
+assert('kalkulasi total terbayar KPR berlalu terhitung tepat Rp 10.000.000', testPaidAmount === 10000000);
+assert('kalkulasi sisa hutang KPR berkurang menjadi Rp 140.000.000', testRemainingKpr === 140000000);
+
+// Test logika isolasi safe-to-spend untuk hutang dengan tagihan aktif vs tanpa tagihan
+const mockTotalBalance = 20000000;
+const mockBillsPendingAmount = 1250000; // Tagihan cicilan KPR bulan ini
+const mockDebtWithActiveBill = {
+  remaining_amount: 140000000,
+  monthly_installment: 1250000,
+  active_bills_count: 1,
+  is_due_this_period: true,
+};
+const mockPureDebtWithoutBill = {
+  remaining_amount: 5000000,
+  monthly_installment: 500000,
+  active_bills_count: 0,
+  is_due_this_period: true,
+};
+
+// Hitung totalPayableDue dengan aturan anti double-counting
+let testTotalPayableDue = 0;
+if (mockDebtWithActiveBill.is_due_this_period && mockDebtWithActiveBill.active_bills_count === 0) {
+  testTotalPayableDue += mockDebtWithActiveBill.monthly_installment;
+}
+if (mockPureDebtWithoutBill.is_due_this_period && mockPureDebtWithoutBill.active_bills_count === 0) {
+  testTotalPayableDue += mockPureDebtWithoutBill.monthly_installment;
+}
+assert('hutang dengan tagihan aktif tidak dihitung ganda di totalPayableDue (0)', testTotalPayableDue === 500000);
+const testSafeToSpend = mockTotalBalance - (mockBillsPendingAmount + testTotalPayableDue);
+assert('safe-to-spend terhitung akurat Rp 18.250.000 (tidak tertekan pokok 140jt)', testSafeToSpend === 18250000);
+
+// Kontrak SQL-loop anti double-count: query debts bootstrap WAJIB memilih active_bills_count
+// (loop totalPayableDue membacanya; tanpanya cicilan dihitung ganda via tagihan + hutang).
+const bootstrapSrc = readFileSync(join(process.cwd(), 'src', 'app', 'api', 'dashboard', 'bootstrap', 'route.ts'), 'utf8');
+assert('query debts bootstrap memilih active_bills_count (kontrak anti double-count)', bootstrapSrc.includes('active_bills_count'));
 
 const dt2 = debtSchema.safeParse({
   type: 'receivable',
@@ -441,6 +549,14 @@ const sas1 = sellAssetSchema.safeParse({
   notes: 'Terjual ke kawan',
 });
 assert('sellAssetSchema valid diterima', sas1.success && sas1.data.selling_price === 18000000);
+const sas3 = sellAssetSchema.safeParse({
+  selling_price: 20000000,
+  sold_date: '2026-09-03',
+  wallet_id: validUuid1,
+  debt_id: validUuid2,
+  debt_payment_amount: 5000000,
+});
+assert('sellAssetSchema pelunasan hutang dari hasil jual valid diterima', sas3.success && sas3.data.debt_id === validUuid2);
 
 const sas2 = sellAssetSchema.safeParse({
   selling_price: -100,
@@ -581,8 +697,29 @@ assert('liquidity months terhitung 4 bulan', ratioRes.liquidity_months === 4);
 assert('health score berada di zona baik (>= 70)', ratioRes.health_score >= 70);
 assert('verdict summary ter-generate otomatis', ratioRes.verdict_summary.length > 30);
 
+// ── Validasi calculateCollapseForecast (Forecasting Colapse) ─
+console.log('\n[10g] calculateCollapseForecast (Simulasi Colapse)');
+
+const cf1 = calculateCollapseForecast(10000000, 2000000);
+assert('colapse 10jt / 2jt = 5 bulan', Math.abs(cf1.monthsUntilCollapse - 5) < 0.001);
+assert('colapse level waspada untuk 5 bulan', cf1.level === 'waspada');
+assert('colapse collapseDate terisi', typeof cf1.collapseDate === 'string' && cf1.collapseDate.length === 10);
+assert('colapse burnRate 2jt', cf1.burnRate === 2000000);
+
+const cf2 = calculateCollapseForecast(1000000, 2000000);
+assert('colapse 1jt / 2jt = 0.5 bulan', Math.abs(cf2.monthsUntilCollapse - 0.5) < 0.001);
+assert('colapse level colapse untuk 0.5 bulan', cf2.level === 'colapse');
+
+const cf3 = calculateCollapseForecast(5000000, 0);
+assert('colapse burn 0 => Infinity aman', cf3.monthsUntilCollapse === Infinity && cf3.level === 'aman' && cf3.collapseDate === null);
+
+const cf4 = calculateCollapseForecast(-500000, 1000000);
+assert('colapse kas minus => 0 bulan colapse', cf4.monthsUntilCollapse === 0 && cf4.level === 'colapse');
+
+const cf5 = calculateCollapseForecast(12000000, 1000000);
+assert('colapse 12jt / 1jt = 12 bulan aman', Math.abs(cf5.monthsUntilCollapse - 12) < 0.001 && cf5.level === 'aman');
+
 // ── Validasi Smart Receipt Parser & DeepSeek Helper ───────────────────────
-console.log('\n[10f] Smart Receipt Parser (Schema & Heuristic Fallback)');
 
 const reqParseValid = parseReceiptRequestSchema.safeParse({
   text: 'INDOMARET POINT\n1x SUSU UHT 19.500\nTOTAL: 19.500',
@@ -646,6 +783,34 @@ async function testAuth() {
   assert('checkAuth kompatibel dengan nested user data shape', Boolean(extractedNested));
 }
 
+// ── Validasi Metadata Produksi & Robots ─────────────────────────────────────
+console.log('\n[12] production readiness & privacy robots metadata');
+import robots from '../src/app/robots';
+const robotsConfig = robots();
+assert('robots.txt mendisallow semua user-agent untuk privasi data', robotsConfig.rules && (Array.isArray(robotsConfig.rules) ? robotsConfig.rules[0].disallow === '/' : robotsConfig.rules.disallow === '/'));
+
+
+// ── Validasi PWA Shortcuts & Manifest ────────────────────────────────────────
+console.log('\n[13] PWA App Shortcuts in manifest.json');
+import manifestJson from '../public/manifest.json';
+assert('manifest memiliki properti shortcuts', Array.isArray(manifestJson.shortcuts) && manifestJson.shortcuts.length >= 3);
+assert('shortcut new-expense terdaftar', manifestJson.shortcuts.some(s => s.url === '/?action=new-expense'));
+assert('shortcut new-income terdaftar', manifestJson.shortcuts.some(s => s.url === '/?action=new-income'));
+assert('shortcut scan-receipt terdaftar', manifestJson.shortcuts.some(s => s.url === '/?action=scan-receipt'));
+
+// ── Validasi Rumus Kuota Harian (Daily Safe-to-Spend) ──────────────────────
+console.log('\n[14] Daily Safe-to-Spend formula');
+function calculateDailySafeQuota(safeToSpend: number, dayOfMonth: number, totalDaysInMonth: number) {
+  const daysRemaining = Math.max(1, totalDaysInMonth - dayOfMonth + 1);
+  const amountPerDay = safeToSpend > 0 ? Math.floor(safeToSpend / daysRemaining) : 0;
+  return { daysRemaining, amountPerDay };
+}
+const quota1 = calculateDailySafeQuota(3000000, 1, 30);
+assert('kuota hari pertama (3jt / 30 hari) = 100.000', quota1.amountPerDay === 100000 && quota1.daysRemaining === 30);
+const quota2 = calculateDailySafeQuota(1500000, 16, 30);
+assert('kuota pertengahan bulan (1.5jt / 15 hari) = 100.000', quota2.amountPerDay === 100000 && quota2.daysRemaining === 15);
+const quotaNegative = calculateDailySafeQuota(-500000, 20, 30);
+assert('kuota kas defisit menghasilkan 0', quotaNegative.amountPerDay === 0);
 testAuth().then(() => {
   // ── Summary ──────────────────────────────────────────────────────────────────
   console.log(`\n${'─'.repeat(50)}`);

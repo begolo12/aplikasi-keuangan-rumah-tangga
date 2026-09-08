@@ -6,7 +6,8 @@ import { AmountInput } from '../ui/AmountInput';
 import { Button } from '../ui/Button';
 import { Wallet, SavingsGoal } from '@/lib/types';
 import { apiFetch, endpoints, ApiError } from '@/lib/apiFetch';
-import { formatRupiah, formatDate } from '@/lib/formatters';
+import { formatRupiah, formatDate, getLocalDateString } from '@/lib/formatters';
+CUT 246:=247:
 import {
   Target,
   Plus,
@@ -20,9 +21,10 @@ import {
 
 interface GoalsViewProps {
   wallets: Wallet[];
+  onRefreshParent?: () => void;
 }
 
-export function GoalsView({ wallets }: GoalsViewProps) {
+export function GoalsView({ wallets, onRefreshParent }: GoalsViewProps) {
   const [goals, setGoals] = useState<SavingsGoal[] | null>(null);
   const [listError, setListError] = useState<string | null>(null);
 
@@ -48,10 +50,10 @@ export function GoalsView({ wallets }: GoalsViewProps) {
   const [actionError, setActionError] = useState<string | null>(null);
 
   const fetchGoals = React.useCallback(async () => {
-    setListError(null);
     try {
       const data = await apiFetch<{ goals: SavingsGoal[] }>(endpoints.goals);
       setGoals(data.goals || []);
+      setListError(null);
     } catch (err) {
       setListError(err instanceof ApiError ? err.message : 'Gagal memuat target tabungan.');
       setGoals([]);
@@ -59,8 +61,24 @@ export function GoalsView({ wallets }: GoalsViewProps) {
   }, []);
 
   React.useEffect(() => {
-    fetchGoals();
-  }, [fetchGoals]);
+    let isMounted = true;
+    apiFetch<{ goals: SavingsGoal[] }>(endpoints.goals)
+      .then((data) => {
+        if (isMounted) {
+          setGoals(data.goals || []);
+          setListError(null);
+        }
+      })
+      .catch((err) => {
+        if (isMounted) {
+          setListError(err instanceof ApiError ? err.message : 'Gagal memuat target tabungan.');
+          setGoals([]);
+        }
+      });
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const openAddForm = () => {
     setEditingGoal(null);
@@ -140,6 +158,7 @@ export function GoalsView({ wallets }: GoalsViewProps) {
       });
       setContribGoal(null);
       await fetchGoals();
+      onRefreshParent?.();
     } catch (err) {
       setActionError(err instanceof ApiError ? err.message : 'Gagal mengalokasikan dana.');
     } finally {
@@ -225,7 +244,8 @@ export function GoalsView({ wallets }: GoalsViewProps) {
           } else if (monthsNeeded && monthsNeeded >= 1) {
             const etaDate = new Date();
             etaDate.setMonth(etaDate.getMonth() + Math.ceil(monthsNeeded));
-            projectionText = `Estimasi tercapai sekitar ${formatDate(etaDate.toISOString().split('T')[0], 'long')} (${Math.ceil(monthsNeeded)} bulan lagi).`;
+import { getLocalDateString } from '@/lib/formatters';
+            projectionText = `Estimasi tercapai sekitar ${formatDate(getLocalDateString(etaDate), 'long')} (${Math.ceil(monthsNeeded)} bulan lagi).`;
           } else if (g.target_date) {
             projectionText = `Kurang ${formatRupiah(g.remaining_amount)} lagi sampai ${g.target_date}.`;
           } else {

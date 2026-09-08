@@ -19,10 +19,12 @@ import {
   ArrowUpRight,
   ArrowsLeftRight,
   Plus,
+  CalendarBlank,
+  UsersThree,
 } from '@phosphor-icons/react';
 import { TransactionType } from '@/lib/types';
 
-export type NavTab = 'dashboard' | 'transactions' | 'budget' | 'reports' | 'evaluation' | 'wallets' | 'bills' | 'debts' | 'assets' | 'goals' | 'settings';
+export type NavTab = 'dashboard' | 'transactions' | 'calendar' | 'budget' | 'reports' | 'evaluation' | 'wallets' | 'bills' | 'debts' | 'assets' | 'goals' | 'household' | 'settings';
 
 interface BottomNavProps {
   activeTab: NavTab;
@@ -32,6 +34,7 @@ interface BottomNavProps {
   pendingBillsCount?: number;
   overbudgetCount?: number;
   unpaidDebtsCount?: number;
+  householdActivityCount?: number;
 }
 
 export function BottomNav({
@@ -42,6 +45,7 @@ export function BottomNav({
   pendingBillsCount = 0,
   overbudgetCount = 0,
   unpaidDebtsCount = 0,
+  householdActivityCount = 0,
 }: BottomNavProps) {
   const [isMoreOpen, setIsMoreOpen] = useState(false);
   const sheetRef = useRef<HTMLDivElement>(null);
@@ -96,6 +100,8 @@ export function BottomNav({
 
   // Ikon modul NETRAL sesuai DESIGN.md: palet maksimal 3 core + aksen semantik.
   const MORE_MODULES = [
+    { id: 'calendar' as NavTab, label: 'Kalender', icon: CalendarBlank },
+    { id: 'household' as NavTab, label: 'Keluarga', icon: UsersThree, badge: householdActivityCount > 0 ? householdActivityCount : undefined },
     { id: 'budget' as NavTab, label: 'Anggaran', icon: Vault, badge: overbudgetCount > 0 ? overbudgetCount : undefined },
     { id: 'bills' as NavTab, label: 'Tagihan', icon: Receipt, badge: pendingBillsCount > 0 ? pendingBillsCount : undefined },
     { id: 'debts' as NavTab, label: 'Hutang', icon: HandCoins, badge: unpaidDebtsCount > 0 ? unpaidDebtsCount : undefined },
@@ -106,7 +112,7 @@ export function BottomNav({
     { id: 'settings' as NavTab, label: 'Pengaturan', icon: Gear },
   ];
 
-  const iMoreActive = ['budget', 'bills', 'debts', 'assets', 'goals', 'reports', 'evaluation', 'settings'].includes(activeTab);
+  const iMoreActive = ['calendar', 'household', 'budget', 'bills', 'debts', 'assets', 'goals', 'reports', 'evaluation', 'settings'].includes(activeTab);
   const totalBadge = (overbudgetCount > 0 ? 1 : 0) + (pendingBillsCount > 0 ? 1 : 0) + (unpaidDebtsCount > 0 ? 1 : 0);
 
   return (

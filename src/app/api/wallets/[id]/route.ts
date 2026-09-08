@@ -15,7 +15,14 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     const validated = walletSchema.parse(await readJsonBody(req));
 
     // Unset default dan update dompet harus atomik agar tidak ada dua default.
+    // Struktural (ubah nama/tipe/default): pemilik dompet saja. Operasional
+    // (transaksi, rekonsiliasi) untuk dompet bersama diatur di route masing-masing.
     const updated = await withTransaction(async (client) => {
+      const existing = await client.query('SELECT id, user_id FROM wallets WHERE id = $1', [id]);
+      if (existing.rows.length === 0) return null;
+      if (existing.rows[0]?.user_id !== session.userId) {
+        throw new BusinessError('Hanya pemilik dompet yang dapat mengubahnya.', 403);
+      }
       if (validated.is_default) {
         await client.query('UPDATE wallets SET is_default = FALSE WHERE user_id = $1', [session.userId]);
       }
@@ -24,7 +31,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
          SET name = $1, type = $2, icon = $3, color = $4, is_default = $5, updated_at = NOW()
          WHERE id = $6 AND user_id = $7
          RETURNING *`,
-        [validated.name, validated.type, validated.icon, validated.color, validated.is_default, id, session.userId]
+         [validated.name, validated.type, validated.icon, validated.color, validated.is_default, id, session.userId]
       );
       return rows.rows[0] ?? null;
     });
@@ -49,12 +56,18 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
 
     // Safety check dan delete dalam satu transaksi: tanpa celah race.
     const deleted = await withTransaction(async (client) => {
+      const existing = await client.query('SELECT id, user_id FROM wallets WHERE id = $1', [id]);
+      if (existing.rows.length === 0) {
+        throw new BusinessError('Dompet tidak ditemukan.', 404);
+      }
+      if (existing.rows[0]?.user_id !== session.userId) {
+        throw new BusinessError('Hanya pemilik dompet yang dapat menghapusnya.', 403);
+      }
       const trxs = await client.query(
         'SELECT id FROM transactions WHERE (wallet_id = $1 OR to_wallet_id = $1) AND user_id = $2 LIMIT 1',
         [id, session.userId]
       );
       if (trxs.rows.length > 0) return null;
-
       const rows = await client.query(
         `DELETE FROM wallets
          WHERE id = $1 AND user_id = $2

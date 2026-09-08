@@ -8,7 +8,7 @@ import {
   WarningCircle,
 } from '@phosphor-icons/react';
 import { formatRupiah, INDONESIAN_MONTHS } from '@/lib/formatters';
-import { Budget, ExpenseProjection } from '@/lib/types';
+import { Budget, ExpenseProjection, RecurringBill, Debt } from '@/lib/types';
 import { AmountInput } from '../ui/AmountInput';
 
 interface ExpenseProjectionCardProps {
@@ -16,6 +16,8 @@ interface ExpenseProjectionCardProps {
   totalExpense: number;
   currentMonth: number;
   currentYear: number;
+  bills?: RecurringBill[];
+  debts?: Debt[];
 }
 
 export function calculateExpenseProjection(
@@ -23,10 +25,19 @@ export function calculateExpenseProjection(
   totalExpense: number,
   currentMonth: number,
   currentYear: number,
-  customRemaining?: number
+  customRemaining?: number,
+  bills: RecurringBill[] = [],
+  debts: Debt[] = []
 ): ExpenseProjection {
   const totalBudget = budgets.reduce((sum, b) => sum + (b.monthly_limit || 0), 0);
-  const planned_budget = totalBudget > 0 ? totalBudget : totalExpense > 0 ? totalExpense : 1500000;
+  const activeBillsTotal = bills.filter((b) => b.is_active && (b.type ?? 'expense') === 'expense').reduce((sum, b) => sum + (b.amount || 0), 0);
+  const activeDebtInstallments = debts
+    .filter((d) => d.type === 'payable' && d.status !== 'paid' && (d.monthly_installment || 0) > 0)
+    .reduce((sum, d) => sum + (d.monthly_installment || 0), 0);
+  const combinedBudget = totalBudget + activeBillsTotal + activeDebtInstallments;
+  const is_default_budget = combinedBudget <= 0 && totalExpense <= 0;
+  // Bila ada tagihan/cicilan, mereka otomatis jadi rencana walau belum ada anggaran manual.
+  const planned_budget = combinedBudget > 0 ? combinedBudget : totalExpense;
   const current_spent = totalExpense;
 
   const now = new Date();
@@ -50,6 +61,7 @@ export function calculateExpenseProjection(
 
   return {
     planned_budget,
+    is_default_budget,
     current_spent,
     remaining_estimated,
     projected_total,
@@ -66,6 +78,8 @@ export function ExpenseProjectionCard({
   totalExpense,
   currentMonth,
   currentYear,
+  bills = [],
+  debts = [],
 }: ExpenseProjectionCardProps) {
   const [customRemaining, setCustomRemaining] = useState<number | null>(null);
   const [isEditingRemaining, setIsEditingRemaining] = useState(false);
@@ -76,7 +90,9 @@ export function ExpenseProjectionCard({
     totalExpense,
     currentMonth,
     currentYear,
-    customRemaining !== null ? customRemaining : undefined
+    customRemaining !== null ? customRemaining : undefined,
+    bills,
+    debts
   );
 
   const handleOpenEdit = () => {
@@ -96,13 +112,14 @@ export function ExpenseProjectionCard({
   };
 
   const isSaving = projection.projected_savings >= 0;
+  const showNeutral = projection.is_default_budget;
 
   return (
     <div className="p-4 sm:p-5 bg-surface border border-border rounded-3xl space-y-4 shadow-2xs">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2.5 border-b border-border">
         <div className="flex items-center gap-2">
-          <div className={`p-2 rounded-xl shrink-0 ${isSaving ? 'bg-income/10 text-income' : 'bg-expense/10 text-expense'}`}>
+          <div className={`p-2 rounded-xl shrink-0 ${showNeutral ? 'bg-surface-2 text-text-muted' : isSaving ? 'bg-income/10 text-income' : 'bg-expense/10 text-expense'}`}>
             <ChartLineUp size={20} weight="bold" />
           </div>
           <div>
@@ -112,12 +129,16 @@ export function ExpenseProjectionCard({
               </h3>
               <span
                 className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full border ${
-                  isSaving
+                  showNeutral
+                    ? 'bg-surface-2 text-text-muted border-border'
+                    : isSaving
                     ? 'bg-income/10 text-income border-income/20'
                     : 'bg-expense/10 text-expense border-expense/20 animate-pulse'
                 }`}
               >
-                {isSaving
+                {showNeutral
+                  ? 'Belum Ada Anggaran'
+                  : isSaving
                   ? `Efisien (Hemat ${projection.savings_percentage}%)`
                   : `Inefisien (Boros ${Math.abs(projection.savings_percentage)}%)`}
               </span>
@@ -137,6 +158,15 @@ export function ExpenseProjectionCard({
           <span>Sesuaikan Sisa Kebutuhan</span>
         </button>
       </div>
+
+      {/* Banner default: belum ada anggaran, semua angka 0 */}
+      {showNeutral && (
+        <div className="p-3 bg-surface-2 border border-border rounded-2xl text-[11px] text-text-muted leading-relaxed">
+          Belum ada rencana anggaran bulan ini dan belum ada pengeluaran tercatat, jadi seluruh angka
+          proyeksi tampil Rp 0. Tetapkan anggaran bulanan agar proyeksi dihitung dari rencana belanja
+          Anda.
+        </div>
+      )}
 
       {/* 4-Metric Grid Calculation */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5">
@@ -231,17 +261,21 @@ export function ExpenseProjectionCard({
             className="h-full bg-expense transition-all duration-500"
             title={`Realisasi Terkini: ${formatRupiah(projection.current_spent)}`}
             style={{
-              width: `${Math.min(100, (projection.current_spent / projection.planned_budget) * 100)}%`,
+              width: `${projection.planned_budget > 0 ? Math.min(100, (projection.current_spent / projection.planned_budget) * 100) : 0}%`,
             }}
           />
           <div
             className="h-full bg-primary/70 transition-all duration-500"
             title={`Sisa Kebutuhan: ${formatRupiah(projection.remaining_estimated)}`}
             style={{
-              width: `${Math.min(
-                100 - (projection.current_spent / projection.planned_budget) * 100,
-                (projection.remaining_estimated / projection.planned_budget) * 100
-              )}%`,
+              width: `${
+                projection.planned_budget > 0
+                  ? Math.min(
+                      100 - (projection.current_spent / projection.planned_budget) * 100,
+                      (projection.remaining_estimated / projection.planned_budget) * 100
+                    )
+                  : 0
+              }%`,
             }}
           />
         </div>

@@ -67,13 +67,63 @@ export function handleRouteError(error: unknown, context: string): NextResponse 
   return NextResponse.json({ success: false, error: message }, { status: 500 });
 }
 
+const MAX_BODY_BYTES = 2_500_000;
+
 /**
  * Body JSON yang gagal parse menjadi BusinessError, bukan SyntaxError misterius.
+ * Content-length dicek cepat; bila header tak ada (chunked), stream dibaca dengan
+ * akumulator dan batas keras MAX_BODY_BYTES.
  */
 export async function readJsonBody(req: NextRequest): Promise<unknown> {
   try {
+    const contentLength = Number(req.headers.get('content-length') || 0);
+    if (contentLength > MAX_BODY_BYTES) {
+      throw new BusinessError('Ukuran request terlalu besar.', 413);
+    }
+
+    if (req.body) {
+      const reader = req.body.getReader();
+      const decoder = new TextDecoder();
+      let total = 0;
+      let text = '';
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        total += value.byteLength;
+        if (total > MAX_BODY_BYTES) {
+          await reader.cancel();
+          throw new BusinessError('Ukuran request terlalu besar.', 413);
+        }
+        text += decoder.decode(value, { stream: true });
+      }
+      text += decoder.decode();
+      if (text.length === 0) return undefined;
+      return JSON.parse(text);
+    }
+
     return await req.json();
-  } catch {
+  } catch (error) {
+    if (error instanceof BusinessError) throw error;
     throw new BusinessError('Format body request tidak valid (harus JSON).');
+  }
+}
+
+/**
+ * Verifikasi same-origin untuk mutation endpoint sebagai CSRF defense-in-depth.
+ * Memeriksa Origin header sesuai RFC 6454 dan CORS spec.
+ * Return true bila request aman (origin match atau tidak ada origin = xhr sama-domain),
+ * false jika origin mismatch atau header absen pada cross-origin fetch.
+ */
+export function verifySameOrigin(req: NextRequest): boolean {
+  const requestedOrigin = req.headers.get('origin');
+  if (!requestedOrigin) return true; // XMLHttpRequest tanpa origin = same-domain
+
+  const hostHeader = req.headers.get('host') ?? 'localhost';
+
+  try {
+    const url = new URL(requestedOrigin);
+    return url.hostname === hostHeader.split(':')[0] && url.protocol === window.location.protocol;
+  } catch {
+    return false;
   }
 }

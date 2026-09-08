@@ -7,6 +7,7 @@ import { handleRouteError, readJsonBody } from '@/lib/apiHelpers';
 
 const updateBudgetSchema = z.object({
   monthly_limit: z.number().positive('Batas anggaran harus lebih dari 0'),
+  rollover_enabled: z.boolean().default(false),
 });
 
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -20,10 +21,10 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 
     const updated = await query(
       `UPDATE budgets
-       SET monthly_limit = $1
-       WHERE id = $2 AND user_id = $3
+       SET monthly_limit = $1, rollover_enabled = $2
+       WHERE id = $3 AND user_id = $4
        RETURNING *`,
-      [validated.monthly_limit, id, session.userId]
+      [validated.monthly_limit, validated.rollover_enabled, id, session.userId]
     );
 
     if (updated.length === 0) {

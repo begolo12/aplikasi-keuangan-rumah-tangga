@@ -206,6 +206,7 @@ export function TransactionList({
                 transaction={trx}
                 onDelete={onDeleteTransaction}
                 onEdit={onEditTransaction}
+                highlight={searchQuery || searchInput}
               />
             ))}
             {hasMore && (
@@ -219,6 +220,14 @@ export function TransactionList({
               </button>
             )}
           </>
+        ) : filterType !== 'all' && !(searchQuery || searchInput) ? (
+          <EmptyState
+            icon={<Receipt size={36} weight="duotone" />}
+            title={`Tidak Ada ${filterType === 'expense' ? 'Pengeluaran' : filterType === 'income' ? 'Pemasukan' : 'Transfer'}`}
+            description={`Belum ada transaksi tipe ${filterType === 'expense' ? 'pengeluaran' : filterType === 'income' ? 'pemasukan' : 'transfer'} pada periode ini. Coba ganti filter atau catat baru.`}
+            actionLabel="Tampilkan Semua"
+            onAction={() => setFilterType('all')}
+          />
         ) : (
           <EmptyState
             icon={<Receipt size={36} weight="duotone" />}

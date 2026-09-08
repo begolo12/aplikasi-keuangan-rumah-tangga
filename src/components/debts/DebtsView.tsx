@@ -51,11 +51,18 @@ export function DebtsView({
   const [interestRate, setInterestRate] = useState(0); // % per tahun
   const [tenorMonths, setTenorMonths] = useState(12);
   const [isDetailLoan, setIsDetailLoan] = useState(false);
+  const [startDate, setStartDate] = useState(() => getLocalDateString());
+  const [createAsset, setCreateAsset] = useState(true);
+  const [assetName, setAssetName] = useState('');
+  const [assetPrice, setAssetPrice] = useState(0);
+  const [initialPaidAmount, setInitialPaidAmount] = useState(0);
+  const [autoCalculatePaid, setAutoCalculatePaid] = useState(true);
   const [totalAmount, setTotalAmount] = useState(0);
   const [dueDate, setDueDate] = useState('');
   const [notes, setNotes] = useState('');
   const [autoSchedule, setAutoSchedule] = useState(false);
   const [scheduleWalletId, setScheduleWalletId] = useState('');
+  const [budgetCategoryId, setBudgetCategoryId] = useState('');
   const [isAdding, setIsAdding] = useState(false);
   const [addError, setAddError] = useState<string | null>(null);
 
@@ -68,12 +75,25 @@ export function DebtsView({
     ? Math.round(computedTotal / tenorMonths)
     : 0;
 
+  // Live calculation elapsed months dari tanggal mulai
+  const now = new Date();
+  const startObj = startDate ? new Date(startDate) : null;
+  let elapsedMonths = 0;
+  if (startObj && !isNaN(startObj.getTime())) {
+    elapsedMonths = Math.max(0, (now.getFullYear() - startObj.getFullYear()) * 12 + (now.getMonth() - startObj.getMonth()));
+  }
+  const autoCalculatedPaid = isDetailLoan && computedMonthlyInstallment > 0 && elapsedMonths > 0
+    ? Math.min(computedTotal, elapsedMonths * computedMonthlyInstallment)
+    : 0;
+  const effectiveInitialPaid = autoCalculatePaid ? autoCalculatedPaid : initialPaidAmount;
+  const effectiveRemaining = Math.max(0, computedTotal - effectiveInitialPaid);
+
   // Pay / Settle Modal State
   const [isPayOpen, setIsPayOpen] = useState(false);
   const [selectedDebt, setSelectedDebt] = useState<Debt | null>(null);
   const [payWalletId, setPayWalletId] = useState('');
   const [payAmount, setPayAmount] = useState(0);
-  const [payDate, setPayDate] = useState(() => new Date().toISOString().split('T')[0]);
+  const [payDate, setPayDate] = useState(() => getLocalDateString());
   const [payNotes, setPayNotes] = useState('');
   const [isPaying, setIsPaying] = useState(false);
   const [payError, setPayError] = useState<string | null>(null);
@@ -100,16 +120,23 @@ export function DebtsView({
 
   const openAddModal = (type: DebtType = activeType) => {
     setAddType(type);
-    setDebtCategory('hutang_pribadi');
+    setDebtCategory(type === 'payable' ? 'kpr_rumah' : 'hutang_pribadi');
     setPersonName('');
     setPrincipalAmount(0);
     setInterestRate(0);
-    setTenorMonths(12);
-    setIsDetailLoan(false);
+    setTenorMonths(120);
+    setIsDetailLoan(type === 'payable');
+    setStartDate(getLocalDateString());
+    setCreateAsset(type === 'payable');
+    setAssetName('');
+    setAssetPrice(0);
+    setInitialPaidAmount(0);
+    setAutoCalculatePaid(true);
     setTotalAmount(0);
     setDueDate('');
     setNotes('');
     setAutoSchedule(false);
+    setBudgetCategoryId('');
     const defaultW = wallets.find((w) => w.is_default) || wallets[0];
     if (defaultW) setScheduleWalletId(defaultW.id);
     setAddError(null);
@@ -132,7 +159,7 @@ export function DebtsView({
     setAddError(null);
 
     try {
-      await apiFetch(endpoints.debts, {
+      const res = (await apiFetch(endpoints.debts, {
         method: 'POST',
         json: {
           type: addType,
@@ -144,13 +171,24 @@ export function DebtsView({
           interest_type: 'flat',
           tenor_months: isDetailLoan ? tenorMonths : null,
           monthly_installment: isDetailLoan ? computedMonthlyInstallment : null,
+          start_date: isDetailLoan && startDate ? startDate : null,
+          initial_paid_amount: isDetailLoan ? effectiveInitialPaid : 0,
           due_date: dueDate || null,
           notes: notes.trim() || null,
           auto_schedule_bill: addType === 'payable' && autoSchedule,
-          schedule_due_day: 10,
-          wallet_id: scheduleWalletId || null,
+          budget_category_id: addType === 'payable' && autoSchedule && budgetCategoryId ? budgetCategoryId : null,
+          schedule_due_day: startDate ? new Date(startDate).getDate() : 10,
+          create_asset: addType === 'payable' && createAsset,
+          asset_name: assetName.trim() || (debtCategory === 'kpr_rumah' ? `Rumah (${personName.trim()})` : personName.trim()),
+          asset_price: assetPrice > 0 ? assetPrice : (isDetailLoan ? principalAmount : finalTotal),
         },
-      });
+      })) as { data?: { bill_scheduled?: boolean; created_asset?: { id: string; name: string } | null } };
+
+      if (addType === 'payable' && autoSchedule && res?.data?.bill_scheduled === false) {
+        setListError('Jadwal cicilan otomatis gagal dibuat. Silakan buat manual di menu Tagihan Rutin.');
+      } else {
+        setListError(null);
+      }
 
       onRefresh();
       setIsAddOpen(false);
@@ -166,7 +204,7 @@ export function DebtsView({
     const defaultW = wallets.find((w) => w.is_default) || wallets[0];
     if (defaultW) setPayWalletId(defaultW.id);
     setPayAmount(debt.remaining_amount);
-    setPayDate(new Date().toISOString().split('T')[0]);
+    setPayDate(getLocalDateString());
     setPayNotes('');
     setPayError(null);
     setIsPayOpen(true);
@@ -212,7 +250,6 @@ export function DebtsView({
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Apakah Anda yakin ingin menghapus data hutang/piutang ini?')) return;
     try {
       await apiFetch(endpoints.debt(id), { method: 'DELETE' });
       setListError(null);
@@ -532,6 +569,19 @@ export function DebtsView({
                 </div>
               </div>
 
+              <div className="space-y-1">
+                <label htmlFor="debt-start-date" className="block text-xs font-semibold text-text-muted">
+                  Tanggal Mulai Cicilan / Akad {debtCategory === 'kpr_rumah' ? 'KPR' : 'Pinjaman'}
+                </label>
+                <input
+                  id="debt-start-date"
+                  type="date"
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                  className="w-full h-11 px-3 bg-background border border-border rounded-xl text-sm font-medium focus:ring-2 focus:ring-primary focus:outline-none"
+                />
+              </div>
+
               {/* Live Calculation Preview Strip */}
               {principalAmount > 0 && (
                 <div className="p-3 bg-surface rounded-xl border border-primary/20 space-y-2 text-xs">
@@ -545,6 +595,69 @@ export function DebtsView({
                     <span>Total Bunga ({interestRate}%): <span className="font-semibold text-text tabular-nums">+{formatRupiah(computedInterest)}</span></span>
                     <span>Total Pelunasan: <span className="font-extrabold text-text tabular-nums">{formatRupiah(computedTotal)}</span></span>
                   </div>
+                </div>
+              )}
+
+              {/* Deteksi Otomatis Cicilan Berjalan di Masa Lalu */}
+              {elapsedMonths > 0 && (
+                <div className="p-3.5 bg-primary/10 border border-primary/20 rounded-2xl space-y-2 text-xs">
+                  <div className="flex items-center justify-between font-bold text-primary">
+                    <span>Cicilan Berjalan ({elapsedMonths} Bulan Berjalan)</span>
+                    <span className="text-[10px] bg-primary/20 text-primary px-2 py-0.5 rounded-full font-extrabold">
+                      Otomatis Terbayar
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-text-muted leading-relaxed">
+                    Pinjaman dimulai sejak {startDate}. Sistem otomatis mengakumulasi cicilan yang telah berlalu sehingga sisa hutang langsung berkurang dan tidak ditandai menunggak.
+                  </p>
+                  <div className="grid grid-cols-2 gap-2 pt-1 border-t border-primary/15 text-[11px]">
+                    <div>
+                      <span className="text-text-muted block">Sudah Terbayar ({elapsedMonths} bln):</span>
+                      <span className="font-extrabold text-income tabular-nums">{formatRupiah(autoCalculatedPaid)}</span>
+                    </div>
+                    <div>
+                      <span className="text-text-muted block">Sisa Hutang Riil:</span>
+                      <span className="font-extrabold text-expense tabular-nums">{formatRupiah(effectiveRemaining)}</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Opsi Daftarkan sebagai Aset Fisik (Rumah / Kendaraan) */}
+              {addType === 'payable' && (debtCategory === 'kpr_rumah' || debtCategory === 'kredit_kendaraan') && (
+                <div className="p-3.5 bg-surface rounded-2xl border border-border/80 space-y-2.5">
+                  <div className="flex items-start gap-2.5">
+                    <input
+                      type="checkbox"
+                      id="createAsset"
+                      checked={createAsset}
+                      onChange={(e) => setCreateAsset(e.target.checked)}
+                      className="w-4 h-4 mt-0.5 text-primary rounded border-border focus:ring-primary"
+                    />
+                    <div className="space-y-0.5 flex-1">
+                      <label htmlFor="createAsset" className="text-xs font-bold text-text cursor-pointer block">
+                        Daftarkan sebagai Aset {debtCategory === 'kpr_rumah' ? 'Properti (Rumah)' : 'Kendaraan'} di Inventaris Aset
+                      </label>
+                      <p className="text-[11px] text-text-muted leading-relaxed">
+                        Nilai aset properti ({formatRupiah(principalAmount || computedTotal)}) otomatis masuk ke neraca. Cicilan yang sudah terbayar ({formatRupiah(effectiveInitialPaid)}) akan otomatis menambah <strong>Kekayaan Bersih (Net Worth)</strong> Anda.
+                      </p>
+                    </div>
+                  </div>
+
+                  {createAsset && (
+                    <div className="pl-6.5 space-y-2 pt-1 border-t border-border/50">
+                      <div className="space-y-1">
+                        <label className="block text-[11px] font-semibold text-text-muted">Nama Aset di Inventaris</label>
+                        <input
+                          type="text"
+                          value={assetName}
+                          onChange={(e) => setAssetName(e.target.value)}
+                          placeholder={debtCategory === 'kpr_rumah' ? 'Contoh: Rumah Tinggal KPR' : 'Contoh: Mobil Keluarga'}
+                          className="w-full h-10 px-3 bg-background border border-border rounded-xl text-xs font-medium focus:ring-2 focus:ring-primary focus:outline-none"
+                        />
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -564,7 +677,7 @@ export function DebtsView({
                 </div>
 
                 {autoSchedule && (
-                  <div className="pl-6">
+                  <div className="pl-6 space-y-2">
                     <select
                       value={scheduleWalletId}
                       onChange={(e) => setScheduleWalletId(e.target.value)}
@@ -576,6 +689,24 @@ export function DebtsView({
                         </option>
                       ))}
                     </select>
+                    <div className="space-y-1">
+                      <label htmlFor="debt-budget-category" className="block text-[11px] font-semibold text-text-muted">
+                        Masukkan cicilan ke anggaran (opsional)
+                      </label>
+                      <select
+                        id="debt-budget-category"
+                        value={budgetCategoryId}
+                        onChange={(e) => setBudgetCategoryId(e.target.value)}
+                        className="w-full h-10 px-3 bg-background border border-border rounded-xl text-xs font-medium focus:ring-2 focus:ring-primary focus:outline-none"
+                      >
+                        <option value="">Tanpa anggaran khusus</option>
+                        {budgets.map((b) => (
+                          <option key={b.category_id} value={b.category_id}>
+                            {b.category_name || 'Anggaran'} ({formatRupiah(b.effective_limit ?? b.monthly_limit)}/bln)
+                          </option>
+                        ))}
+                      </select>
+                    </div>
                   </div>
                 )}
               </div>
@@ -584,18 +715,20 @@ export function DebtsView({
             <AmountInput value={totalAmount} onChange={setTotalAmount} />
           )}
 
-          <div className="space-y-1">
-            <label htmlFor="debt-due-date" className="block text-xs font-semibold text-text-muted">
-              Tanggal Jatuh Tempo {isDetailLoan ? 'Cicilan Pertama' : '(Opsional)'}
-            </label>
-            <input
-              id="debt-due-date"
-              type="date"
-              value={dueDate}
-              onChange={(e) => setDueDate(e.target.value)}
-              className="w-full h-11 px-3 bg-background border border-border rounded-xl text-sm font-medium focus:ring-2 focus:ring-primary focus:outline-none"
-            />
-          </div>
+          {!isDetailLoan && (
+            <div className="space-y-1">
+              <label htmlFor="debt-due-date" className="block text-xs font-semibold text-text-muted">
+                Tanggal Jatuh Tempo (Opsional)
+              </label>
+              <input
+                id="debt-due-date"
+                type="date"
+                value={dueDate}
+                onChange={(e) => setDueDate(e.target.value)}
+                className="w-full h-11 px-3 bg-background border border-border rounded-xl text-sm font-medium focus:ring-2 focus:ring-primary focus:outline-none"
+              />
+            </div>
+          )}
 
           <div className="space-y-1">
             <label htmlFor="debt-notes" className="block text-xs font-semibold text-text-muted">Catatan / Keterangan (Opsional)</label>

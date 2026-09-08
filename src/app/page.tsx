@@ -15,7 +15,10 @@ import {
   AppSettings,
   TransactionType,
   ParsedReceiptResult,
+  FinancialEvent,
+  Subscription,
 } from '@/lib/types';
+import { getFinancialEvents } from '@/lib/eventsApi';
 import { ApiError, apiFetch, endpoints } from '@/lib/apiFetch';
 import { AppShell } from '@/components/layout/AppShell';
 import { NavTab } from '@/components/layout/BottomNav';
@@ -23,10 +26,13 @@ import { BalanceHeader } from '@/components/dashboard/BalanceHeader';
 import { QuickActions } from '@/components/dashboard/QuickActions';
 import { WalletScroller } from '@/components/dashboard/WalletScroller';
 import { MonthlySummary } from '@/components/dashboard/MonthlySummary';
+import { InsightWidget } from '@/components/dashboard/InsightWidget';
 import { TransactionList } from '@/components/transactions/TransactionList';
 import { DashboardSkeleton } from '@/components/ui/LoadingSkeleton';
 import { clearOfflineQueue } from '@/lib/offlineQueue';
 import { ReceiptParserModal } from '@/components/transactions/ReceiptParserModal';
+import { HouseholdState } from '@/lib/types';
+import { ReminderScheduler } from '@/components/pwa/ReminderScheduler';
 
 
 const TransactionModal = dynamic(
@@ -39,6 +45,10 @@ const BudgetView = dynamic(
 );
 const BillsView = dynamic(
   () => import('@/components/bills/BillsView').then((m) => m.BillsView),
+  { ssr: false, loading: () => <DashboardSkeleton /> }
+);
+const SubscriptionsView = dynamic(
+  () => import('@/components/subscriptions/SubscriptionsView').then((m) => m.SubscriptionsView),
   { ssr: false, loading: () => <DashboardSkeleton /> }
 );
 const DebtsView = dynamic(
@@ -69,6 +79,18 @@ const EvaluationView = dynamic(
   () => import('@/components/evaluation/EvaluationView').then((m) => m.EvaluationView),
   { ssr: false, loading: () => <DashboardSkeleton /> }
 );
+const CalendarView = dynamic(
+  () => import('@/components/calendar/CalendarView').then((m) => m.CalendarView),
+  { ssr: false, loading: () => <DashboardSkeleton /> }
+);
+const HouseholdView = dynamic(
+  () => import('@/components/household/HouseholdView').then((m) => m.HouseholdView),
+  { ssr: false, loading: () => <DashboardSkeleton /> }
+);
+const EventModal = dynamic(
+  () => import('@/components/events/EventModal').then((m) => m.EventModal),
+  { ssr: false }
+);
 
 type BootstrapData = {
   wallets?: Wallet[];
@@ -81,6 +103,62 @@ type BootstrapData = {
   settings?: AppSettings;
 };
 
+const NAV_TABS: NavTab[] = [
+  'dashboard',
+  'transactions',
+  'calendar',
+  'budget',
+  'reports',
+  'evaluation',
+  'wallets',
+  'bills',
+  'subscriptions',
+  'debts',
+  'assets',
+  'goals',
+  'household',
+  'settings',
+];
+
+// Baca tab aktif tersimpan: history.state → sessionStorage → localStorage.
+// (Robust untuk F5/soft vs hard reload; null bila tidak ada yang tersimpan.)
+function readSavedTab(): NavTab | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const fromHistory = (window.history.state as { tab?: string } | null)?.tab;
+    if (fromHistory && NAV_TABS.includes(fromHistory as NavTab)) return fromHistory as NavTab;
+  } catch {
+    // abaikan
+  }
+  try {
+    const saved = window.sessionStorage.getItem('kaskeluarga-active-tab');
+    if (saved && NAV_TABS.includes(saved as NavTab)) return saved as NavTab;
+  } catch {
+    // abaikan
+  }
+  try {
+    const local = window.localStorage.getItem('kaskeluarga-active-tab');
+    if (local && NAV_TABS.includes(local as NavTab)) return local as NavTab;
+  } catch {
+    // abaikan
+  }
+  return null;
+}
+
+function getInitialTab(): NavTab {
+  return readSavedTab() ?? 'dashboard';
+}
+
+// Simpan tab aktif ke kedua storage (sessionStorage untuk soft reload, localStorage untuk hard reload).
+function persistTab(tab: NavTab): void {
+  try {
+    window.sessionStorage.setItem('kaskeluarga-active-tab', tab);
+  } catch {}
+  try {
+    window.localStorage.setItem('kaskeluarga-active-tab', tab);
+  } catch {}
+}
+
 export default function MainPage() {
   const router = useRouter();
 
@@ -88,16 +166,16 @@ export default function MainPage() {
   const [user, setUser] = useState<User | null>(null);
   const [isAuthLoading, setIsAuthLoading] = useState(true);
 
-  // Period State (Month & Year)
-  const now = new Date();
-  const [currentMonth, setCurrentMonth] = useState(now.getMonth() + 1);
-  const [currentYear, setCurrentYear] = useState(now.getFullYear());
+  // Period State (Month & Year) — lazy init agar tidak jitter tiap render
+  const [currentMonth, setCurrentMonth] = useState(() => new Date().getMonth() + 1);
+  const [currentYear, setCurrentYear] = useState(() => new Date().getFullYear());
 
   // Navigation & History State
-  const [activeTab, setActiveTab] = useState<NavTab>('dashboard');
-  const [_tabHistory, setTabHistory] = useState<NavTab[]>(['dashboard']);
+  const [activeTab, setActiveTab] = useState<NavTab>(getInitialTab);
+  const [tabHistory, setTabHistory] = useState<NavTab[]>(() => [getInitialTab()]);
   const [exitToast, setExitToast] = useState(false);
   const exitToastTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const hasRestoredTabRef = useRef(false);
 
   // Modal State
   const [isTxModalOpen, setIsTxModalOpen] = useState(false);
@@ -106,14 +184,19 @@ export default function MainPage() {
   const [isReceiptParserOpen, setIsReceiptParserOpen] = useState(false);
   const [parsedReceiptData, setParsedReceiptData] = useState<ParsedReceiptResult | null>(null);
 
+  // Financial Events Modal State
+  const [isEventModalOpen, setIsEventModalOpen] = useState(false);
+  const [editingEvent, setEditingEvent] = useState<FinancialEvent | null>(null);
 
   // Application Data States
+  const [financialEvents, setFinancialEvents] = useState<FinancialEvent[]>([]);
   const [reloadKey, setReloadKey] = useState(0);
   const [wallets, setWallets] = useState<Wallet[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [budgets, setBudgets] = useState<Budget[]>([]);
   const [bills, setBills] = useState<RecurringBill[]>([]);
+  const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
   const [debts, setDebts] = useState<Debt[]>([]);
   const [summary, setSummary] = useState<MonthlySummaryType>({
     month: currentMonth,
@@ -136,7 +219,47 @@ export default function MainPage() {
   const [isDataLoading, setIsDataLoading] = useState(true);
   const [dataError, setDataError] = useState<string | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [householdActivityCount, setHouseholdActivityCount] = useState(0);
   const bootstrapAbortRef = useRef<AbortController | null>(null);
+
+
+  // 1. Restore persisted tab (hydration-safe, robust untuk F5 soft-reload vs Ctrl+Shift+R hard-reload).
+  // getInitialTab() gagal saat SSR/hydration → selalu 'dashboard'. Efek ini memperbaiki setelah mount
+  // dengan membaca berlapis history.state → sessionStorage → localStorage. Juga tangani bfcache pageshow.
+  useEffect(() => {
+    if (hasRestoredTabRef.current) return;
+    hasRestoredTabRef.current = true;
+
+    const saved = readSavedTab();
+    if (saved && saved !== activeTab) {
+      queueMicrotask(() => {
+        setActiveTab(saved);
+        setTabHistory([saved]);
+      });
+      try {
+        window.history.replaceState({ tab: saved }, '', '');
+      } catch {}
+    } else {
+      try {
+        window.history.replaceState({ tab: activeTab }, '', '');
+      } catch {}
+    }
+
+    const handlePageShow = (e: PageTransitionEvent) => {
+      if (!e.persisted) return;
+      const restored = readSavedTab();
+      if (restored) {
+        setActiveTab((prev) => (prev !== restored ? restored : prev));
+        setTabHistory((prev) => (prev[0] !== restored ? [restored] : prev));
+        try {
+          window.history.replaceState({ tab: restored }, '', '');
+        } catch {}
+      }
+    };
+    window.addEventListener('pageshow', handlePageShow);
+    return () => window.removeEventListener('pageshow', handlePageShow);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // 1. Check Authentication on Mount
   useEffect(() => {
@@ -164,7 +287,42 @@ export default function MainPage() {
     checkAuth();
   }, [router]);
 
-  // 2. Fetch Bootstrap Data
+  // 1b. Handle URL Search Params Action (e.g. from PWA Shortcuts & push notification)
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    const action = params.get('action');
+    if (action === 'new-expense') {
+      queueMicrotask(() => {
+        setTxModalType('expense');
+        setEditingTransaction(null);
+        setIsTxModalOpen(true);
+      });
+      window.history.replaceState({}, '', '/');
+    } else if (action === 'new-income') {
+      queueMicrotask(() => {
+        setTxModalType('income');
+        setEditingTransaction(null);
+        setIsTxModalOpen(true);
+      });
+      window.history.replaceState({}, '', '/');
+    } else if (action === 'scan-receipt') {
+      queueMicrotask(() => {
+        setIsReceiptParserOpen(true);
+      });
+      window.history.replaceState({}, '', '/');
+    } else if (action === 'tab-bills') {
+      // Deep link dari notifikasi push pengingat tagihan.
+      queueMicrotask(() => {
+        setActiveTab('bills');
+        setTabHistory(['bills']);
+      });
+      persistTab('bills');
+      window.history.replaceState({}, '', '/');
+    }
+  }, []);
+
+  // 2. Fetch Bootstrap Data + Financial Events
   useEffect(() => {
     if (!user) return;
     let ignore = false;
@@ -187,6 +345,18 @@ export default function MainPage() {
         setDebts(data.debts || []);
         if (data.summary) setSummary(data.summary);
         if (data.settings) setSettings(data.settings);
+        
+        // Load financial events for the current user
+        const events = await getFinancialEvents(user.id);
+        setFinancialEvents(events || []);
+        
+        // Badge aktivitas keluarga: gagal muat tidak boleh menggagalkan bootstrap.
+        try {
+          const household = await apiFetch<HouseholdState>(endpoints.households, { signal: controller.signal });
+          setHouseholdActivityCount(household.new_activity_count || 0);
+        } catch {
+          setHouseholdActivityCount(0);
+        }
       } catch (err) {
         if (err instanceof Error && err.name === 'AbortError') return;
         if (ignore) return;
@@ -210,15 +380,39 @@ export default function MainPage() {
   // Handle Tab Navigation with History Stack
   const handleTabChange = useCallback((newTab: NavTab) => {
     if (newTab === activeTab) return;
-    setTabHistory((prev) => [...prev, newTab]);
-    setActiveTab(newTab);
+    persistTab(newTab);
     window.history.pushState({ tab: newTab }, '', '');
   }, [activeTab]);
 
-  // Handle Mobile Back Button & Exit Confirmation
-  useEffect(() => {
-    window.history.replaceState({ tab: 'dashboard' }, '', '');
+  // Event Handlers for Financial Events
+  const handleOpenEventModal = (event?: FinancialEvent) => {
+    if (event) {
+      setEditingEvent(event);
+    } else {
+      setEditingEvent(null);
+    }
+    setIsEventModalOpen(true);
+  };
 
+  const handleEditEvent = (event: FinancialEvent) => {
+    setEditingEvent(event);
+    setIsEventModalOpen(true);
+  };
+
+  const handleEventSuccess = () => {
+    setIsEventModalOpen(false);
+    setEditingEvent(null);
+    setReloadKey(prev => prev + 1);
+  };
+  const handlePeriodChange = (month: number, year: number) => {
+    setCurrentMonth(month);
+    setCurrentYear(year);
+  };
+
+
+  // Handle Mobile Back Button & Exit Confirmation
+  // Sinkronisasi history awal ditangani efek restore di atas (hydration-safe).
+  useEffect(() => {
     const handlePopState = () => {
       // 1. If transaction modal is open, close it first
       if (isTxModalOpen) {
@@ -229,14 +423,13 @@ export default function MainPage() {
 
       // 2. If on non-dashboard tab, pop history back to previous tab
       if (activeTab !== 'dashboard') {
-        setTabHistory((prev) => {
-          const next = [...prev];
-          next.pop(); // remove current tab
-          const previous = next.length > 0 ? next[next.length - 1] : 'dashboard';
-          setActiveTab(previous);
-          return next.length > 0 ? next : ['dashboard'];
-        });
-        window.history.pushState({ tab: 'dashboard' }, '', '');
+        const next = [...tabHistory];
+        next.pop();
+        const previous = next.length > 0 ? next[next.length - 1] : 'dashboard';
+        setTabHistory(next.length > 0 ? next : ['dashboard']);
+        setActiveTab(previous);
+        persistTab(previous);
+        window.history.pushState({ tab: previous }, '', '');
         return;
       }
 
@@ -244,7 +437,7 @@ export default function MainPage() {
       if (!exitToast) {
         setExitToast(true);
         window.history.pushState({ tab: 'dashboard' }, '', '');
-        if (exitToastTimerRef.current) clearTimeout(exitToastTimerRef.current);
+        clearTimeout(exitToastTimerRef.current as unknown as NodeJS.Timeout);
         exitToastTimerRef.current = setTimeout(() => {
           setExitToast(false);
         }, 2500);
@@ -257,14 +450,10 @@ export default function MainPage() {
     window.addEventListener('popstate', handlePopState);
     return () => {
       window.removeEventListener('popstate', handlePopState);
-      if (exitToastTimerRef.current) clearTimeout(exitToastTimerRef.current);
+      clearTimeout(exitToastTimerRef.current as unknown as NodeJS.Timeout);
     };
-  }, [activeTab, isTxModalOpen, exitToast]);
+  }, [activeTab, isTxModalOpen, exitToast, tabHistory]);
 
-  const handlePeriodChange = (month: number, year: number) => {
-    setCurrentMonth(month);
-    setCurrentYear(year);
-  };
 
   const handleOpenAddModal = (type: TransactionType = 'expense') => {
     setEditingTransaction(null);
@@ -335,74 +524,123 @@ export default function MainPage() {
   }, [refetch]);
 
   // Pengingat cadangan: evaluasi usia backup terakhir setelah user terautentikasi
-  const [backupNudgeDismissed, setBackupNudgeDismissed] = useState(true);
-  useEffect(() => {
-    if (!user) return;
+  const [backupNudgeDismissed, setBackupNudgeDismissed] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return true;
     try {
       const last = window.localStorage.getItem('kaskeluarga-last-backup');
-      const days = last
-        ? Math.floor((Date.now() - new Date(last).getTime()) / (1000 * 60 * 60 * 24))
-        : Infinity;
-      setBackupNudgeDismissed(days <= 30);
+      if (!last) return false;
+      const days = Math.floor((Date.now() - new Date(last).getTime()) / (1000 * 60 * 60 * 24));
+      return days <= 30;
     } catch {
-      setBackupNudgeDismissed(false);
+      return false;
     }
-  }, [user]);
+  });
 
-  if (isAuthLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="flex flex-col items-center gap-3">
-          <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
-          <p className="text-xs font-bold text-text-muted">Memuat KasKeluarga...</p>
-        </div>
-      </div>
-    );
-  }
+  // Keyboard shortcuts for desktop
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Ignore if user is typing in an input/textarea
+      const target = e.target as HTMLElement;
+      const isTyping = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA';
+      
+      if (isTyping) return;
+      // Close modal on Esc (no modifier needed)
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        if (isTxModalOpen) {
+          setIsTxModalOpen(false);
+          setEditingTransaction(null);
+          setParsedReceiptData(null);
+          return;
+        }
+        if (isEventModalOpen) {
+          setIsEventModalOpen(false);
+          setEditingEvent(null);
+          return;
+        }
+      }
+      
+      // N = New expense, E = New income, T = Transfer (desktop only)
+      if (!isTyping && !isTxModalOpen && !isEventModalOpen) {
+        const key = e.key.toLowerCase();
+        
+        if (key === 'n') {
+          e.preventDefault();
+          handleOpenAddModal('expense');
+        } else if (key === 'e') {
+          e.preventDefault();
+          handleOpenAddModal('income');
+        } else if (key === 't') {
+          e.preventDefault();
+          handleOpenAddModal('transfer');
+        }
+      }
+    };
 
-  if (!user) return null;
+    window.addEventListener('keydown', handleKeyDown);
+
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isTxModalOpen, editingTransaction, handleOpenAddModal, isEventModalOpen]);
+
 
   return (
     <AppShell
+      title="KasKeluarga"
+
+      subtitle="Keuangan Keluarga"
+      user={user}
+      onLogout={handleLogout}
+      balanceHeader={<BalanceHeader
+        totalBalance={summary.total_balance}
+        walletCount={wallets.length}
+        safeToSpend={summary.safe_to_spend}
+        pendingBillsAmount={summary.total_bills_pending_amount}
+        payableDueAmount={summary.total_payable_due}
+        monthlyRecurringTotal={subscriptions.reduce((sum, s) => {
+          if (s.cycle === 'monthly') return sum + s.amount;
+          if (s.cycle === 'yearly') return sum + s.amount / 12;
+          if (s.cycle === 'weekly') return sum + s.amount * 4.33;
+          if (s.cycle === 'daily') return sum + s.amount * 30;
+          return sum;
+        }, 0)}
+        onManageWallets={() => handleTabChange('wallets')}
+        onNavigateToDebts={() => handleTabChange('debts')}
+      />}
       activeTab={activeTab}
       onTabChange={handleTabChange}
-      onOpenAddModal={() => handleOpenAddModal('expense')}
-      onOpenTypedModal={handleOpenAddModal}
-      currentMonth={currentMonth}
-      currentYear={currentYear}
-      onPeriodChange={handlePeriodChange}
-      userName={user.name}
-      userEmail={user.email}
-      familyName={settings?.family_name || user.family_name}
-      userId={user.id}
-      onLogout={handleLogout}
-      onDataRefresh={refetch}
-      pendingBillsCount={summary.bill_pending_count}
-      overbudgetCount={summary.budget_over_count}
-      unpaidDebtsCount={summary.payable_unpaid_count}
+      householdActivityCount={householdActivityCount}
+      exportButton={
+        <a
+          href={endpoints.backupExport}
+          target="_blank"
+          className="flex items-center gap-2 min-h-[44px] px-3 rounded-xl bg-primary text-white text-xs font-bold hover:opacity-90 active:opacity-80 transition-opacity"
+        >
+          Export Data
+        </a>
+      }
     >
-      {/* Dynamic View Switcher */}
+      {/* Error Message */}
       {dataError ? (
-        <div className="rounded-2xl border border-red-200 bg-red-50 p-6 text-center space-y-3">
-          <p className="text-sm font-semibold text-red-700">{dataError}</p>
-          <button
-            type="button"
-            onClick={refetch}
-            className="min-h-[44px] px-5 py-2.5 rounded-xl bg-primary text-white text-sm font-bold hover:opacity-90 active:opacity-80 transition-opacity"
-          >
-            Coba lagi
-          </button>
+        <div className="p-4 text-center text-expense text-sm font-semibold">
+          {dataError}
         </div>
       ) : isDataLoading && transactions.length === 0 && wallets.length === 0 ? (
         <DashboardSkeleton />
       ) : activeTab === 'dashboard' ? (
         <div className="space-y-3.5 sm:space-y-5">
-          {/* Backup Reminder: muncul bila cadangan terakhir > 30 hari / belum pernah */}
           {!backupNudgeDismissed && (
             <div className="flex items-center justify-between gap-3 p-3 bg-warning/10 border border-warning/20 rounded-2xl">
-              <span className="text-xs font-semibold text-text">
-                Belum ada cadangan data terbaru. Unduh arsip JSON agar data selalu aman.
-              </span>
+              <div className="flex items-center gap-3 flex-1">
+                <div className="w-9 h-9 bg-warning/20 rounded-xl flex items-center justify-center shrink-0">
+                  <svg className="w-5 h-5 text-warning" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-text font-bold text-sm">Jangan lewatkan backup data bulanan!</p>
+                  <p className="text-text-muted text-xs mt-0.5">Cadangkan data Anda setiap bulan untuk mengamankan informasi keuangan.</p>
+                </div>
+              </div>
               <div className="flex items-center gap-2 shrink-0">
                 <a
                   href={endpoints.backupExport}
@@ -448,6 +686,7 @@ export default function MainPage() {
             pendingBillsCount={summary.bill_pending_count}
             overbudgetCount={summary.budget_over_count}
             unpaidDebtsCount={summary.payable_unpaid_count}
+            subscriptionCount={subscriptions.filter(s => s.is_active).length}
           />
 
 
@@ -461,12 +700,10 @@ export default function MainPage() {
           {/* Monthly Cashflow Summary (In / Out / Net) */}
           <MonthlySummary summary={summary} />
 
+          {/* Insight Hari Ini: deteksi pola + saran yang bisa ditindaklanjuti */}
+          <InsightWidget />
+
           {/* Recent Transactions List */}
-          {deleteError && (
-            <div role="alert" className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
-              {deleteError}
-            </div>
-          )}
           <TransactionList
             transactions={transactions}
             onDeleteTransaction={handleDeleteTransaction}
@@ -477,11 +714,6 @@ export default function MainPage() {
         </div>
       ) : activeTab === 'transactions' ? (
         <>
-          {deleteError && (
-            <div role="alert" className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
-              {deleteError}
-            </div>
-          )}
           <TransactionList
             month={currentMonth}
             year={currentYear}
@@ -500,7 +732,7 @@ export default function MainPage() {
           onRefresh={refetch}
         />
       ) : activeTab === 'goals' ? (
-        <GoalsView wallets={wallets} />
+        <GoalsView wallets={wallets} onRefreshParent={refetch} />
       ) : activeTab === 'budget' ? (
         <BudgetView
           budgets={budgets}
@@ -509,6 +741,8 @@ export default function MainPage() {
           totalExpense={summary.total_expense}
           currentMonth={currentMonth}
           currentYear={currentYear}
+          bills={bills}
+          debts={debts}
           onRefresh={refetch}
           onNavigateToWallets={() => handleTabChange('wallets')}
         />
@@ -519,6 +753,14 @@ export default function MainPage() {
           categories={categories}
           currentMonth={currentMonth}
           currentYear={currentYear}
+          onRefresh={refetch}
+        />
+      ) : activeTab === 'subscriptions' ? (
+        <SubscriptionsView
+          subscriptions={subscriptions}
+          wallets={wallets}
+          categories={categories}
+          monthlyTotal={summary.total_income > 0 ? summary.total_income : undefined}
           onRefresh={refetch}
         />
       ) : activeTab === 'wallets' ? (
@@ -542,11 +784,27 @@ export default function MainPage() {
           debts={debts}
           budgets={budgets}
           wallets={wallets}
+          bills={bills}
+        />
+      ) : activeTab === 'calendar' ? (
+        <CalendarView
+          transactions={transactions}
+          financialEvents={financialEvents}
+          currentMonth={currentMonth}
+          currentYear={currentYear}
+          onPeriodChange={handlePeriodChange}
+          onEditTransaction={handleEditTransaction}
+          onDeleteTransaction={handleDeleteTransaction}
+          onOpenAddModal={handleOpenAddModal}
+          onOpenEventModal={handleOpenEventModal}
+          onEditEvent={handleEditEvent}
         />
       ) : activeTab === 'assets' ? (
         <AssetsView
           onRefreshParent={refetch}
         />
+      ) : activeTab === 'household' ? (
+        <HouseholdView onRefreshParent={refetch} />
       ) : activeTab === 'settings' ? (
         <SettingsView
           user={user}
@@ -569,8 +827,21 @@ export default function MainPage() {
         wallets={wallets}
         categories={categories}
         userId={user.id}
+        budgets={budgets}
         onSuccess={refetch}
         initialReceipt={parsedReceiptData}
+      />
+
+      {/* Global Financial Event Modal */}
+      <EventModal
+        isOpen={isEventModalOpen}
+        onClose={() => {
+          setIsEventModalOpen(false);
+          setEditingEvent(null);
+        }}
+        editingEvent={editingEvent}
+        userId={user.id}
+        onSuccess={handleEventSuccess}
       />
 
       {/* Global AI Receipt Parser Modal */}
@@ -589,6 +860,9 @@ export default function MainPage() {
           <span>Tekan sekali lagi untuk keluar dari aplikasi</span>
         </div>
       )}
+
+      {/* Reminder proaktif: tagihan H-1/H-0 & anggaran >= 75% (sekali sehari, via SW) */}
+      <ReminderScheduler bills={bills} budgets={budgets} />
     </AppShell>
   );
 }

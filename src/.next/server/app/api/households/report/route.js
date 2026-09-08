@@ -1,0 +1,12 @@
+var R=require("../../../../chunks/[turbopack]_runtime.js")("server/app/api/households/report/route.js")
+R.c("server/chunks/src_lib_db_ts_0354kil._.js")
+R.c("server/chunks/_1mhf5r5._.js")
+R.c("server/chunks/[root-of-the-server]__0yv2_7j._.js")
+R.c("server/chunks/src_lib_db_ts_12rrbm4._.js")
+R.c("server/chunks/node_modules_next_1zc5q0a._.js")
+R.c("server/chunks/node_modules_zod_v3_external_1pf3m_7.js")
+R.c("server/chunks/[root-of-the-server]__1-ive8p._.js")
+R.c("server/chunks/[root-of-the-server]__15bjnu5._.js")
+R.c("server/chunks/src__next-internal_server_app_api_households_report_route_actions_1p2i4ra.js")
+R.m(46498)
+module.exports=R.m(46498).exports

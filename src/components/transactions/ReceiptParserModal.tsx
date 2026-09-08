@@ -99,6 +99,9 @@ export function ReceiptParserModal({
         <p className="text-xs text-text-muted -mt-2">
           Ekstrak nominal, tanggal, toko, dan kategori belanja secara otomatis.
         </p>
+        <p className="text-[10px] text-text-muted">
+          Teks struk dianalisis AI di server (DeepSeek) untuk mengisi form otomatis.
+        </p>
 
         {/* Input Area */}
 

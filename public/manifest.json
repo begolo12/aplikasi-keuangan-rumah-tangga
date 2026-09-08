@@ -1,5 +1,5 @@
 {
-  "name": "KasKeluarga — Catatan Keuangan Rumah Tangga",
+  "name": "KasKeluarga: Catatan Keuangan Rumah Tangga",
   "short_name": "KasKeluarga",
   "description": "Aplikasi manajemen keuangan keluarga modern, ringan, cepat, dan siap offline.",
   "start_url": "/",
@@ -32,6 +32,29 @@
       "sizes": "180x180",
       "type": "image/png",
       "purpose": "any"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Catat Pengeluaran",
+      "short_name": "Pengeluaran",
+      "description": "Buka form cepat pencatatan pengeluaran baru",
+      "url": "/?action=new-expense",
+      "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Catat Pemasukan",
+      "short_name": "Pemasukan",
+      "description": "Buka form cepat pencatatan pemasukan baru",
+      "url": "/?action=new-income",
+      "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Scan Struk AI",
+      "short_name": "Scan Struk",
+      "description": "Pindai struk belanja otomatis dengan AI",
+      "url": "/?action=scan-receipt",
+      "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }]
     }
   ]
 }

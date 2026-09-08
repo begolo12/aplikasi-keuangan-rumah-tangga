@@ -79,6 +79,26 @@ export interface Budget {
   created_at: string;
 }
 
+
+
+export interface Subscription {
+  id: string;
+  user_id: string;
+  provider_name: string;
+  amount: number;
+  cycle: 'daily' | 'weekly' | 'monthly' | 'yearly';
+  next_charge_date: string;
+  category_id?: string | null;
+  category_name?: string | null;
+  wallet_id?: string | null;
+  wallet_name?: string | null;
+  is_active: boolean;
+  reminder_enabled: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+
 export type RecurringType = 'expense' | 'income';
 
 export interface RecurringBill {
@@ -102,6 +122,26 @@ export interface RecurringBill {
   status?: 'paid' | 'due_today' | 'overdue' | 'due_soon' | 'upcoming';
   created_at: string;
 }
+
+
+
+export interface Subscription {
+  id: string;
+  user_id: string;
+  provider_name: string;
+  amount: number;
+  cycle: 'daily' | 'weekly' | 'monthly' | 'yearly';
+  next_charge_date: string;
+  category_id?: string | null;
+  category_name?: string | null;
+  wallet_id?: string | null;
+  wallet_name?: string | null;
+  is_active: boolean;
+  reminder_enabled: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
 
 export interface FinancialSafetyPlan {
   monthly_budget: number;
@@ -184,6 +224,26 @@ export interface BillPayment {
   created_at: string;
 }
 
+
+
+export interface Subscription {
+  id: string;
+  user_id: string;
+  provider_name: string;
+  amount: number;
+  cycle: 'daily' | 'weekly' | 'monthly' | 'yearly';
+  next_charge_date: string;
+  category_id?: string | null;
+  category_name?: string | null;
+  wallet_id?: string | null;
+  wallet_name?: string | null;
+  is_active: boolean;
+  reminder_enabled: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+
 export interface AppSettings {
   id: string;
   user_id: string;
@@ -233,6 +293,26 @@ export interface DebtPayment {
   notes?: string | null;
   created_at: string;
 }
+
+
+
+export interface Subscription {
+  id: string;
+  user_id: string;
+  provider_name: string;
+  amount: number;
+  cycle: 'daily' | 'weekly' | 'monthly' | 'yearly';
+  next_charge_date: string;
+  category_id?: string | null;
+  category_name?: string | null;
+  wallet_id?: string | null;
+  wallet_name?: string | null;
+  is_active: boolean;
+  reminder_enabled: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
 
 export type AssetCategory =
   | 'kendaraan'
@@ -337,5 +417,59 @@ export interface ParsedReceiptResult {
   suggested_wallet_id?: string | null;
   items?: ReceiptItem[];
   confidence?: 'high' | 'medium' | 'low';
+}
+
+export interface BudgetTemplate {
+  id: string;
+  user_id: string;
+  name: string;
+  description: string | null;
+  rule_type: '50_30_20' | 'zero_based' | 'custom';
+  is_default: boolean;
+  allocations: Array<{ category_id: string; percentage: number }>;
+  created_at: string;
+  updated_at: string;
+}
+
+export type EventType = 'bonus' | 'insurance_renewal' | 'tax_deadline' | 'investment_contribution';
+
+export interface FinancialEvent {
+  id: string;
+  user_id: string;
+  title: string;
+  type: EventType;
+  date: string; // ISO date string YYYY-MM-DD
+  amount: number | null;
+  description: string | null;
+  recurrence_rule: string | null;
+  notification_days_before: number;
+  is_active: boolean;
+  created_at: string; // ISO datetime
+  updated_at: string; // ISO datetime
+}
+export type RecurrenceRuleType = 'none' | 'daily' | 'weekly' | 'monthly' | 'yearly';
+
+export interface EventNotificationSettings {
+  enabled: boolean;
+  notification_days_before: number;
+  email_enabled?: boolean;
+  push_enabled?: boolean;
+}
+
+export interface EventExpansionParams {
+  start_date: string;
+  end_date: string;
+  limit?: number;
+}
+
+export interface EventExpansionResult extends FinancialEvent {
+  occurrences: string[]; // Array of ISO date strings
+}
+export type CurrencyType = 'IDR' | 'USD' | 'EUR' | 'CNY';
+
+export interface CurrencyRate {
+  base: string;
+  timestamp: number;
+  rates: Record<string, number>;
 }
 

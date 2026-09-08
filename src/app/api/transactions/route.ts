@@ -25,6 +25,7 @@ export async function GET(req: NextRequest) {
     });
 
     // Join metadata diikat pemiliknya: FK silang tidak bisa membocorkan nama user lain.
+    // Wallet di-join tanpa filter pemilik: transaksi dompet bersama sah terlihat oleh sesama anggota.
     let sql = `
       SELECT
         t.id, t.user_id, t.type, t.amount, t.admin_fee, t.category_id,
@@ -33,13 +34,21 @@ export async function GET(req: NextRequest) {
         t.to_wallet_id, tw.name as to_wallet_name,
         t.asset_id, a.name as asset_name,
         t.description, t.date, t.created_at, t.updated_at, t.edited_at,
+        CASE WHEN t.user_id = $1 THEN NULL ELSE u.name END as recorder_name,
         COUNT(*) OVER() AS total_count
       FROM transactions t
       LEFT JOIN categories c ON t.category_id = c.id AND c.user_id = t.user_id
-      LEFT JOIN wallets w ON t.wallet_id = w.id AND w.user_id = t.user_id
-      LEFT JOIN wallets tw ON t.to_wallet_id = tw.id AND tw.user_id = t.user_id
+       LEFT JOIN wallets w ON t.wallet_id = w.id AND (w.user_id = $1 OR (w.is_shared = TRUE AND w.household_id IN (SELECT household_id FROM household_members WHERE user_id = $1)))
+       LEFT JOIN wallets tw ON t.to_wallet_id = tw.id AND (tw.user_id = t.user_id OR (tw.is_shared = TRUE AND tw.household_id IN (SELECT household_id FROM household_members WHERE user_id = $1)))
       LEFT JOIN assets a ON t.asset_id = a.id AND a.user_id = t.user_id
-      WHERE t.user_id = $1
+      LEFT JOIN users u ON t.user_id = u.id
+      WHERE (
+        t.user_id = $1
+        OR t.wallet_id IN (
+          SELECT id FROM wallets
+           WHERE is_shared = TRUE AND household_id IN (SELECT household_id FROM household_members WHERE user_id = $1)
+        )
+      )
     `;
 
     const params: unknown[] = [session.userId];
@@ -102,6 +111,10 @@ export async function POST(req: NextRequest) {
     if (!session) return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
 
     const validated = transactionSchema.parse(await readJsonBody(req));
+    // Biaya admin tidak berlaku untuk pemasukan (tolak eksplisit, bukan diabaikan diam-diam).
+    if (validated.type === 'income' && (validated.admin_fee || 0) > 0) {
+      throw new BusinessError('Biaya admin hanya berlaku untuk pengeluaran dan transfer.', 400);
+    }
 
     // Kunci idempotency dari offline queue: replay dengan key sama mengembalikan transaksi lama.
     const rawKey = req.headers.get('idempotency-key');
@@ -138,9 +151,13 @@ export async function POST(req: NextRequest) {
       }
 
       // Urutan lock kanonik berdasarkan UUID mencegah deadlock transfer berlawanan arah.
+      // Dompet milik sendiri ATAU dompet bersama household boleh dipakai.
       const lockIds = [validated.wallet_id, ...(validated.to_wallet_id ? [validated.to_wallet_id] : [])].sort();
       const locked = await client.query(
-        'SELECT id, name, balance FROM wallets WHERE id = ANY($1::uuid[]) AND user_id = $2 ORDER BY id FOR UPDATE',
+        `SELECT id, name, balance FROM wallets
+         WHERE id = ANY($1::uuid[])
+           AND (user_id = $2 OR (is_shared = TRUE AND household_id IN (SELECT household_id FROM household_members WHERE user_id = $2)))
+         ORDER BY id FOR UPDATE`,
         [lockIds, session.userId]
       );
       if (locked.rows.length !== lockIds.length) {
@@ -154,30 +171,31 @@ export async function POST(req: NextRequest) {
 
       const totalDebit =
         validated.type === 'transfer' ? validated.amount + (validated.admin_fee || 0) : validated.amount;
+      // Biaya admin dibukukan sebagai transaksi expense pendamping agar masuk laporan
+      // dan bisa berkategori; admin_fee baris utama dinolkan agar tidak dihitung ganda.
+      const feeAmount = validated.type === 'income' ? 0 : validated.admin_fee || 0;
 
       // Saldo dompet diizinkan bernilai minus (overdraft / cashflow defisit).
+      // ID dompet sudah tervalidasi + ter-lock di atas, jadi update cukup by id
+      // (dompet bersama boleh dimutasi oleh anggota non-pemilik).
       if (validated.type === 'expense') {
-        await client.query('UPDATE wallets SET balance = balance - $1, updated_at = NOW() WHERE id = $2 AND user_id = $3', [
-          validated.amount,
+        await client.query('UPDATE wallets SET balance = balance - $1, updated_at = NOW() WHERE id = $2', [
+          validated.amount + (validated.admin_fee || 0),
           validated.wallet_id,
-          session.userId,
         ]);
       } else if (validated.type === 'income') {
-        await client.query('UPDATE wallets SET balance = balance + $1, updated_at = NOW() WHERE id = $2 AND user_id = $3', [
+        await client.query('UPDATE wallets SET balance = balance + $1, updated_at = NOW() WHERE id = $2', [
           validated.amount,
           validated.wallet_id,
-          session.userId,
         ]);
       } else if (destWallet) {
-        await client.query('UPDATE wallets SET balance = balance - $1, updated_at = NOW() WHERE id = $2 AND user_id = $3', [
+        await client.query('UPDATE wallets SET balance = balance - $1, updated_at = NOW() WHERE id = $2', [
           totalDebit,
           validated.wallet_id,
-          session.userId,
         ]);
-        await client.query('UPDATE wallets SET balance = balance + $1, updated_at = NOW() WHERE id = $2 AND user_id = $3', [
+        await client.query('UPDATE wallets SET balance = balance + $1, updated_at = NOW() WHERE id = $2', [
           validated.amount,
           validated.to_wallet_id,
-          session.userId,
         ]);
       }
 
@@ -217,7 +235,7 @@ export async function POST(req: NextRequest) {
           session.userId,
           validated.type,
           validated.amount,
-          validated.admin_fee || 0,
+          feeAmount > 0 ? 0 : validated.admin_fee || 0,
           validated.category_id || null,
           validated.wallet_id,
           validated.to_wallet_id || null,
@@ -227,6 +245,22 @@ export async function POST(req: NextRequest) {
           idempotencyKey,
         ]
       );
+
+      if (feeAmount > 0) {
+        await client.query(
+          `INSERT INTO transactions (
+            user_id, type, amount, admin_fee, category_id, wallet_id, description, date
+          ) VALUES ($1, 'expense', $2, 0, $3, $4, $5, $6)`,
+          [
+            session.userId,
+            feeAmount,
+            validated.category_id || null,
+            validated.wallet_id,
+            `Biaya admin: ${validated.description || (validated.type === 'transfer' ? 'transfer' : 'transaksi')}`,
+            validated.date,
+          ]
+        );
+      }
 
       return { row: insertedTrx.rows[0], replayed: false };
     });

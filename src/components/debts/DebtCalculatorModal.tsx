@@ -38,7 +38,7 @@ export function DebtCalculatorModal({
   const [firstDueDate, setFirstDueDate] = useState(() => {
     const d = new Date();
     d.setMonth(d.getMonth() + 1);
-    return d.toISOString().split('T')[0];
+    return getLocalDateString(d);
   });
   const [autoCreateRecurring, setAutoCreateRecurring] = useState(true);
   const [isSaving, setIsSaving] = useState(false);

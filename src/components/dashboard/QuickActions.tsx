@@ -12,9 +12,10 @@ import {
   Package,
   Heartbeat,
   Sparkle,
+  CalendarCheck,
 } from '@phosphor-icons/react';
 import { NavTab } from '../layout/BottomNav';
-import { TransactionType } from '@/lib/types';
+import { TransactionType, Subscription } from '@/lib/types';
 
 interface QuickActionsProps {
   onOpenTransactionModal: (type: TransactionType) => void;
@@ -23,6 +24,8 @@ interface QuickActionsProps {
   pendingBillsCount?: number;
   overbudgetCount?: number;
   unpaidDebtsCount?: number;
+  subscriptionCount?: number;
+  activeSubscriptions?: Subscription[];
 }
 
 export function QuickActions({
@@ -32,6 +35,8 @@ export function QuickActions({
   pendingBillsCount = 0,
   overbudgetCount = 0,
   unpaidDebtsCount = 0,
+  subscriptionCount = 0,
+  activeSubscriptions = [],
 }: QuickActionsProps) {
 
   const MODULE_SHORTCUTS = [
@@ -48,6 +53,20 @@ export function QuickActions({
       color: 'bg-primary/10 text-primary border-primary/20',
       badge: pendingBillsCount > 0 ? pendingBillsCount : undefined,
       action: () => onNavigate('bills'),
+    },
+    {
+      label: 'Langganan',
+      icon: CalendarCheck,
+      color: 'bg-success/10 text-success border-success/20',
+      badge: subscriptionCount > 0 ? subscriptionCount : undefined,
+      action: () => onNavigate('subscriptions'),
+    },
+    {
+      label: 'Langganan',
+      icon: CalendarCheck,
+      color: 'bg-success/10 text-success border-success/20',
+      badge: subscriptionCount > 0 ? subscriptionCount : undefined,
+      action: () => onNavigate('subscriptions'),
     },
     {
       label: 'Hutang',

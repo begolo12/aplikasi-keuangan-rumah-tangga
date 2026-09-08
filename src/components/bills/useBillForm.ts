@@ -18,6 +18,7 @@ export function useBillForm({ wallets, categories, onSuccess }: UseBillFormOptio
   const [dueDay, setDueDay] = useState(1);
   const [categoryId, setCategoryId] = useState('');
   const [walletId, setWalletId] = useState('');
+  const [toWalletId, setToWalletId] = useState('');
   const [autoRecord, setAutoRecord] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -28,12 +29,17 @@ export function useBillForm({ wallets, categories, onSuccess }: UseBillFormOptio
     setAmount(0);
     setDueDay(5);
     setAutoRecord(false);
+    setToWalletId('');
     setError(null);
-    const matchingCategories = categories.filter((c) => c.type === initialType);
-    if (matchingCategories.length > 0) {
-      setCategoryId(matchingCategories[0].id);
-    } else if (categories.length > 0) {
-      setCategoryId(categories[0].id);
+    if (initialType === 'transfer') {
+      setCategoryId('');
+    } else {
+      const matchingCategories = categories.filter((c) => c.type === initialType);
+      if (matchingCategories.length > 0) {
+        setCategoryId(matchingCategories[0].id);
+      } else if (categories.length > 0) {
+        setCategoryId(categories[0].id);
+      }
     }
     const defaultWallet = wallets.find((w) => w.is_default) || wallets[0];
     if (defaultWallet) setWalletId(defaultWallet.id);
@@ -48,6 +54,16 @@ export function useBillForm({ wallets, categories, onSuccess }: UseBillFormOptio
       setError('Nominal harus lebih dari 0.');
       return;
     }
+    if (type === 'transfer') {
+      if (!walletId || !toWalletId) {
+        setError('Transfer rutin wajib memilih dompet asal dan dompet tujuan.');
+        return;
+      }
+      if (walletId === toWalletId) {
+        setError('Dompet tujuan tidak boleh sama dengan dompet asal.');
+        return;
+      }
+    }
 
     setIsLoading(true);
     setError(null);
@@ -59,8 +75,9 @@ export function useBillForm({ wallets, categories, onSuccess }: UseBillFormOptio
           title: title.trim(),
           amount,
           due_day: dueDay,
-          category_id: categoryId || null,
+          category_id: type === 'transfer' ? null : categoryId || null,
           wallet_id: walletId || null,
+          to_wallet_id: type === 'transfer' ? toWalletId || null : null,
           auto_record: autoRecord,
         },
       });
@@ -87,6 +104,8 @@ export function useBillForm({ wallets, categories, onSuccess }: UseBillFormOptio
     setCategoryId,
     walletId,
     setWalletId,
+    toWalletId,
+    setToWalletId,
     autoRecord,
     setAutoRecord,
     isLoading,

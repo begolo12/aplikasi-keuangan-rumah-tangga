@@ -1,9 +1,9 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { User, AppSettings } from '@/lib/types';
+import type { CurrencyType } from '@/lib/types';
+import { formatCurrency } from '@/lib/formatters';
 import { Button } from '../ui/Button';
-import { apiFetch, endpoints, ApiError } from '@/lib/apiFetch';
 import {
   DownloadSimple,
   UploadSimple,
@@ -31,11 +31,34 @@ interface SettingsViewProps {
 export function SettingsView({ user, settings, onRefresh, onLogout }: SettingsViewProps) {
   const [userName, setUserName] = useState(user.name || '');
   const [familyName, setFamilyName] = useState(settings?.family_name || user.family_name || 'Keluarga Bahagia');
+  const [userCurrency, setUserCurrency] = useState<AppSettings['currency']>(settings?.currency || 'IDR');
   const [isSaving, setIsSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [exchangeRates, setExchangeRates] = useState<Record<string, number>>({});
+  const [isLoadingRates, setIsLoadingRates] = useState(false);
 
-  const [themeMode, setThemeMode] = useState<ThemeMode>('system');
+  // Fetch exchange rates periodically
+  useEffect(() => {
+    const fetchRates = async () => {
+      setIsLoadingRates(true);
+      try {
+        const response = await fetch(`/api/currencies?base=${userCurrency}`);
+        const data = await response.json();
+        if (data.success && data.data?.rates) {
+          setExchangeRates(data.data.rates);
+        }
+      } catch (err) {
+        console.warn('[Settings] Failed to fetch exchange rates:', err);
+      } finally {
+        setIsLoadingRates(false);
+      }
+    };
+
+    fetchRates();
+    const interval = setInterval(fetchRates, 60 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, [userCurrency]);
 
   useEffect(() => {
     let active = true;
@@ -122,9 +145,8 @@ export function SettingsView({ user, settings, onRefresh, onLogout }: SettingsVi
         json: {
           name: userName.trim() || undefined,
           family_name: familyName.trim(),
-          currency: 'IDR',
+          currency: userCurrency,
         },
-      });
 
       setSaveSuccess(true);
       setTimeout(() => setSaveSuccess(false), 3000);
@@ -274,6 +296,66 @@ export function SettingsView({ user, settings, onRefresh, onLogout }: SettingsVi
                 className="w-full h-11 pl-10 pr-4 bg-background border border-border rounded-xl text-sm font-medium focus:ring-2 focus:ring-primary focus:outline-none"
               />
             </div>
+
+          {/* Currency Selector */}
+          <div className="space-y-1 pt-2">
+            <label htmlFor="settings-currency" className="block text-xs font-semibold text-text-muted">
+              Mata Uang Utama
+            </label>
+            <select
+              id="settings-currency"
+              value={userCurrency}
+              onChange={(e) => setUserCurrency(e.target.value as AppSettings['currency'])}
+              className="w-full h-11 px-4 bg-background border border-border rounded-xl text-sm font-medium focus:ring-2 focus:ring-primary focus:outline-none appearance-none"
+            >
+              <option value="IDR">IDR - Rupiah Indonesia (Rp)</option>
+              <option value="USD">USD - US Dollar ($)</option>
+              <option value="EUR">EUR - Euro (€)</option>
+              <option value="CNY">CNY - Chinese Yuan (¥)</option>
+            </select>
+          </div>
+
+          {/* Live Exchange Rates Display */}
+          {Object.keys(exchangeRates).length > 0 && (
+            <div className="bg-surface-2 border border-border rounded-2xl p-4 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-text-muted flex items-center gap-1">
+                  Kurs Live (dari {formatCurrencySymbol(userCurrency)})
+                </span>
+                {isLoadingRates && (
+                  <span className="text-xs text-text-muted animate-pulse">...</span>
+                )}
+              </div>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                {(['USD', 'EUR', 'CNY'] as const).map((curr) => (
+                  <div key={curr} className="flex items-center justify-between px-3 py-2 bg-background rounded-lg">
+                    <span className="text-xs font-bold text-text">{formatCurrencySymbol(curr)}</span>
+                    <span className="text-xs font-semibold text-text muted">
+                      1 {curr} = {exchangeRates[curr]?.toFixed(2) || '-'} {userCurrency}
+                    </span>
+                  </div>
+                ))}
+              </div>
+              {userCurrency !== 'IDR' && exchangeRates.IDR && (
+                <div className="flex items-center justify-between px-3 py-2 bg-background rounded-lg">
+                  <span className="text-xs font-bold text-text">Rp</span>
+                  <span className="text-xs font-semibold text-text-muted">
+                    1 IDR = {(1 / exchangeRates.IDR).toFixed(4)} {userCurrency}
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
+
+          <Button
+            type="submit"
+            variant="primary"
+            size="md"
+            isLoading={isSaving}
+            leftIcon={<FloppyDisk size={18} weight="bold" />}
+          >
+            Simpan Perubahan
+          </Button>
           </div>
 
           <Button

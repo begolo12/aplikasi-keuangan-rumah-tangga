@@ -3,11 +3,9 @@
 import React from 'react';
 import {
   TrendUp,
-  TrendDown,
   CheckCircle,
   WarningCircle,
   FileCsv,
-
 } from '@phosphor-icons/react';
 import { formatRupiah, INDONESIAN_MONTHS } from '@/lib/formatters';
 import { MonthlySummary as MonthlySummaryType, Asset } from '@/lib/types';

@@ -1,7 +1,7 @@
 # Plan: Mobile UX Overhaul — Tampilan HP Simple & Premium
 
 - Tanggal: 2026-08-25
-- Status: running
+- Status: done
 
 ## Tujuan
 Mengoptimalkan pengalaman pengguna di perangkat mobile (HP) agar tampil simple, cepat, dan premium. Desktop tetap memiliki detail lengkap. HP difokuskan ke: saldo, aksi cepat, dan ringkasan — tidak lebih.

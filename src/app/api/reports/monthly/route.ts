@@ -30,42 +30,42 @@ export async function GET(req: NextRequest) {
       dailyRows,
       debtRows,
     ] = await Promise.all([
-      query<{ total: string }>(
-        'SELECT COALESCE(SUM(balance), 0) as total FROM wallets WHERE user_id = $1',
-        [uid]
-      ).catch(() => [{ total: '0' }]),
+      query<{ total: string }>('SELECT COALESCE(SUM(balance), 0) as total FROM wallets WHERE user_id = $1 OR (is_shared = TRUE AND household_id IN (SELECT household_id FROM household_members WHERE user_id = $1))', [uid]),
       query<{ total: string }>(
         `SELECT COALESCE(SUM(amount), 0) as total
          FROM transactions
-         WHERE user_id = $1 AND type = 'income'
-           AND EXTRACT(MONTH FROM date) = $2 AND EXTRACT(YEAR FROM date) = $3`,
+         WHERE (user_id = $1 OR wallet_id IN (SELECT id FROM wallets WHERE is_shared = TRUE AND household_id IN (SELECT household_id FROM household_members WHERE user_id = $1))) AND type = 'income'
+           AND date >= make_date($3::int, $2::int, 1)
+           AND date < make_date($3::int, $2::int, 1) + INTERVAL '1 month'`,
         [uid, month, year]
-      ).catch(() => [{ total: '0' }]),
+      ),
       query<{ total: string; admin_total: string }>(
         `SELECT
           COALESCE(SUM(CASE WHEN type = 'expense' THEN amount ELSE 0 END), 0) as total,
           COALESCE(SUM(admin_fee), 0) as admin_total
          FROM transactions
-         WHERE user_id = $1
-           AND EXTRACT(MONTH FROM date) = $2 AND EXTRACT(YEAR FROM date) = $3`,
+         WHERE (user_id = $1 OR wallet_id IN (SELECT id FROM wallets WHERE is_shared = TRUE AND household_id IN (SELECT household_id FROM household_members WHERE user_id = $1)))
+           AND date >= make_date($3::int, $2::int, 1)
+           AND date < make_date($3::int, $2::int, 1) + INTERVAL '1 month'`,
         [uid, month, year]
-      ).catch(() => [{ total: '0', admin_total: '0' }]),
+      ),
       query<{ total: string }>(
         `SELECT COALESCE(SUM(amount), 0) as total
          FROM transactions
-         WHERE user_id = $1 AND type = 'transfer'
-           AND EXTRACT(MONTH FROM date) = $2 AND EXTRACT(YEAR FROM date) = $3`,
+         WHERE (user_id = $1 OR wallet_id IN (SELECT id FROM wallets WHERE is_shared = TRUE AND household_id IN (SELECT household_id FROM household_members WHERE user_id = $1))) AND type = 'transfer'
+           AND date >= make_date($3::int, $2::int, 1)
+           AND date < make_date($3::int, $2::int, 1) + INTERVAL '1 month'`,
         [uid, month, year]
-      ).catch(() => [{ total: '0' }]),
+      ),
       query<{ count: string; total_pending_amount: string }>(
-        `SELECT 
+        `SELECT
            COUNT(*)::text as count,
            COALESCE(SUM(b.amount), 0)::text as total_pending_amount
          FROM recurring_bills b
          LEFT JOIN bill_payments bp ON bp.bill_id = b.id AND bp.month = $2 AND bp.year = $3 AND bp.user_id = b.user_id
          WHERE b.user_id = $1 AND b.is_active = TRUE AND COALESCE(b.type, 'expense') = 'expense' AND bp.id IS NULL`,
         [uid, month, year]
-      ).catch(() => [{ count: '0', total_pending_amount: '0' }]),
+      ),
       query<{ count: string }>(
         `SELECT COUNT(*)::text as count
          FROM (
@@ -82,31 +82,38 @@ export async function GET(req: NextRequest) {
            LEFT JOIN transactions t ON t.category_id = b.category_id
              AND t.type = 'expense'
              AND t.user_id = b.user_id
-             AND EXTRACT(MONTH FROM t.date) = $2
-             AND EXTRACT(YEAR FROM t.date) = $3
+             AND t.date >= make_date($3::int, $2::int, 1)
+             AND t.date < make_date($3::int, $2::int, 1) + INTERVAL '1 month'
            GROUP BY b.id, b.monthly_limit
            HAVING COALESCE(SUM(t.amount), 0) > b.monthly_limit
          ) over_budgets`,
         [uid, month, year]
-      ).catch(() => [{ count: '0' }]),
+      ),
       query<{ day: number; income: string; expense: string }>(
         `SELECT
           EXTRACT(DAY FROM date)::INTEGER as day,
           COALESCE(SUM(CASE WHEN type = 'income' THEN amount ELSE 0 END), 0)::TEXT as income,
           (COALESCE(SUM(CASE WHEN type = 'expense' THEN amount ELSE 0 END), 0) + COALESCE(SUM(admin_fee), 0))::TEXT as expense
          FROM transactions
-         WHERE user_id = $1
-           AND EXTRACT(MONTH FROM date) = $2 AND EXTRACT(YEAR FROM date) = $3
+         WHERE (user_id = $1 OR wallet_id IN (SELECT id FROM wallets WHERE is_shared = TRUE AND household_id IN (SELECT household_id FROM household_members WHERE user_id = $1)))
+           AND date >= make_date($3::int, $2::int, 1)
+           AND date < make_date($3::int, $2::int, 1) + INTERVAL '1 month'
          GROUP BY EXTRACT(DAY FROM date)
          ORDER BY day ASC`,
         [uid, month, year]
-      ).catch(() => []),
-      query<{ type: string; remaining_amount: string; status: string }>(
-        `SELECT type, (total_amount - paid_amount)::text as remaining_amount, status
+      ),
+      query<{ type: string; remaining_amount: string; status: string; due_date: string | null; is_due_this_period: boolean; monthly_installment: string | null; active_bills_count: string }>(
+        `SELECT type, (total_amount - paid_amount)::text as remaining_amount, status, due_date,
+                monthly_installment::text,
+                (SELECT COUNT(*) FROM recurring_bills rb WHERE rb.debt_id = debts.id AND rb.is_active = TRUE)::text AS active_bills_count,
+                CASE
+                   WHEN status != 'paid' AND (due_date IS NULL OR (due_date >= make_date($3::int, $2::int, 1) AND due_date < make_date($3::int, $2::int, 1) + INTERVAL '1 month')) THEN TRUE
+                  ELSE FALSE
+                END AS is_due_this_period
          FROM debts
          WHERE user_id = $1 AND status != 'paid'`,
-        [uid]
-      ).catch(() => []),
+        [uid, month, year]
+      ),
     ]);
 
     const totalBalance = parseFloat(walletBalanceRows[0]?.total || '0');
@@ -122,16 +129,21 @@ export async function GET(req: NextRequest) {
 
     for (const d of debtRows) {
       const rem = parseFloat(d.remaining_amount || '0');
+      const isDue = d.is_due_this_period;
+      const hasActiveBill = parseInt(d.active_bills_count || '0', 10) > 0;
+      const inst = d.monthly_installment ? parseFloat(d.monthly_installment) : null;
+      const dueAmount = inst && inst > 0 ? Math.min(rem, inst) : rem;
+
       if (d.type === 'payable') {
         payableUnpaidCount++;
-        totalPayableDue += rem;
+        if (isDue && !hasActiveBill) totalPayableDue += dueAmount;
       } else {
         receivableUnpaidCount++;
-        totalReceivableDue += rem;
+        if (isDue) totalReceivableDue += dueAmount;
       }
     }
 
-    const safeToSpend = totalBalance - (totalBillsPendingAmount + totalPayableDue);
+    const safeToSpend = totalBalance - (totalBillsPendingAmount + totalPayableDue) + totalReceivableDue;
 
     const summary: MonthlySummary = {
       month,

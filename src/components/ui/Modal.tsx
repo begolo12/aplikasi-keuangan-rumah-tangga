@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useSyncExternalStore } from 'react';
+import React, { useEffect, useId, useRef, useSyncExternalStore } from 'react';
 import { createPortal } from 'react-dom';
 import { X } from '@phosphor-icons/react';
 
@@ -25,6 +25,7 @@ interface ModalProps {
 export function Modal({ isOpen, onClose, title, children, maxWidth = 'md' }: ModalProps) {
   const mounted = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const titleId = useId();
   const onCloseRef = useRef(onClose);
 
   useEffect(() => {
@@ -34,7 +35,8 @@ export function Modal({ isOpen, onClose, title, children, maxWidth = 'md' }: Mod
   useEffect(() => {
     if (!isOpen) return;
     const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-    document.body.style.overflow = 'hidden';
+      const previousOverflow = document.body.style.overflow;
+      document.body.style.overflow = 'hidden';
 
     // Auto-focus elemen pertama hanya sekali saat modal dibuka
     const timer = setTimeout(() => {
@@ -65,7 +67,6 @@ export function Modal({ isOpen, onClose, title, children, maxWidth = 'md' }: Mod
 
       const items = getFocusableElements();
       if (items.length === 0) {
-        e.preventDefault();
         return;
       }
       const first = items[0];
@@ -82,7 +83,7 @@ export function Modal({ isOpen, onClose, title, children, maxWidth = 'md' }: Mod
     window.addEventListener('keydown', handleKeyDown);
     return () => {
       clearTimeout(timer);
-      document.body.style.overflow = '';
+      document.body.style.overflow = previousOverflow;
       window.removeEventListener('keydown', handleKeyDown);
       previousFocus?.focus();
     };
@@ -90,7 +91,7 @@ export function Modal({ isOpen, onClose, title, children, maxWidth = 'md' }: Mod
 
   if (!isOpen || !mounted) return null;
 
-  const ariaLabel = typeof title === 'string' ? title : undefined;
+  const labelledBy = title ? titleId : undefined;
 
   const maxWidthClasses = {
     sm: 'md:max-w-sm',
@@ -118,7 +119,7 @@ export function Modal({ isOpen, onClose, title, children, maxWidth = 'md' }: Mod
         ref={containerRef}
         role="dialog"
         aria-modal="true"
-        aria-label={ariaLabel}
+        aria-labelledby={labelledBy}
         onMouseDown={(e) => e.stopPropagation()}
         onTouchStart={(e) => e.stopPropagation()}
         className={`relative z-10 w-full ${maxWidthClasses[maxWidth]} max-h-[88dvh] md:max-h-[85vh] bg-surface rounded-t-3xl md:rounded-3xl shadow-2xl flex flex-col overflow-hidden border border-border transition-transform animate-slide-up md:animate-scale-in`}
@@ -130,7 +131,7 @@ export function Modal({ isOpen, onClose, title, children, maxWidth = 'md' }: Mod
 
         {/* Modal Header */}
         <div className="flex items-center justify-between px-5 sm:px-6 py-3.5 sm:py-4 border-b border-border shrink-0">
-          <div className="text-base md:text-lg font-bold text-text">{title}</div>
+          <div id={labelledBy} className="text-base md:text-lg font-bold text-text">{title}</div>
           <button
             type="button"
             onClick={() => onCloseRef.current()}

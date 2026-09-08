@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthSession } from '@/lib/auth';
+import { walletAccessCondition } from '@/lib/household';
 import { withTransaction } from '@/lib/db';
 import { reconcileWalletSchema, uuidIdParam } from '@/lib/validations';
 import { handleRouteError, BusinessError, readJsonBody } from '@/lib/apiHelpers';
@@ -20,8 +21,11 @@ export async function POST(req: NextRequest, context: RouteContext) {
 
     const result = await withTransaction(async (client) => {
       // 1. Kunci data dompet
+      // Operasional: pemilik atau anggota household (dompet bersama) boleh rekonsiliasi.
       const walletRes = await client.query(
-        'SELECT id, name, balance::float as balance FROM wallets WHERE id = $1 AND user_id = $2 FOR UPDATE',
+        `SELECT id, name, balance::float as balance FROM wallets WHERE id = $1
+         AND ${walletAccessCondition(2)}
+         FOR UPDATE`,
         [walletId, session.userId]
       );
 
@@ -65,7 +69,7 @@ export async function POST(req: NextRequest, context: RouteContext) {
         await client.query(
           `UPDATE wallets
            SET balance = $1, reconciled_at = NOW(), last_reconciled_balance = $1, updated_at = NOW()
-           WHERE id = $2 AND user_id = $3`,
+           WHERE id = $2 AND ${walletAccessCondition(3)}`,
           [actualBalance, walletId, session.userId]
         );
       } else {
@@ -73,7 +77,7 @@ export async function POST(req: NextRequest, context: RouteContext) {
         await client.query(
           `UPDATE wallets
            SET reconciled_at = NOW(), last_reconciled_balance = $1, updated_at = NOW()
-           WHERE id = $2 AND user_id = $3`,
+           WHERE id = $2 AND ${walletAccessCondition(3)}`,
           [actualBalance, walletId, session.userId]
         );
       }

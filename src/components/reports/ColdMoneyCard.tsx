@@ -7,7 +7,7 @@ import {
   LockKey,
 } from '@phosphor-icons/react';
 import { formatRupiah } from '@/lib/formatters';
-import { Wallet, Budget, ColdMoneyInfo } from '@/lib/types';
+import { Wallet, Budget, ColdMoneyInfo, RecurringBill, Debt } from '@/lib/types';
 
 interface ColdMoneyCardProps {
   wallets: Wallet[];
@@ -15,6 +15,8 @@ interface ColdMoneyCardProps {
   totalExpense?: number;
   pendingBills?: number;
   payableDue?: number;
+  bills?: RecurringBill[];
+  debts?: Debt[];
 }
 
 export function calculateColdMoney(
@@ -22,12 +24,20 @@ export function calculateColdMoney(
   budgets: Budget[],
   totalExpense: number = 0,
   pendingBills: number = 0,
-  payableDue: number = 0
+  payableDue: number = 0,
+  bills: RecurringBill[] = [],
+  debts: Debt[] = []
 ): ColdMoneyInfo {
   const total_liquid_cash = wallets.reduce((sum, w) => sum + Math.max(0, w.balance || 0), 0);
   
   const totalBudgetFromLimits = budgets.reduce((sum, b) => sum + (b.monthly_limit || 0), 0);
-  const monthlyBudget = totalBudgetFromLimits > 0 ? totalBudgetFromLimits : totalExpense > 0 ? totalExpense : 1000000;
+  const activeBillsTotal = bills.filter((b) => b.is_active && (b.type ?? 'expense') === 'expense').reduce((sum, b) => sum + (b.amount || 0), 0);
+  const activeDebtInstallments = debts
+    .filter((d) => d.type === 'payable' && d.status !== 'paid' && (d.monthly_installment || 0) > 0)
+    .reduce((sum, d) => sum + (d.monthly_installment || 0), 0);
+  const combinedBudget = totalBudgetFromLimits + activeBillsTotal + activeDebtInstallments;
+  // Tanpa fallback 1jt palsu: bila semua 0 → 0 (konsisten dengan FinancialSafetyPlanCard setelah revisi)
+  const monthlyBudget = combinedBudget > 0 ? combinedBudget : totalExpense > 0 ? totalExpense : 0;
   
   // Total Cadangan Keamanan Wajib (4 Bulan Biaya + 10% Cadangan Risiko = 4.4x Anggaran)
   const safety_reserve_required = monthlyBudget * 4.4;
@@ -70,8 +80,10 @@ export function ColdMoneyCard({
   totalExpense = 0,
   pendingBills = 0,
   payableDue = 0,
+  bills = [],
+  debts = [],
 }: ColdMoneyCardProps) {
-  const info = calculateColdMoney(wallets, budgets, totalExpense, pendingBills, payableDue);
+  const info = calculateColdMoney(wallets, budgets, totalExpense, pendingBills, payableDue, bills, debts);
 
   return (
     <div

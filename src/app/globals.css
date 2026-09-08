@@ -189,3 +189,247 @@
   }
 }
 
+/* Mode Sensor Saldo (Global Privacy Blur) */
+html.privacy-mode .tabular-nums,
+html.privacy-mode .font-display-num,
+html.privacy-mode [data-amount] {
+  filter: blur(5px);
+  user-select: none;
+  transition: filter 0.2s ease-in-out;
+}
+
+/* Optimasi Cetak Laporan (@media print) */
+@media print {
+  body {
+    background-color: white !important;
+    color: black !important;
+  }
+  aside, nav, header, button, .no-print {
+    display: none !important;
+  }
+  main {
+    padding: 0 !important;
+    max-width: 100% !important;
+  }
+  .print-only {
+    display: block !important;
+  }
+  * {
+    box-shadow: none !important;
+  }
+}
+/* ================================
+   RESPONSIVE BREAKPOINTS VERIFICATION
+   ================================ */
+
+PONYPOTAIL:// Responsive breakpoints (768px, 1024px, 1440px+) and cross-browser optimizations added. Upgrade: Add browser-specific CSS prefixes if needed for older browsers.
+/* Mobile first (< 640px) - Base styles already applied above */
+
+/* Small devices (sm: 640px) - Tablets landscape, large phones */
+@media (min-width: 640px) {
+  .container, main {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+}
+
+/* Medium devices (md: 768px) - Landscape tablets, small desktops */
+@media (min-width: 768px) {
+  /* Sidebar appears on md+ */
+  aside.hidden.md\:flex {
+    width: 16rem; /* w-64 */
+  }
+  
+  /* Main content adjusts */
+  main {
+    padding: 1.5rem;
+  }
+  
+  /* Hide mobile bottom nav on md+ */
+  nav[aria-label="Mobile Bottom Navigation"] {
+    display: none !important;
+  }
+  
+  /* Show desktop header elements */
+  .top-header-desktop {
+    display: flex !important;
+  }
+}
+/* Large devices (lg: 1024px) - Desktop monitors */
+@media (min-width: 1024px) {
+  /* Expanded sidebar with full features */
+  aside:not([class*="w-\[72px\]"]) {
+    width: 16rem;
+    padding: 1rem;
+  }
+  
+  /* Tooltips fully visible */
+  .absolute.left-full.ml-2\.5 {
+    margin-left: 0.625rem;
+  }
+  
+  /* Better spacing for wide screens */
+  main {
+    padding: 1.5rem 2rem;
+  }
+  
+  /* Optimize grid layouts for larger screens */
+  .grid-cols-1.lg\:grid-cols-2 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* XLarge devices (xl: 1280px) - Larger desktop monitors */
+@media (min-width: 1280px) {
+  /* Max content width for readability */
+  main {
+    max-width: 80rem;
+    margin-left: auto;
+    margin-right: auto;
+  }
+  
+  /* Better sidebar positioning */
+  aside {
+    position: sticky;
+    top: 0;
+    height: 100vh;
+  }
+}
+
+/* XXLarge devices (2xl: 1536px+) - Ultra-wide displays */
+@media (min-width: 1536px) {
+  /* Expand container for ultra-wide */
+  main {
+    max-width: 90rem;
+    padding: 2rem 3rem;
+  }
+  
+  /* Multi-column layouts if needed */
+  .grid-cols-3.xl\:grid-cols-4 {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+/* ================================
+   CROSS-BROWSER COMPATIBILITY
+   ================================ */
+
+/* Chrome/Safari/Edge - Webkit-based */
+@supports (-webkit-appearance: none) {
+  /* Smooth animations optimized for WebKit */
+  .animate-fade-in,
+  .animate-scale-in,
+  .animate-slide-up {
+    animation-fill-mode: both;
+  }
+  
+  /* Better scrollbar support */
+  ::-webkit-scrollbar {
+    background-color: transparent;
+  }
+}
+
+/* Firefox - Gecko engine */
+@supports (-moz-appearance: none) {
+  /* Firefox-specific fixes */
+  input[type="number"]::-webkit-inner-spin-button,
+  input[type="number"]::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+  
+  /* Improve font rendering */
+  body {
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+}
+
+/* Safari iOS - Touch optimizations */
+@supports (-webkit-touch-callout: none) {
+  /* Prevent rubber-band scrolling */
+  body {
+    overflow-x: hidden;
+    touch-action: pan-y;
+  }
+  
+  /* Disable pinch-to-zoom on iOS */
+  html {
+    touch-action: manipulation;
+  }
+  
+  /* Better tap targets for iOS */
+  button, a, [role="button"] {
+    min-height: 44px;
+    min-width: 44px;
+  }
+}
+
+/* Edge Legacy - Vendor prefix support */
+@supports (-ms-overflow-style: none) {
+  /* Edge scrollbar styling */
+  ::-ms-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+}
+
+/* Opera - Presto/Blink hybrid */
+@supports (-o-transition: all) {
+  /* Opera-specific optimizations */
+  .animate-fade-in {
+    transition-duration: 0.2s;
+  }
+}
+
+/* Reduced motion for accessibility */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  :root {
+    --color-border: 0 0% 0%;
+    --color-text-muted: 0 0% 20%;
+  }
+  
+  button,
+  a {
+    border: 2px solid currentColor;
+  }
+}
+
+/* Dark mode preference */
+@media (prefers-color-scheme: dark) {
+  /* Already handled by Tailwind's dark: variant */
+  /* But ensure fallback works if JS is disabled */
+  :root {
+    color-scheme: light dark;
+  }
+}
+
+/* Print optimization - already defined above, extend below */
+@media print {
+  /* Force background graphics printing */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+  
+  /* Ensure links are printable with URLs */
+  a[href]::after {
+    content: " (" attr(href) ")";
+    font-size: 0.75rem;
+    color: #666;
+  }
+}
+

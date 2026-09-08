@@ -4,6 +4,7 @@ import { query, withTransaction } from '@/lib/db';
 import { budgetSchema, periodQuerySchema } from '@/lib/validations';
 import { handleRouteError, BusinessError, readJsonBody } from '@/lib/apiHelpers';
 import { Budget } from '@/lib/types';
+import { BUDGET_ROLLOVER_CTE, BUDGET_EFFECTIVE_LIMIT_SQL } from '@/lib/budgetSql';
 
 export async function GET(req: NextRequest) {
   try {
@@ -24,29 +25,35 @@ export async function GET(req: NextRequest) {
     const budgets = await query<Budget>(
       `WITH latest_budgets AS (
         SELECT DISTINCT ON (category_id)
-          id, user_id, category_id, monthly_limit, month, year, created_at
+          id, user_id, category_id, monthly_limit, rollover_enabled, month, year, created_at
         FROM budgets
         WHERE user_id = $1
           AND (year < $3 OR (year = $3 AND month <= $2))
         ORDER BY category_id, year DESC, month DESC
-      )
+      ),
+      ${BUDGET_ROLLOVER_CTE}
       SELECT
         b.id, b.user_id, b.category_id, b.monthly_limit, $2::smallint as month, $3::smallint as year, b.created_at,
         c.name as category_name, c.icon as category_icon, c.color as category_color,
+        (CASE WHEN COALESCE(b.rollover_enabled, FALSE) THEN COALESCE(pb.monthly_limit, 0) - COALESCE(ps.spent, 0) ELSE 0 END)::NUMERIC as rollover_amount,
+        ${BUDGET_EFFECTIVE_LIMIT_SQL}::NUMERIC as effective_limit,
         COALESCE(SUM(t.amount), 0)::NUMERIC as spent,
-        (b.monthly_limit - COALESCE(SUM(t.amount), 0))::NUMERIC as remaining,
-        CASE 
-          WHEN b.monthly_limit > 0 THEN ROUND((COALESCE(SUM(t.amount), 0) / b.monthly_limit * 100)::NUMERIC, 1)::FLOAT 
-          ELSE 0 
+        (${BUDGET_EFFECTIVE_LIMIT_SQL} - COALESCE(SUM(t.amount), 0))::NUMERIC as remaining,
+        CASE
+          WHEN ${BUDGET_EFFECTIVE_LIMIT_SQL} > 0 THEN ROUND((COALESCE(SUM(t.amount), 0) / ${BUDGET_EFFECTIVE_LIMIT_SQL} * 100)::NUMERIC, 1)::FLOAT
+          ELSE 0
         END as percentage
       FROM latest_budgets b
       JOIN categories c ON b.category_id = c.id AND c.user_id = b.user_id
+      LEFT JOIN prev_budgets pb ON pb.category_id = b.category_id
+      LEFT JOIN prev_spent ps ON ps.category_id = b.category_id
       LEFT JOIN transactions t ON t.category_id = b.category_id
         AND t.type = 'expense'
         AND t.user_id = b.user_id
         AND EXTRACT(MONTH FROM t.date) = $2
         AND EXTRACT(YEAR FROM t.date) = $3
-      GROUP BY b.id, b.user_id, b.category_id, b.monthly_limit, b.created_at, c.name, c.icon, c.color
+      GROUP BY b.id, b.user_id, b.category_id, b.monthly_limit, b.rollover_enabled, b.created_at,
+               c.name, c.icon, c.color, pb.monthly_limit, ps.spent
       ORDER BY percentage DESC, b.monthly_limit DESC`,
       [session.userId, month, year]
     );
@@ -73,12 +80,12 @@ export async function POST(req: NextRequest) {
         throw new BusinessError('Kategori tidak ditemukan pada akun Anda.');
       }
       const rows = await client.query<Budget>(
-        `INSERT INTO budgets (user_id, category_id, monthly_limit, month, year)
-         VALUES ($1, $2, $3, $4, $5)
+        `INSERT INTO budgets (user_id, category_id, monthly_limit, month, year, rollover_enabled)
+         VALUES ($1, $2, $3, $4, $5, $6)
          ON CONFLICT (user_id, category_id, month, year)
-         DO UPDATE SET monthly_limit = EXCLUDED.monthly_limit
+         DO UPDATE SET monthly_limit = EXCLUDED.monthly_limit, rollover_enabled = EXCLUDED.rollover_enabled
          RETURNING *`,
-        [session.userId, validated.category_id, validated.monthly_limit, validated.month, validated.year]
+        [session.userId, validated.category_id, validated.monthly_limit, validated.month, validated.year, validated.rollover_enabled]
       );
       return rows.rows[0];
     });

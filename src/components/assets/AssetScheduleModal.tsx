@@ -31,28 +31,32 @@ export function AssetScheduleModal({
   const [amount, setAmount] = useState(0);
   const [dueDay, setDueDay] = useState(15);
   const [walletId, setWalletId] = useState('');
-  const [incidentDate, setIncidentDate] = useState(() => new Date().toISOString().split('T')[0]);
+  const [incidentDate, setIncidentDate] = useState(() => getLocalDateString());
   const [notes, setNotes] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  React.useEffect(() => {
-    if (asset) {
-      const defaultW = wallets.find((w) => w.is_default) || wallets[0];
-      if (defaultW) setWalletId(defaultW.id);
-      setError(null);
-      if (actionType === 'tax') {
-        setTitle(`Pajak Rutin: ${asset.name}`);
-        setAmount(asset.category === 'kendaraan' ? 500000 : 300000);
-      } else if (actionType === 'maintenance') {
-        setTitle(`Servis Rutin / Perawatan: ${asset.name}`);
-        setAmount(250000);
-      } else {
-        setTitle(`Perbaikan Kerusakan: ${asset.name}`);
-        setAmount(150000);
-      }
+  const [prevSyncKey, setPrevSyncKey] = useState<{ assetId: string | null; action: string }>({
+    assetId: asset?.id || null,
+    action: 'tax',
+  });
+
+  if (asset && (asset.id !== prevSyncKey.assetId || actionType !== prevSyncKey.action)) {
+    setPrevSyncKey({ assetId: asset.id, action: actionType });
+    const defaultW = wallets.find((w) => w.is_default) || wallets[0];
+    if (defaultW) setWalletId(defaultW.id);
+    setError(null);
+    if (actionType === 'tax') {
+      setTitle(`Pajak Rutin: ${asset.name}`);
+      setAmount(asset.category === 'kendaraan' ? 500000 : 300000);
+    } else if (actionType === 'maintenance') {
+      setTitle(`Servis Rutin / Perawatan: ${asset.name}`);
+      setAmount(250000);
+    } else {
+      setTitle(`Perbaikan Kerusakan: ${asset.name}`);
+      setAmount(150000);
     }
-  }, [asset, actionType, wallets]);
+  }
 
   if (!asset) return null;
 

@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { Asset, AssetCategory, DepreciationMethod, Wallet } from '@/lib/types';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
+import { AmountInput } from '../ui/AmountInput';
 import { formatRupiah } from '@/lib/formatters';
 import {
   Car,
@@ -14,7 +15,6 @@ import {
   DotsThree,
   Calculator,
 } from '@phosphor-icons/react';
-
 interface AssetModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -59,13 +59,13 @@ function AssetForm({ onClose, onSubmit, initialData, wallets = [] }: AssetFormPr
   const [name, setName] = useState(initialData?.name || '');
   const [category, setCategory] = useState<AssetCategory>(initialData?.category || 'kendaraan');
   const [purchaseDate, setPurchaseDate] = useState(
-    initialData?.purchase_date ? initialData.purchase_date.split('T')[0] : new Date().toISOString().split('T')[0]
+    initialData?.purchase_date ? initialData.purchase_date.split('T')[0] : getLocalDateString()
   );
-  const [purchasePrice, setPurchasePrice] = useState(
-    initialData?.purchase_price !== undefined ? String(initialData.purchase_price) : ''
+  const [purchasePrice, setPurchasePrice] = useState<number>(
+    initialData?.purchase_price ? Number(initialData.purchase_price) : 0
   );
-  const [currentValue, setCurrentValue] = useState(
-    initialData?.current_value !== undefined ? String(initialData.current_value) : ''
+  const [currentValue, setCurrentValue] = useState<number>(
+    initialData?.current_value ? Number(initialData.current_value) : 0
   );
   const [depreciationMethod, setDepreciationMethod] = useState<DepreciationMethod>(
     initialData?.depreciation_method || 'straight_line'
@@ -73,11 +73,10 @@ function AssetForm({ onClose, onSubmit, initialData, wallets = [] }: AssetFormPr
   const [usefulLifeYears, setUsefulLifeYears] = useState(
     initialData?.useful_life_years !== undefined ? String(initialData.useful_life_years) : '5'
   );
-  const [salvageValue, setSalvageValue] = useState(
-    initialData?.salvage_value !== undefined ? String(initialData.salvage_value) : '0'
+  const [salvageValue, setSalvageValue] = useState<number>(
+    initialData?.salvage_value ? Number(initialData.salvage_value) : 0
   );
   const [notes, setNotes] = useState(initialData?.notes || '');
-
   // Integrasi otomatis kas & jadwal rutin
   const defaultW = wallets.find((w) => w.is_default) || wallets[0];
   const [walletId, setWalletId] = useState(defaultW?.id || '');
@@ -90,10 +89,10 @@ function AssetForm({ onClose, onSubmit, initialData, wallets = [] }: AssetFormPr
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Live simulation calculation
-  const priceNum = parseFloat(purchasePrice) || 0;
-  const marketNum = parseFloat(currentValue) > 0 ? parseFloat(currentValue) : priceNum;
-  const salvageNum = parseFloat(salvageValue) || 0;
+  // Live simulation calculation — kini number langsung dari AmountInput
+  const priceNum = purchasePrice;
+  const marketNum = currentValue > 0 ? currentValue : priceNum;
+  const salvageNum = salvageValue;
   const yearsNum = Math.max(1, parseInt(usefulLifeYears) || 5);
 
   const pDate = new Date(purchaseDate);
@@ -124,7 +123,6 @@ function AssetForm({ onClose, onSubmit, initialData, wallets = [] }: AssetFormPr
 
   // Analisis Plus (+) / Minus (-)
   const marketDiffPurchase = marketNum - priceNum;
-  const marketDiffBook = marketNum - simBookValue;
   const isGain = marketDiffPurchase >= 0;
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -242,42 +240,31 @@ function AssetForm({ onClose, onSubmit, initialData, wallets = [] }: AssetFormPr
           />
         </div>
 
-        <div className="space-y-1">
-          <label className="block text-xs font-semibold text-text-muted">Harga Perolehan Awal (Rp)</label>
-          <input
-            type="number"
-            required
-            min="1"
-            value={purchasePrice}
-            onChange={(e) => {
-              setPurchasePrice(e.target.value);
-              if (!currentValue) setCurrentValue(e.target.value);
-            }}
-            placeholder="0"
-            className="w-full h-11 px-3.5 bg-background border border-border rounded-xl text-sm font-bold focus:ring-2 focus:ring-primary focus:outline-none"
-          />
-        </div>
+        <AmountInput
+          id="assetPurchasePrice"
+          label="Harga Perolehan Awal (Rp)"
+          value={purchasePrice}
+          onChange={(v) => {
+            setPurchasePrice(v);
+            if (!currentValue) setCurrentValue(v);
+          }}
+        />
       </div>
 
       {/* Input: Taksiran Harga Pasaran Sekarang */}
       <div className="space-y-1 p-3 bg-surface-2 rounded-2xl border border-primary/20">
         <div className="flex items-center justify-between">
-          <label className="block text-xs font-bold text-text">
-            Taksiran Harga Pasaran Saat Ini (Rp)
-          </label>
+          <label className="block text-xs font-bold text-text">Taksiran Harga Pasaran Saat Ini (Rp)</label>
           <span className="text-[10px] font-semibold text-primary">Untuk Cek Plus / Minus</span>
         </div>
-        <input
-          type="number"
-          min="0"
+        <AmountInput
+          id="assetCurrentValue"
+          label=""
           value={currentValue}
-          onChange={(e) => setCurrentValue(e.target.value)}
-          placeholder={purchasePrice || "Contoh: 18000000"}
-          className="w-full h-11 px-3.5 bg-background border border-border rounded-xl text-sm font-extrabold text-primary focus:ring-2 focus:ring-primary focus:outline-none"
+          onChange={setCurrentValue}
+          placeholder={purchasePrice ? String(purchasePrice) : 'Contoh: 18000000'}
         />
-        <p className="text-[10px] text-text-muted">
-          Perkiraan harga jual/pasar barang saat ini di marketplace atau pasaran umum.
-        </p>
+        <p className="text-[10px] text-text-muted">Perkiraan harga jual/pasar barang saat ini di marketplace atau pasaran umum.</p>
       </div>
 
       {/* Metode Penyusutan */}
@@ -307,21 +294,16 @@ function AssetForm({ onClose, onSubmit, initialData, wallets = [] }: AssetFormPr
               value={usefulLifeYears}
               onChange={(e) => setUsefulLifeYears(e.target.value)}
               placeholder="5"
-              className="w-full h-10 px-3 bg-background border border-border rounded-xl text-sm font-medium focus:ring-2 focus:ring-primary focus:outline-none"
+              className="w-full min-h-[44px] h-11 px-3 bg-background border border-border rounded-xl text-sm font-medium focus:ring-2 focus:ring-primary focus:outline-none"
             />
           </div>
 
-          <div className="space-y-1">
-            <label className="block text-[11px] font-semibold text-text-muted">Estimasi Nilai Residu/Sisa (Rp)</label>
-            <input
-              type="number"
-              min="0"
-              value={salvageValue}
-              onChange={(e) => setSalvageValue(e.target.value)}
-              placeholder="0"
-              className="w-full h-10 px-3 bg-background border border-border rounded-xl text-sm font-medium focus:ring-2 focus:ring-primary focus:outline-none"
-            />
-          </div>
+          <AmountInput
+            id="assetSalvageValue"
+            label="Estimasi Nilai Residu/Sisa (Rp)"
+            value={salvageValue}
+            onChange={setSalvageValue}
+          />
         </div>
       )}
 
@@ -434,13 +416,12 @@ function AssetForm({ onClose, onSubmit, initialData, wallets = [] }: AssetFormPr
 
             {scheduleTax && (
               <div className="pl-6">
-                <input
-                  type="number"
-                  min="0"
+                <AmountInput
+                  id="assetTaxAmount"
+                  label=""
                   value={taxAmount}
-                  onChange={(e) => setTaxAmount(parseFloat(e.target.value) || 0)}
+                  onChange={setTaxAmount}
                   placeholder="Estimasi pajak (Rp)"
-                  className="w-full h-10 px-3 bg-background border border-border rounded-xl text-xs font-bold text-primary focus:ring-2 focus:ring-primary focus:outline-none"
                 />
               </div>
             )}
@@ -463,13 +444,12 @@ function AssetForm({ onClose, onSubmit, initialData, wallets = [] }: AssetFormPr
 
             {scheduleMaintenance && (
               <div className="pl-6">
-                <input
-                  type="number"
-                  min="0"
+                <AmountInput
+                  id="assetMaintenanceAmount"
+                  label=""
                   value={maintenanceAmount}
-                  onChange={(e) => setMaintenanceAmount(parseFloat(e.target.value) || 0)}
+                  onChange={setMaintenanceAmount}
                   placeholder="Estimasi biaya servis (Rp)"
-                  className="w-full h-10 px-3 bg-background border border-border rounded-xl text-xs font-bold text-primary focus:ring-2 focus:ring-primary focus:outline-none"
                 />
               </div>
             )}

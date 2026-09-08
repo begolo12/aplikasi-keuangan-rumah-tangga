@@ -57,6 +57,8 @@ export function WalletsView({ wallets, onRefresh, onOpenTransfer, onAddWallet }:
     setColor,
     isDefault,
     setIsDefault,
+    isShared,
+    setIsShared,
     isLoading,
     error,
     openAddModal,
@@ -312,13 +314,18 @@ export function WalletsView({ wallets, onRefresh, onOpenTransfer, onAddWallet }:
               <option value="bank">Rekening Bank</option>
               <option value="ewallet">E-Wallet (GoPay, OVO, Dana)</option>
               <option value="savings">Tabungan / Dana Darurat</option>
+              <option value="envelope">Amplop Target (Envelope)</option>
             </select>
           </div>
 
           {!editingWallet && (
-            <AmountInput id="walletBalance" label="Saldo Awal (Rp)" value={balance} onChange={setBalance} />
+            <>
+              <AmountInput id="walletBalance" label="Saldo Awal (Rp)" value={balance} onChange={setBalance} allowNegative />
+              <p className="text-[11px] text-text-muted -mt-2">
+                Saldo awal boleh minus untuk kartu kredit atau overdraft. Kosongkan atau isi 0 jika belum ada saldo.
+              </p>
+            </>
           )}
-
           {/* Color & Icon Selector */}
           <div className="space-y-1.5">
             <label className="block text-xs font-semibold text-text-muted">Pilih Warna</label>
@@ -372,6 +379,21 @@ export function WalletsView({ wallets, onRefresh, onOpenTransfer, onAddWallet }:
               Jadikan sebagai pos dompet utama (default)
             </label>
           </div>
+
+          {!editingWallet && (
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                id="isShared"
+                checked={isShared}
+                onChange={(e) => setIsShared(e.target.checked)}
+                className="w-4 h-4 text-primary rounded"
+              />
+              <label htmlFor="isShared" className="text-xs font-medium text-text cursor-pointer">
+                Dompet bersama (bisa dipakai seluruh anggota keluarga)
+              </label>
+            </div>
+          )}
 
           <Button type="submit" variant="primary" size="lg" isLoading={isLoading} className="w-full mt-4 font-bold">
             {editingWallet ? 'Simpan Perubahan' : 'Tambah Pos Kas'}

@@ -1,7 +1,21 @@
+import { type CurrencyType } from './types';
+
 /**
  * Formats a number to Indonesian Rupiah currency string.
  * Example: 1500000 -> "Rp 1.500.000"
  */
+/**
+ * Format ISO date string to Indonesian format (DD MMM YYYY)
+ */
+export function formatDateISO(isoString: string): string {
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+  const date = new Date(isoString);
+  const day = date.getDate().toString().padStart(2, '0');
+  const month = months[date.getMonth()];
+  const year = date.getFullYear();
+  return `${day} ${month} ${year}`;
+}
+
 export function formatRupiah(amount: number | string | null | undefined, withSymbol: boolean = true): string {
   const num = typeof amount === 'string' ? parseFloat(amount) : (amount || 0);
   if (isNaN(num)) return withSymbol ? 'Rp\u00A00' : '0';
@@ -42,10 +56,10 @@ export function formatDate(dateStr: string, mode: 'short' | 'long' | 'relative' 
 
   if (mode === 'relative') {
     const today = new Date();
-    const todayStr = today.toISOString().split('T')[0];
+    const todayStr = getLocalDateString(today);
     const yesterday = new Date(today);
     yesterday.setDate(yesterday.getDate() - 1);
-    const yesterdayStr = yesterday.toISOString().split('T')[0];
+    const yesterdayStr = getLocalDateString(yesterday);
 
     if (dateStr === todayStr) return 'Hari Ini';
     if (dateStr === yesterdayStr) return 'Kemarin';
@@ -79,24 +93,20 @@ export const INDONESIAN_MONTHS = [
 ];
 
 /**
- * Get current year and month helper.
- */
-export function getCurrentPeriod(): { month: number; year: number; monthName: string } {
-  const now = new Date();
-  const month = now.getMonth() + 1;
-  const year = now.getFullYear();
-  return {
-    month,
-    year,
-    monthName: INDONESIAN_MONTHS[month - 1],
-  };
-}
-
-/**
  * Umur verifikasi rekonsiliasi dompet.
  * 'fresh' <= 14 hari, 'stale' > 14 hari, 'never' belum pernah direkonsiliasi.
  */
 export type ReconcileAge = 'fresh' | 'stale' | 'never';
+/**
+ * Format local date YYYY-MM-DD untuk modal defaults, input date, dan UI display.
+ * Alternative: new Date().toISOString().split('T')[0] tapi timezone-dependent.
+ */
+export function getLocalDateString(date: Date = new Date()): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
 
 export function getReconcileAge(reconciledAt: string | null | undefined, now: Date = new Date()): ReconcileAge {
   if (!reconciledAt) return 'never';
@@ -104,4 +114,51 @@ export function getReconcileAge(reconciledAt: string | null | undefined, now: Da
   if (isNaN(then.getTime())) return 'never';
   const days = Math.floor((now.getTime() - then.getTime()) / (1000 * 60 * 60 * 24));
   return days > 14 ? 'stale' : 'fresh';
+}
+
+/**
+ * Formats currency amount with symbol and locale based on currency code.
+ * Supports IDR, USD, EUR, and CNY currencies.
+ */
+export function formatCurrency(amount: number | string | null | undefined, currency: CurrencyType = 'IDR', withSymbol: boolean = true): string {
+  const num = typeof amount === 'string' ? parseFloat(amount) : (amount || 0);
+  if (isNaN(num)) return withSymbol ? formatCurrencySymbol(currency) : '0';
+
+  const symbols: Record<CurrencyType, string> = {
+    IDR: 'Rp',
+    USD: '$',
+    EUR: '€',
+    CNY: '¥',
+  };
+
+  const localeMappings: Record<CurrencyType, string> = {
+    IDR: 'id-ID',
+    USD: 'en-US',
+    EUR: 'de-DE',
+    CNY: 'zh-CN',
+  };
+
+  const formatted = new Intl.NumberFormat(localeMappings[currency], {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(Math.abs(num));
+
+  const prefix = symbols[currency];
+  const result = withSymbol ? `${prefix} ${formatted}` : formatted;
+
+  // Negatif: wrap dalam kurung jika ada simbol
+  return num < 0 ? `(${result})` : result;
+}
+
+/**
+ * Get currency symbol for a given currency type.
+ */
+export function formatCurrencySymbol(currency: CurrencyType): string {
+  const symbols: Record<CurrencyType, string> = {
+    IDR: 'Rp',
+    USD: '$',
+    EUR: '€',
+    CNY: '¥',
+  };
+  return symbols[currency];
 }

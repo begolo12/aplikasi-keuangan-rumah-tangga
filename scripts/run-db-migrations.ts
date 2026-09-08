@@ -27,6 +27,9 @@ async function main() {
     // 1. Ensure idempotency_key column in transactions
     console.log('1. Adding idempotency_key column to transactions...');
     await client.query(`ALTER TABLE transactions ADD COLUMN IF NOT EXISTS idempotency_key UUID;`);
+    // Pencabutan sesi JWT: token lama tanpa kolom ini tetap valid (tv 0).
+    console.log('1a. Adding token_version column to users...');
+    await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS token_version INTEGER NOT NULL DEFAULT 0;`);
     await client.query(
       `CREATE UNIQUE INDEX IF NOT EXISTS idx_trx_idempotency ON transactions(idempotency_key) WHERE idempotency_key IS NOT NULL;`
     );
@@ -88,6 +91,7 @@ async function main() {
       CREATE INDEX IF NOT EXISTS idx_debts_user_due ON debts(user_id, due_date);
 
       ALTER TABLE debts
+      ADD COLUMN IF NOT EXISTS start_date DATE,
       ADD COLUMN IF NOT EXISTS category VARCHAR(50) DEFAULT 'hutang_pribadi',
       ADD COLUMN IF NOT EXISTS principal_amount NUMERIC(15,2),
       ADD COLUMN IF NOT EXISTS interest_rate NUMERIC(6,2),
@@ -98,6 +102,42 @@ async function main() {
 
       ALTER TABLE transactions
       ADD COLUMN IF NOT EXISTS edited_at TIMESTAMPTZ;
+    `);
+
+    // 3a. Relasi tagihan cicilan ke hutang sumbernya (setelah tabel debts dibuat di langkah 3).
+    console.log('3a. Adding debt_id column to recurring_bills...');
+    await client.query(`
+      ALTER TABLE recurring_bills
+      ADD COLUMN IF NOT EXISTS debt_id UUID REFERENCES debts(id) ON DELETE SET NULL;
+    `);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_recurring_bills_debt ON recurring_bills(debt_id);`);
+
+    // 3c. Tagihan rutin tipe transfer: dompet tujuan (amplop/target tabungan).
+    console.log('3c. Adding to_wallet_id to recurring_bills...');
+    await client.query(`
+      ALTER TABLE recurring_bills
+      ADD COLUMN IF NOT EXISTS to_wallet_id UUID REFERENCES wallets(id) ON DELETE SET NULL;
+    `);
+
+    // 3d. Rollover anggaran per kategori.
+    console.log('3d. Adding rollover_enabled to budgets...');
+    await client.query(`
+      ALTER TABLE budgets
+      ADD COLUMN IF NOT EXISTS rollover_enabled BOOLEAN NOT NULL DEFAULT FALSE;
+    `);
+
+    // 3e. Web Push: subscription per perangkat (endpoint unik).
+    console.log('3e. Ensuring push_subscriptions table...');
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS push_subscriptions (
+        id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_id    UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        endpoint   TEXT NOT NULL UNIQUE,
+        p256dh     TEXT NOT NULL,
+        auth       TEXT NOT NULL,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+      CREATE INDEX IF NOT EXISTS idx_push_subscriptions_user ON push_subscriptions(user_id);
     `);
 
     // 3b. Savings goals (target tabungan) + riwayat kontribusi

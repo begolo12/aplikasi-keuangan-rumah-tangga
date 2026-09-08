@@ -41,3 +41,6 @@ env-*.json
 proj-old.json
 dep.json
 .omo/
+.zcode/
+.codegraph/
+.commandcode/

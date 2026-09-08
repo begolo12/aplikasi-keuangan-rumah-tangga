@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useState } from 'react';
-import { Eye, EyeSlash, ShieldCheck, Wallet, Coins, HandCoins } from '@phosphor-icons/react';
-import { formatRupiah } from '@/lib/formatters';
+import React, { useState, useMemo } from 'react';
+import { Eye, EyeSlash, ShieldCheck, Wallet, Coins, HandCoins, CalendarCheck } from '@phosphor-icons/react';
+import { formatRupiah, formatCompactRupiah } from '@/lib/formatters';
 
 interface BalanceHeaderProps {
   totalBalance: number;
@@ -10,6 +10,7 @@ interface BalanceHeaderProps {
   safeToSpend?: number;
   pendingBillsAmount?: number;
   payableDueAmount?: number;
+  monthlyRecurringTotal?: number;
   onManageWallets?: () => void;
   onNavigateToDebts?: () => void;
 }
@@ -25,8 +26,43 @@ export function BalanceHeader({
 }: BalanceHeaderProps) {
   const [showBalance, setShowBalance] = useState(true);
   const effectiveSafeToSpend = safeToSpend !== undefined ? safeToSpend : totalBalance - (pendingBillsAmount + payableDueAmount);
+{/* Monthly Recurring Indicator */}
+        {monthlyRecurringTotal > 0 && (
+          <div className="p-2 sm:p-2.5 bg-warning/10 backdrop-blur-md rounded-xl border border-warning/20 flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2 min-w-0">
+              <div className="w-6 h-6 rounded-lg bg-warning/20 flex items-center justify-center shrink-0">
+                <svg width={13} height={13} viewBox="0 0 16 16" fill="currentColor" className="text-warning">
+                  <path d="M8 2a1 1 0 0 1 1 1v4h3a1 1 0 1 1 0 2H9V4a1 1 0 0 1-1-1V2z"/>
+                  <path d="M13 7a1 1 0 0 1-1-1V4a1 1 0 0 0-1-1H9a1 1 0 1 0 0 2h1v2H8V5H7v4h1v2H7v2h1v2a1 1 0 1 0 2 0v-2h1V9a1 1 0 1 0-2 0v2H7a1 1 0 1 0 0 2h6a1 1 0 1 0 0-2h-1V8h1a1 1 0 0 0 1-1z"/>
+                </svg>
+              </div>
+              <div className="min-w-0">
+                <p className="text-[10px] text-text-muted font-semibold leading-tight truncate">
+                  Langganan Bulanan:
+                </p>
+                <p className="font-display-num text-xs sm:text-sm font-bold text-warning tabular-nums truncate">
+                  Rp{Math.round(monthlyRecurringTotal).toLocaleString('id-ID')}
+                </p>
+              </div>
+            </div>
+            <span className="text-[9px] sm:text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-warning/20 text-warning border border-warning/30 whitespace-nowrap">
+              Fixed Cost
+            </span>
+          </div>
+        )}
   const isHealthy = effectiveSafeToSpend >= 0;
 
+  // Hitung sisa hari bulan ini untuk kuota belanja harian
+  const dailyQuota = useMemo(() => {
+    const now = new Date();
+    const lastDayOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+    const daysRemaining = Math.max(1, lastDayOfMonth - now.getDate() + 1);
+    const amountPerDay = effectiveSafeToSpend > 0 ? Math.floor(effectiveSafeToSpend / daysRemaining) : 0;
+    return {
+      daysRemaining,
+      amountPerDay,
+    };
+  }, [effectiveSafeToSpend]);
   return (
     <div className="relative overflow-hidden rounded-2xl sm:rounded-3xl bg-gradient-to-br from-primary via-primary-hover to-primary-deep p-4 sm:p-5 md:p-6 text-white shadow-md shadow-primary/15 transition-all">
       {/* Subtle decorative glow */}
@@ -84,37 +120,54 @@ export function BalanceHeader({
           </div>
         </div>
 
-        {/* Safe-to-Spend Liquidity Sub-card */}
-        <div className="p-2.5 sm:p-3 bg-black/20 backdrop-blur-md rounded-2xl border border-white/15 flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2 min-w-0">
-            <div className="w-6 h-6 rounded-xl bg-white/15 flex items-center justify-center shrink-0">
-              <Coins size={13} weight="fill" className="text-warning" />
+        {/* Safe-to-Spend Liquidity Sub-card & Daily Quota */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          <div className="p-2.5 sm:p-3 bg-black/20 backdrop-blur-md rounded-2xl border border-white/15 flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2 min-w-0">
+              <div className="w-6 h-6 rounded-xl bg-white/15 flex items-center justify-center shrink-0">
+                <Coins size={13} weight="fill" className="text-warning" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-[10px] text-white/75 font-semibold leading-tight">
+                  Dana Bebas & Uang Dingin:
+                </p>
+                <p className="font-display-num text-base sm:text-lg text-white truncate tabular-nums">
+                  {showBalance ? formatRupiah(effectiveSafeToSpend) : '••••••'}
+                </p>
+              </div>
             </div>
-            <div className="min-w-0">
-              <p className="text-[10px] text-white/75 font-semibold leading-tight hidden sm:block">
-                Dana Bebas Belanja & Uang Dingin Rencana:
-              </p>
-              <p className="text-[10px] text-white/75 font-semibold leading-tight sm:hidden">
-                Dana Bebas & Uang Dingin:
-              </p>
-              <p className="font-display-num text-base sm:text-lg text-white truncate tabular-nums">
-                {showBalance ? formatRupiah(effectiveSafeToSpend) : '••••••'}
-                <span className="text-[9px] font-normal text-white/60 ml-1 hidden sm:inline">
-                  (dikurangi kewajiban {formatRupiah(pendingBillsAmount + payableDueAmount)})
-                </span>
-              </p>
-            </div>
+
+            <span
+              className={`text-[10px] font-bold px-2 py-0.5 rounded-xl border shrink-0 ${
+                isHealthy
+                  ? 'bg-emerald-400/20 text-emerald-100 border-emerald-400/30'
+                  : 'bg-red-400/20 text-red-100 border-red-400/30'
+              }`}
+            >
+              {isHealthy ? 'Siap Pakai' : 'Defisit Kas'}
+            </span>
           </div>
 
-          <span
-            className={`text-[10px] font-bold px-2 py-0.5 rounded-xl border shrink-0 ${
-              isHealthy
-                ? 'bg-emerald-400/20 text-emerald-100 border-emerald-400/30'
-                : 'bg-red-400/20 text-red-100 border-red-400/30'
-            }`}
-          >
-            {isHealthy ? 'Siap Pakai' : 'Defisit Kas'}
-          </span>
+          {/* Kuota Belanja Harian (Daily Safe-to-Spend) */}
+          <div className="p-2.5 sm:p-3 bg-black/20 backdrop-blur-md rounded-2xl border border-white/15 flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2 min-w-0">
+              <div className="w-6 h-6 rounded-xl bg-white/15 flex items-center justify-center shrink-0">
+                <CalendarCheck size={13} weight="fill" className="text-emerald-200" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-[10px] text-white/75 font-semibold leading-tight">
+                  Batas Belanja Harian ({dailyQuota.daysRemaining} hari sisa):
+                </p>
+                <p className="font-display-num text-base sm:text-lg text-white truncate tabular-nums">
+                  {showBalance ? `${formatCompactRupiah(dailyQuota.amountPerDay)} / hr` : '••••••'}
+                </p>
+              </div>
+            </div>
+
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-xl border border-white/20 bg-white/10 text-white/90 shrink-0">
+              Maksimal
+            </span>
+          </div>
         </div>
       </div>
     </div>
