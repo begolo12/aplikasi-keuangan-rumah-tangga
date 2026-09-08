@@ -372,7 +372,7 @@ async function initializeSchema(req: NextRequest): Promise<NextResponse> {
       CREATE INDEX IF NOT EXISTS idx_events_user_active ON financial_events(user_id, is_active);
       CREATE INDEX IF NOT EXISTS idx_events_user_active_date ON financial_events(user_id, is_active, date ASC);
       CREATE INDEX IF NOT EXISTS idx_events_month_year 
-      ON financial_events(user_id, EXTRACT(YEAR FROM date)::INT, EXTRACT(MONTH FROM date)::INT) 
+      ON financial_events(user_id, (EXTRACT(YEAR FROM date)::INT), (EXTRACT(MONTH FROM date)::INT)) 
       WHERE is_active = TRUE;
     `);
     

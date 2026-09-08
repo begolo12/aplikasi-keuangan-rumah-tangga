@@ -79,7 +79,7 @@ export async function GET(req: NextRequest) {
       query(
         `SELECT COUNT(*)::int AS total FROM (
            WITH latest_budgets AS (
-             SELECT DISTINCT ON (category_id) id, monthly_limit, month, year
+             SELECT DISTINCT ON (category_id) id, category_id, monthly_limit, month, year
              FROM budgets
              WHERE user_id = $1 AND (year < $3 OR (year = $3 AND month <= $2))
              ORDER BY category_id, year DESC, month DESC

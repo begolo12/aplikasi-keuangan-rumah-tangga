@@ -3,6 +3,19 @@
 Log eksekusi plan. Entri baru ditambahkan di bagian paling atas.
 Format entri lihat `AGENTS.md` bagian "Langkah 3 — Catat ke Changelog".
 
+## [2026-09-08] Perbaikan Server Error 500 (DB Migration, Insights Query, & Safe Event Loading)
+
+**Plan**: `docs/plans/2026-09-08-perbaikan-server-error-db-migration-dan-insights.md`
+
+### Berubah
+- **Migrasi DDL Database Neon**: Menerapkan skema tabel `financial_events`, `subscriptions`, `budgets_templates`, triggers `update_financial_events_updated_at`, serta indeks-indeks terkait langsung ke database produksi Neon Postgres.
+- **Perbaikan Query Insights**: Menyertakan kolom `category_id` pada klausa SELECT CTE `latest_budgets` di `src/app/api/insights/route.ts` sehingga referensi `b.category_id` valid dan tidak menimbulkan error PostgreSQL 42703.
+- **Isolasi Kegagalan Event**: Membungkus pemanggilan `getFinancialEvents` di `src/app/page.tsx` dengan try-catch agar kegagalan event tidak mematikan seluruh data bootstrap dashboard utama.
+- **Koreksi Sintaks Indeks DDL**: Memperbaiki ekspresi fungsi `(EXTRACT(YEAR FROM date)::INT)` dengan tanda kurung pada `src/app/api/init/route.ts` sesuai standar PostgreSQL.
+
+### Dampak
+Dashboard kini memuat data secara stabil tanpa error 500 'Terjadi kesalahan pada server.'. Seluruh fitur baru (kalender event keuangan, langganan, dan template anggaran) siap digunakan.
+
 ## [2026-09-08] Stabilisasi, Perbaikan Build, Validasi Test, dan Integrasi SaaS Landing Page
 
 **Plan**: `docs/plans/2026-09-08-stabilisasi-dan-pemulihan-saas.md`

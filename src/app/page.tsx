@@ -345,9 +345,13 @@ export default function MainPage() {
         if (data.summary) setSummary(data.summary);
         if (data.settings) setSettings(data.settings);
         
-        // Load financial events for the current user
-        const events = await getFinancialEvents(user.id);
-        setFinancialEvents(events || []);
+        // Financial events: gagal muat tidak boleh menggagalkan bootstrap dashboard
+        try {
+          const events = await getFinancialEvents(user.id);
+          setFinancialEvents(events || []);
+        } catch {
+          setFinancialEvents([]);
+        }
         
         // Badge aktivitas keluarga: gagal muat tidak boleh menggagalkan bootstrap.
         try {
