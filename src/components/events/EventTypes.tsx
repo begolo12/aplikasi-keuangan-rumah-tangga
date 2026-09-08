@@ -1,10 +1,10 @@
-import { IconType } from "react-icons";
+import React from 'react';
 import { 
-  FiTrendingUp, 
-  FiFileText, 
-  FiAlertCircle, 
-  FiPieChart 
-} from "react-icons/fi";
+  TrendUp, 
+  FileText, 
+  WarningCircle, 
+  ChartPieSlice 
+} from '@phosphor-icons/react';
 
 export type FinancialEventType = 'bonus' | 'insurance_renewal' | 'tax_deadline' | 'investment_contribution';
 
@@ -14,7 +14,7 @@ export interface EventTypeConfig {
   description: string;
   color: string;
   textColor: string;
-  icon: IconType;
+  icon: React.ElementType;
   category: 'income' | 'warning' | 'expense' | 'primary';
 }
 
@@ -25,7 +25,7 @@ const eventTypes: EventTypeConfig[] = [
     description: 'Bonus, tunjangan, atau pemasukan ekstra lainnya',
     color: '#10b181', // emerald-500 (income color)
     textColor: '#ffffff',
-    icon: FiTrendingUp,
+    icon: TrendUp,
     category: 'income'
   },
   {
@@ -34,7 +34,7 @@ const eventTypes: EventTypeConfig[] = [
     description: 'Tanggal jatuh tempo perpanjangan asuransi',
     color: '#f59e0b', // amber-500 (warning color)
     textColor: '#ffffff',
-    icon: FiFileText,
+    icon: FileText,
     category: 'warning'
   },
   {
@@ -43,7 +43,7 @@ const eventTypes: EventTypeConfig[] = [
     description: 'Jatuh tempo pembayaran pajak tahunan/bulanan',
     color: '#ef4444', // red-500 (expense color)
     textColor: '#ffffff',
-    icon: FiAlertCircle,
+    icon: WarningCircle,
     category: 'expense'
   },
   {
@@ -52,7 +52,7 @@ const eventTypes: EventTypeConfig[] = [
     description: 'Kontribusi investasi rutin bulanan/tahunan',
     color: '#3b82f6', // blue-500 (primary color)
     textColor: '#ffffff',
-    icon: FiPieChart,
+    icon: ChartPieSlice,
     category: 'primary'
   }
 ];
@@ -64,11 +64,11 @@ export const EVENT_TYPE_COLORS: Record<FinancialEventType, string> = {
   investment_contribution: '#3b82f6'
 };
 
-export const EVENT_TYPE_ICONS: Record<FinancialEventType, IconType> = {
-  bonus: FiTrendingUp,
-  insurance_renewal: FiFileText,
-  tax_deadline: FiAlertCircle,
-  investment_contribution: FiPieChart
+export const EVENT_TYPE_ICONS: Record<FinancialEventType, React.ElementType> = {
+  bonus: TrendUp,
+  insurance_renewal: FileText,
+  tax_deadline: WarningCircle,
+  investment_contribution: ChartPieSlice
 };
 
 export const FINANCIAL_EVENT_TYPES: EventTypeConfig[] = eventTypes;
@@ -93,16 +93,10 @@ export function getEventTypeColor(slug: FinancialEventType): string {
   return EVENT_TYPE_COLORS[slug];
 }
 
-export function getEventTypeIcon(slug: FinancialEventType): IconType {
+export function getEventTypeIcon(slug: FinancialEventType): React.ElementType {
   return EVENT_TYPE_ICONS[slug];
 }
 
 export function getEventTypeCategory(slug: FinancialEventType): 'income' | 'warning' | 'expense' | 'primary' {
   return getEventTypeConfig(slug).category;
-}
-
-export const FINANCIAL_EVENT_TYPES: EventTypeConfig[] = eventTypes;
-
-export function isFinancialEventType(value: string): value is FinancialEventType {
-  return ['bonus', 'insurance_renewal', 'tax_deadline', 'investment_contribution'].includes(value);
 }

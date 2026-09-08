@@ -9,7 +9,7 @@ export async function GET(
 ) {
   try {
     const session = await getAuthSession(req);
-    if (!session || !session.user?.id) {
+    if (!session?.userId) {
       throw new BusinessError('Unauthorized', 401);
     }
 
@@ -17,16 +17,16 @@ export async function GET(
     
     const result = await query(
       `SELECT * FROM financial_events WHERE id = $1 AND user_id = $2`,
-      [id, session.user.id]
+      [id, session.userId]
     );
 
-    if (result.rows.length === 0) {
+    if (result.length === 0) {
       throw new BusinessError('Event not found', 404);
     }
 
-    return NextResponse.json(result.rows[0]);
+    return NextResponse.json({ success: true, data: result[0] });
   } catch (error) {
-    return handleRouteError(error);
+    return handleRouteError(error, 'events:get-one');
   }
 }
 
@@ -36,7 +36,7 @@ export async function PUT(
 ) {
   try {
     const session = await getAuthSession(req);
-    if (!session || !session.user?.id) {
+    if (!session?.userId) {
       throw new BusinessError('Unauthorized', 401);
     }
 
@@ -56,10 +56,10 @@ export async function PUT(
 
     const existing = await query(
       `SELECT * FROM financial_events WHERE id = $1 AND user_id = $2`,
-      [id, session.user.id]
+      [id, session.userId]
     );
 
-    if (existing.rows.length === 0) {
+    if (existing.length === 0) {
       throw new BusinessError('Event not found', 404);
     }
 
@@ -80,13 +80,13 @@ export async function PUT(
         notification_days_before ?? 1,
         is_active !== undefined ? is_active : true,
         id,
-        session.user.id,
+        session.userId,
       ]
     );
 
-    return NextResponse.json(result.rows[0]);
+    return NextResponse.json({ success: true, data: result[0] });
   } catch (error) {
-    return handleRouteError(error);
+    return handleRouteError(error, 'events:update');
   }
 }
 
@@ -96,7 +96,7 @@ export async function DELETE(
 ) {
   try {
     const session = await getAuthSession(req);
-    if (!session || !session.user?.id) {
+    if (!session?.userId) {
       throw new BusinessError('Unauthorized', 401);
     }
 
@@ -104,20 +104,20 @@ export async function DELETE(
     
     const existing = await query(
       `SELECT * FROM financial_events WHERE id = $1 AND user_id = $2`,
-      [id, session.user.id]
+      [id, session.userId]
     );
 
-    if (existing.rows.length === 0) {
+    if (existing.length === 0) {
       throw new BusinessError('Event not found', 404);
     }
 
     await query(
       `DELETE FROM financial_events WHERE id = $1 AND user_id = $2`,
-      [id, session.user.id]
+      [id, session.userId]
     );
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ success: true, message: 'Event deleted' });
   } catch (error) {
-    return handleRouteError(error);
+    return handleRouteError(error, 'events:delete');
   }
 }

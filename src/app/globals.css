@@ -222,7 +222,7 @@ html.privacy-mode [data-amount] {
    RESPONSIVE BREAKPOINTS VERIFICATION
    ================================ */
 
-PONYPOTAIL:// Responsive breakpoints (768px, 1024px, 1440px+) and cross-browser optimizations added. Upgrade: Add browser-specific CSS prefixes if needed for older browsers.
+/* Responsive breakpoints (768px, 1024px, 1440px+) and cross-browser optimizations added. */
 /* Mobile first (< 640px) - Base styles already applied above */
 
 /* Small devices (sm: 640px) - Tablets landscape, large phones */

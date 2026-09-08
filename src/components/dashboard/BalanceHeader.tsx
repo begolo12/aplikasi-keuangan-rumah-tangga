@@ -21,35 +21,12 @@ export function BalanceHeader({
   safeToSpend,
   pendingBillsAmount = 0,
   payableDueAmount = 0,
+  monthlyRecurringTotal = 0,
   onManageWallets,
   onNavigateToDebts,
 }: BalanceHeaderProps) {
   const [showBalance, setShowBalance] = useState(true);
   const effectiveSafeToSpend = safeToSpend !== undefined ? safeToSpend : totalBalance - (pendingBillsAmount + payableDueAmount);
-{/* Monthly Recurring Indicator */}
-        {monthlyRecurringTotal > 0 && (
-          <div className="p-2 sm:p-2.5 bg-warning/10 backdrop-blur-md rounded-xl border border-warning/20 flex items-center justify-between gap-2">
-            <div className="flex items-center gap-2 min-w-0">
-              <div className="w-6 h-6 rounded-lg bg-warning/20 flex items-center justify-center shrink-0">
-                <svg width={13} height={13} viewBox="0 0 16 16" fill="currentColor" className="text-warning">
-                  <path d="M8 2a1 1 0 0 1 1 1v4h3a1 1 0 1 1 0 2H9V4a1 1 0 0 1-1-1V2z"/>
-                  <path d="M13 7a1 1 0 0 1-1-1V4a1 1 0 0 0-1-1H9a1 1 0 1 0 0 2h1v2H8V5H7v4h1v2H7v2h1v2a1 1 0 1 0 2 0v-2h1V9a1 1 0 1 0-2 0v2H7a1 1 0 1 0 0 2h6a1 1 0 1 0 0-2h-1V8h1a1 1 0 0 0 1-1z"/>
-                </svg>
-              </div>
-              <div className="min-w-0">
-                <p className="text-[10px] text-text-muted font-semibold leading-tight truncate">
-                  Langganan Bulanan:
-                </p>
-                <p className="font-display-num text-xs sm:text-sm font-bold text-warning tabular-nums truncate">
-                  Rp{Math.round(monthlyRecurringTotal).toLocaleString('id-ID')}
-                </p>
-              </div>
-            </div>
-            <span className="text-[9px] sm:text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-warning/20 text-warning border border-warning/30 whitespace-nowrap">
-              Fixed Cost
-            </span>
-          </div>
-        )}
   const isHealthy = effectiveSafeToSpend >= 0;
 
   // Hitung sisa hari bulan ini untuk kuota belanja harian
@@ -169,6 +146,27 @@ export function BalanceHeader({
             </span>
           </div>
         </div>
+
+        {monthlyRecurringTotal > 0 && (
+          <div className="p-2 sm:p-2.5 bg-black/20 backdrop-blur-md rounded-2xl border border-white/15 flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2 min-w-0">
+              <div className="w-6 h-6 rounded-xl bg-white/15 flex items-center justify-center shrink-0">
+                <CalendarCheck size={13} weight="fill" className="text-warning" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-[10px] text-white/75 font-semibold leading-tight">
+                  Total Langganan Rutin:
+                </p>
+                <p className="font-display-num text-xs sm:text-sm font-bold text-white tabular-nums truncate">
+                  {showBalance ? formatRupiah(Math.round(monthlyRecurringTotal)) : '••••••'}
+                </p>
+              </div>
+            </div>
+            <span className="text-[9px] sm:text-[10px] font-bold px-2 py-0.5 rounded-xl bg-warning/20 text-warning border border-warning/30 whitespace-nowrap">
+              Fixed Cost
+            </span>
+          </div>
+        )}
       </div>
     </div>
   );

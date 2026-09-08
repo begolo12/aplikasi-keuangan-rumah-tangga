@@ -8,7 +8,7 @@ import { Button } from '../ui/Button';
 import { Modal } from '../ui/Modal';
 import { AmountInput } from '../ui/AmountInput';
 import { EmptyState } from '../ui/EmptyState';
-import { formatRupiah } from '@/lib/formatters';
+import { formatRupiah, getLocalDateString } from '@/lib/formatters';
 import { ApiError, apiFetch, endpoints } from '@/lib/apiFetch';
 import {
   Plus,

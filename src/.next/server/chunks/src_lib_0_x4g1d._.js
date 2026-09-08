@@ -1,3 +1,0 @@
-module.exports=[14239,e=>{e.v(e=>Promise.resolve().then(()=>e(43793)))},79678,e=>{"use strict";let t=new Map;e.s(["checkRateLimit",0,function(e,r,n){let i=Date.now(),o=t.get(e),l=o?o.filter(e=>i-e<n):[];return(l.push(i),t.set(e,l),l.length>r)?{ok:!1,retryAfterSec:Math.max(1,Math.ceil((n-(i-l[0]))/1e3))}:{ok:!0,retryAfterSec:0}},"getClientIp",0,function(e){let t=e.headers.get("x-forwarded-for");if(t){let e=t.split(",")[0]?.trim();if(e)return e}return"unknown"}])}];
-
-//# sourceMappingURL=src_lib_0_x4g1d._.js.map

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { X, Sparkle, CheckCircle } from '@phosphor-icons/react';
@@ -28,23 +28,25 @@ export function BudgetTemplateSelectorModal({
 
   const expenseCategories = categories.filter((c) => c.type === 'expense');
 
-  useEffect(() => {
-    if (isOpen) {
-      loadTemplates();
+  const fetchAIRecommendation = async () => {
+    try {
+      return await apiFetch(endpoints.budgetAiRecommend);
+    } catch {
+      return null;
     }
-  }, [isOpen]);
+  };
 
-  const loadTemplates = async () => {
+  const loadTemplates = useCallback(async () => {
     setIsLoading(true);
     try {
-      const [userTemplates, aiResult]: [BudgetTemplate[], any] = await Promise.all([
-        apiFetch<{ data: BudgetTemplate[] }>(endpoints.budgets.templates.list),
+      const [userTemplatesRes, aiResult]: any = await Promise.all([
+        apiFetch<{ success: boolean; data: BudgetTemplate[] }>(endpoints.budgetTemplates),
         fetchAIRecommendation(),
       ]);
 
-      setTemplates(userTemplates.data || []);
+      setTemplates(userTemplatesRes?.data || []);
 
-      if (aiResult.success && aiResult.data?.template) {
+      if (aiResult?.success && aiResult?.data?.template) {
         setAiSuggestion(aiResult.data.template);
       }
     } catch (error) {
@@ -52,15 +54,13 @@ export function BudgetTemplateSelectorModal({
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
 
-  const fetchAIRecommendation = async () => {
-    try {
-      return await apiFetch(endpoints.budgets.ai.recommend);
-    } catch {
-      return null;
+  useEffect(() => {
+    if (isOpen) {
+      loadTemplates();
     }
-  };
+  }, [isOpen, loadTemplates]);
 
   const handleSelectTemplate = async (template: BudgetTemplate) => {
     setIsSelecting(true);
@@ -118,7 +118,7 @@ export function BudgetTemplateSelectorModal({
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} size="lg" title="Pilih Template Anggaran">
+    <Modal isOpen={isOpen} onClose={onClose} maxWidth="lg" title="Pilih Template Anggaran">
       <div className="space-y-4">
         {/* AI Recommendation Card */}
         {aiSuggestion && !hasSelected && (

@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { AmountInput } from '../ui/AmountInput';
-import { formatRupiah } from '@/lib/formatters';
+import { formatRupiah, getLocalDateString } from '@/lib/formatters';
 import { MonthlySummary as MonthlySummaryType, Budget, Wallet } from '@/lib/types';
 import { ApiError, apiFetch, endpoints } from '@/lib/apiFetch';
 import {

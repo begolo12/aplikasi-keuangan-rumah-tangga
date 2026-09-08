@@ -24,7 +24,7 @@ export async function POST(req: NextRequest) {
     const { template_id, month, year } = validated;
 
     // Fetch the template
-    const templateResult = await query<BudgetTemplate[]>(
+    const templateResult = await query<BudgetTemplate>(
       `SELECT id, name, rule_type, allocations, is_default
        FROM budgets_templates
        WHERE id = $1 AND user_id = $2`,
@@ -53,12 +53,12 @@ export async function POST(req: NextRequest) {
       [session.userId, year, month]
     );
 
-    const baseAmount = Number(averageMonthlyIncome.avg_income);
+    const baseAmount = Number(averageMonthlyIncome[0]?.avg_income || 0);
     
     // If no historical data, use default amounts
     const defaultTotal = 5000000; // Default monthly income of 5M IDR
 
-    const budgetsToCreate = [];
+    const budgetsToCreate: Array<{ category_id: string; monthly_limit: number; month: number; year: number }> = [];
 
     for (const alloc of allocations) {
       let targetAmount: number;
@@ -93,7 +93,9 @@ export async function POST(req: NextRequest) {
           [session.userId, budget.category_id, budget.monthly_limit, budget.month, budget.year]
         );
 
-        results.push(inserted[0]);
+        if (inserted.rows[0]) {
+          results.push(inserted.rows[0]);
+        }
       }
 
       return results;

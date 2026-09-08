@@ -28,9 +28,9 @@ export function BudgetRecommendationCard({
   const generateSuggestion = async () => {
     setIsGenerating(true);
     try {
-      const result = await apiFetch(endpoints.budgets.ai.recommend, {
+      const result = await apiFetch<{ success: boolean; data?: { template?: any } }>(endpoints.budgetAiRecommend, {
         method: 'POST',
-        body: { historical_month: currentMonth, historical_year: currentYear },
+        json: { historical_month: currentMonth, historical_year: currentYear },
       });
 
       if (result && result.success && result.data?.template) {

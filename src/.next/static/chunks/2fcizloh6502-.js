@@ -1,1 +1,0 @@
-(globalThis.TURBOPACK||(globalThis.TURBOPACK=[])).push(["object"==typeof document?document.currentScript:void 0,61062,(t,e,o)=>{var n=Error("Could not parse module '[project]/src/components/settings/SettingsView.tsx'\n\nExpected ident");throw n.code="MODULE_UNPARSABLE",n},45e3,function(t){t.n(t.i(61062))}]);

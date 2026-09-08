@@ -24,7 +24,7 @@ import {
 } from '@phosphor-icons/react';
 import { TransactionType } from '@/lib/types';
 
-export type NavTab = 'dashboard' | 'transactions' | 'calendar' | 'budget' | 'reports' | 'evaluation' | 'wallets' | 'bills' | 'debts' | 'assets' | 'goals' | 'household' | 'settings';
+export type NavTab = 'dashboard' | 'transactions' | 'calendar' | 'budget' | 'reports' | 'evaluation' | 'wallets' | 'bills' | 'subscriptions' | 'debts' | 'assets' | 'goals' | 'household' | 'settings';
 
 interface BottomNavProps {
   activeTab: NavTab;

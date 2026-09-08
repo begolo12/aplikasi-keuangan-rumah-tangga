@@ -51,21 +51,34 @@ export const endpoints = {
   transactions: '/api/transactions',
   transaction: (id: string) => `/api/transactions/${id}`,
   transactionsQuery: (params: {
+    month?: number;
+    year?: number;
+    type?: string;
     wallet_id?: string;
     category_id?: string;
-    start_date: string;
-    end_date: string;
+    start_date?: string;
+    end_date?: string;
     search?: string;
     limit?: number;
     offset?: number;
     sort?: 'date' | 'amount';
     order?: 'ASC' | 'DESC';
   }) => {
-    const qs = new URLSearchParams();
-    for (const [k, v] of Object.entries(params)) {
-      if (v != null) qs.append(k, String(v));
-    }
-    return `/api/transactions/query?${qs.toString()}`;
+    const sp = new URLSearchParams();
+    if (params.month !== undefined) sp.set('month', String(params.month));
+    if (params.year !== undefined) sp.set('year', String(params.year));
+    if (params.type && params.type !== 'all') sp.set('type', params.type);
+    if (params.wallet_id) sp.set('wallet_id', params.wallet_id);
+    if (params.category_id) sp.set('category_id', params.category_id);
+    if (params.start_date) sp.set('start_date', params.start_date);
+    if (params.end_date) sp.set('end_date', params.end_date);
+    if (params.search?.trim()) sp.set('search', params.search.trim());
+    if (params.limit !== undefined) sp.set('limit', String(params.limit));
+    if (params.offset !== undefined) sp.set('offset', String(params.offset));
+    if (params.sort) sp.set('sort', params.sort);
+    if (params.order) sp.set('order', params.order);
+    const qs = sp.toString();
+    return `/api/transactions${qs ? `?${qs}` : ''}`;
   },
   wallets: '/api/wallets',
   wallet: (id: string) => `/api/wallets/${id}`,
@@ -74,6 +87,7 @@ export const endpoints = {
   category: (id: string) => `/api/categories/${id}`,
   budgets: '/api/budgets',
   budget: (id: string) => `/api/budgets/${id}`,
+  budgetAiRecommend: '/api/budgets/ai/recommend',
   bills: '/api/bills',
   bill: (id: string) => `/api/bills/${id}`,
   payBill: (id: string) => `/api/bills/${id}/pay`,
@@ -103,4 +117,9 @@ export const endpoints = {
   householdReport: (month: number, year: number) => `/api/households/report?month=${month}&year=${year}`,
   financialEvents: '/api/events',
   financialEvent: (id: string) => `/api/events/${id}`,
+  subscriptions: '/api/subscriptions',
+  subscription: (id: string) => `/api/subscriptions/${id}`,
+  budgetTemplates: '/api/budgets/templates',
+  budgetTemplate: (id: string) => `/api/budgets/templates/${id}`,
+  applyBudgetTemplate: '/api/budgets/templates/apply',
 };

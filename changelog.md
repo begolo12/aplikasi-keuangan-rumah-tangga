@@ -3,6 +3,20 @@
 Log eksekusi plan. Entri baru ditambahkan di bagian paling atas.
 Format entri lihat `AGENTS.md` bagian "Langkah 3 — Catat ke Changelog".
 
+## [2026-09-08] Stabilisasi, Perbaikan Build, Validasi Test, dan Integrasi SaaS Landing Page
+
+**Plan**: `docs/plans/2026-09-08-stabilisasi-dan-pemulihan-saas.md`
+
+### Berubah
+- **Perbaikan Sintaks & Kompilasi**: Menutup komentar CSS di `src/app/globals.css`, memulihkan `SidebarNav.tsx` dengan status bersih, menutup call `apiFetch` di `SettingsView.tsx`, memperbaiki typo potongan teks di `GoalsView.tsx`, dan melengkapi import ikon `CircleDashed` & `Sparkle`.
+- **Perbaikan Schema & Forecast**: Memperbaiki skema Zod `payBillSchema` (`amount`, `paid_date`), `assetSchema` (`name`), dan melengkapi penentuan `level = 'colapse'` pada simulasi kas minus di `collapseForecast.ts`.
+- **Integrasi SaaS Landing Page**: Mengintegrasikan antarmuka landing page SaaS di `/` dan `/landing` tanpa konflik rute Next.js App Router (pengunjung publik melihat landing page berkonversi tinggi dengan pricing & feature showcase; pengguna terotentikasi langsung masuk ke dashboard).
+- **Penyehatan Modul Baru**: Menyelaraskan signature database dan session ID pada API events, templates, currencies, dan subscriptions.
+- **Verifikasi Kualitas**: `npm run test:audit` lulus 151/151 (100%), `npx tsc --noEmit` lolos 0 error, `npm run build` sukses membuat optimized production build dengan 49 rute aktif, dan ESLint lolos dengan 0 error.
+
+### Dampak
+Aplikasi kini sepenuhnya siap produksi untuk deployment SaaS di Vercel atau environment Node.js modern, dengan alur publik dan alur otentikasi yang mulus.
+
 ## [2026-09-08] Audit Komprehensif Aplikasi KasKeluarga
 
 **Plan**: `docs/plans/2026-09-08-audit-aplikasi-komprehensif.md`

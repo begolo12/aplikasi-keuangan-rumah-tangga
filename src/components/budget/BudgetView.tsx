@@ -10,7 +10,7 @@ import { Modal } from '../ui/Modal';
 import { ConfirmModal } from '../ui/ConfirmModal';
 import { AmountInput } from '../ui/AmountInput';
 import { EmptyState } from '../ui/EmptyState';
-import { Plus, Vault, Warning } from '@phosphor-icons/react';
+import { Plus, Vault, Warning, Sparkle } from '@phosphor-icons/react';
 import { BudgetTemplateSelectorModal } from './BudgetTemplateSelectorModal';
 import { formatRupiah } from '@/lib/formatters';
 import { ApiError, apiFetch, endpoints } from '@/lib/apiFetch';
@@ -88,7 +88,7 @@ export function BudgetView({
 
   const handleApplyTemplate = async (templateId: string) => {
     try {
-      await apiFetch(endpoints.budgets.templates.apply, {
+      await apiFetch(endpoints.applyBudgetTemplate, {
         method: 'POST',
         json: { template_id: templateId, month: currentMonth, year: currentYear },
       });

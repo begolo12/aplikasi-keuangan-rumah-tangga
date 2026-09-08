@@ -28,19 +28,15 @@ export async function GET(req: NextRequest) {
       [session.userId, year, month]
     );
 
-    interface SubLike {
-      is_active: boolean;
-    }
-
-    const formatted = (subs as unknown as SubLike[]).map((s) => ({
-      id: s.id,
-      provider_name: s.provider_name,
-      amount: parseFloat(s.amount as string),
+    const formatted = (subs as any[]).map((s) => ({
+      id: String(s.id),
+      provider_name: String(s.provider_name),
+      amount: parseFloat(String(s.amount)),
       cycle: s.cycle,
-      date: s.next_charge_date,
-      category_name: s.category_name,
-      wallet_name: s.wallet_name,
-      is_active: s.is_active,
+      date: String(s.next_charge_date),
+      category_name: s.category_name ? String(s.category_name) : null,
+      wallet_name: s.wallet_name ? String(s.wallet_name) : null,
+      is_active: Boolean(s.is_active),
     }));
 
     return NextResponse.json({ success: true, data: formatted });

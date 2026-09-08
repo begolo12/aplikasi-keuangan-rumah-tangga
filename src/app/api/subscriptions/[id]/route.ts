@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthSession } from '@/lib/auth';
 import { query, withTransaction } from '@/lib/db';
-import { handleRouteError, BusinessError } from '@/lib/apiHelpers';
-import { readJsonBody } from '@/lib/apiHelpers';
+import { handleRouteError, BusinessError, readJsonBody } from '@/lib/apiHelpers';
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -10,8 +9,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     if (!session) return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
 
     const { id } = await params;
-    
-    const sub = await query<Record<string, unknown>>(
+
+    const sub = await query<any>(
       `SELECT 
         s.id, s.user_id, s.provider_name, s.amount, s.cycle, s.next_charge_date,
         s.category_id, c.name as category_name,
@@ -24,34 +23,29 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       [id, session.userId]
     );
 
-    if (sub.rows.length === 0) {
+    if (sub.length === 0) {
       throw new BusinessError('Subscription tidak ditemukan', 404);
     }
 
-    interface SubLike {
-      is_active: boolean;
-      reminder_enabled: boolean;
-    }
-
-    const result = (sub.rows[0] as unknown) as SubLike;
+    const result = sub[0];
 
     return NextResponse.json({
       success: true,
       data: {
-        id: result.id,
-        user_id: result.user_id,
-        provider_name: result.provider_name,
-        amount: parseFloat(result.amount as string),
+        id: String(result.id),
+        user_id: String(result.user_id),
+        provider_name: String(result.provider_name),
+        amount: parseFloat(String(result.amount)),
         cycle: result.cycle as 'daily' | 'weekly' | 'monthly' | 'yearly',
-        next_charge_date: result.next_charge_date,
-        category_id: result.category_id,
-        category_name: result.category_name,
-        wallet_id: result.wallet_id,
-        wallet_name: result.wallet_name,
-        is_active: result.is_active,
-        reminder_enabled: result.reminder_enabled,
-        created_at: result.created_at,
-        updated_at: result.updated_at,
+        next_charge_date: String(result.next_charge_date),
+        category_id: result.category_id ? String(result.category_id) : null,
+        category_name: result.category_name ? String(result.category_name) : null,
+        wallet_id: result.wallet_id ? String(result.wallet_id) : null,
+        wallet_name: result.wallet_name ? String(result.wallet_name) : null,
+        is_active: Boolean(result.is_active),
+        reminder_enabled: Boolean(result.reminder_enabled),
+        created_at: String(result.created_at),
+        updated_at: String(result.updated_at),
       },
     });
   } catch (error) {
@@ -65,7 +59,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     if (!session) return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
 
     const { id } = await params;
-    const body = await readJsonBody(req);
+    const body = (await readJsonBody(req)) as Record<string, any>;
 
     // Validate input
     if (body.provider_name !== undefined && (!body.provider_name || body.provider_name.length > 150)) {
@@ -78,47 +72,79 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       throw new BusinessError('Cycle harus daily/weekly/monthly/yearly', 400);
     }
     if (body.next_charge_date !== undefined && !/^\d{4}-\d{2}-\d{2}$/.test(body.next_charge_date)) {
-      throw new BusinessError('Format tanggal invalid', 400);
+      throw new BusinessError('Format tanggal YYYY-MM-DD invalid', 400);
     }
-    if (body.category_id !== undefined && body.category_id !== null && !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(body.category_id)) {
-      throw new BusinessError('Category ID format invalid', 400);
+    if (body.category_id !== undefined && body.category_id !== null && typeof body.category_id !== 'string') {
+      throw new BusinessError('category_id invalid', 400);
     }
-    if (body.wallet_id !== undefined && body.wallet_id !== null && !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(body.wallet_id)) {
-      throw new BusinessError('Wallet ID format invalid', 400);
+    if (body.wallet_id !== undefined && body.wallet_id !== null && typeof body.wallet_id !== 'string') {
+      throw new BusinessError('wallet_id invalid', 400);
     }
 
     const updated = await withTransaction(async (client) => {
-      const res = await client.query(
-        `UPDATE subscriptions SET
-          provider_name = COALESCE($1, provider_name),
-          amount = COALESCE($2, amount),
-          cycle = COALESCE($3, cycle),
-          next_charge_date = COALESCE($4, next_charge_date),
-          category_id = COALESCE($5, category_id),
-          wallet_id = COALESCE($6, wallet_id),
-          is_active = COALESCE($7, is_active),
-          reminder_enabled = COALESCE($8, reminder_enabled),
-          updated_at = NOW()
-        WHERE id = $9 AND user_id = $10
-        RETURNING *`,
-        [
-          body.provider_name ?? null,
-          body.amount !== undefined ? body.amount : null,
-          body.cycle ?? null,
-          body.next_charge_date ?? null,
-          body.category_id ?? null,
-          body.wallet_id ?? null,
-          body.is_active !== undefined ? body.is_active : null,
-          body.reminder_enabled !== undefined ? body.reminder_enabled : null,
-          id,
-          session.userId,
-        ]
+      // Check exists
+      const existing = await client.query(
+        'SELECT id FROM subscriptions WHERE id = $1 AND user_id = $2 FOR UPDATE',
+        [id, session.userId]
       );
 
-      if (res.rowCount === 0) {
-        throw new BusinessError('Subscription tidak ditemukan atau tidak terautorisasi', 404);
+      if (existing.rows.length === 0) {
+        throw new BusinessError('Subscription tidak ditemukan', 404);
       }
 
+      // Dynamic build query
+      const updates: string[] = [];
+      const values: any[] = [];
+      let paramIdx = 1;
+
+      if (body.provider_name !== undefined) {
+        updates.push(`provider_name = $${paramIdx++}`);
+        values.push(body.provider_name.trim());
+      }
+      if (body.amount !== undefined) {
+        updates.push(`amount = $${paramIdx++}`);
+        values.push(body.amount);
+      }
+      if (body.cycle !== undefined) {
+        updates.push(`cycle = $${paramIdx++}`);
+        values.push(body.cycle);
+      }
+      if (body.next_charge_date !== undefined) {
+        updates.push(`next_charge_date = $${paramIdx++}`);
+        values.push(body.next_charge_date);
+      }
+      if (body.category_id !== undefined) {
+        updates.push(`category_id = $${paramIdx++}`);
+        values.push(body.category_id);
+      }
+      if (body.wallet_id !== undefined) {
+        updates.push(`wallet_id = $${paramIdx++}`);
+        values.push(body.wallet_id);
+      }
+      if (body.is_active !== undefined) {
+        updates.push(`is_active = $${paramIdx++}`);
+        values.push(Boolean(body.is_active));
+      }
+      if (body.reminder_enabled !== undefined) {
+        updates.push(`reminder_enabled = $${paramIdx++}`);
+        values.push(Boolean(body.reminder_enabled));
+      }
+
+      if (updates.length === 0) {
+        throw new BusinessError('Tidak ada field yang diupdate', 400);
+      }
+
+      updates.push(`updated_at = NOW()`);
+      values.push(id, session.userId);
+
+      const updateQuery = `
+        UPDATE subscriptions 
+        SET ${updates.join(', ')} 
+        WHERE id = $${paramIdx++} AND user_id = $${paramIdx} 
+        RETURNING *
+      `;
+
+      const res = await client.query(updateQuery, values);
       return res.rows[0];
     });
 
@@ -128,13 +154,11 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
         id: updated.id,
         user_id: updated.user_id,
         provider_name: updated.provider_name,
-        amount: parseFloat(updated.amount as string),
-        cycle: updated.cycle as 'daily' | 'weekly' | 'monthly' | 'yearly',
+        amount: parseFloat(updated.amount),
+        cycle: updated.cycle,
         next_charge_date: updated.next_charge_date,
         category_id: updated.category_id,
-        category_name: null,
         wallet_id: updated.wallet_id,
-        wallet_name: null,
         is_active: updated.is_active,
         reminder_enabled: updated.reminder_enabled,
         created_at: updated.created_at,
@@ -158,7 +182,7 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
       [id, session.userId]
     );
 
-    if (result.rows.length === 0) {
+    if (result.length === 0) {
       throw new BusinessError('Subscription tidak ditemukan atau tidak terautorisasi', 404);
     }
 

@@ -9,7 +9,7 @@ import { ConfirmModal } from '../ui/ConfirmModal';
 import { AmountInput } from '../ui/AmountInput';
 import { EmptyState } from '../ui/EmptyState';
 import { Plus, Receipt, Lightning, ArrowDownLeft, Sparkle } from '@phosphor-icons/react';
-import { formatRupiah, INDONESIAN_MONTHS } from '@/lib/formatters';
+import { formatRupiah, INDONESIAN_MONTHS, getLocalDateString } from '@/lib/formatters';
 import { useBillForm } from './useBillForm';
 import { ApiError, apiFetch, endpoints } from '@/lib/apiFetch';
 

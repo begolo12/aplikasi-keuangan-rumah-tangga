@@ -354,7 +354,7 @@ export function EventModal({ isOpen, onClose, editingEvent, userId, onSuccess }:
                 variant="danger"
                 size="sm"
                 onClick={() => setShowDeleteConfirm(true)}
-                leftIcon={Trash}
+                leftIcon={<Trash size={16} />}
                 disabled={isLoading}
               >
                 Hapus Acara
@@ -378,7 +378,7 @@ export function EventModal({ isOpen, onClose, editingEvent, userId, onSuccess }:
                 variant="primary"
                 size="md"
                 isLoading={isLoading}
-                leftIcon={isEditing ? PencilSimple : Plus}
+                leftIcon={isEditing ? <PencilSimple size={16} /> : <Plus size={16} />}
               >
                 {isEditing ? 'Simpan Perubahan' : 'Tambah Acara'}
               </Button>

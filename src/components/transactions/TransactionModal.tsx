@@ -9,6 +9,7 @@ import { enqueueOfflineMutation } from '@/lib/offlineQueue';
 import { apiFetch, endpoints } from '@/lib/apiFetch';
 import { formatRupiah, getLocalDateString, formatCurrency } from '@/lib/formatters';
 import { ReceiptParserModal } from './ReceiptParserModal';
+import { WifiSlash, Sparkle, Package, PencilSimple, Plus } from '@phosphor-icons/react';
 
 interface TransactionModalProps {
   isOpen: boolean;

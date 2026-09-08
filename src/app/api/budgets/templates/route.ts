@@ -59,14 +59,22 @@ export async function POST(req: NextRequest) {
 }
 
 /**
- * DELETE /api/budgets/templates/:id - Delete a budget template
+ * DELETE /api/budgets/templates - Delete a budget template by query param id
  */
-export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function DELETE(req: NextRequest) {
   try {
     const session = await getAuthSession(req);
     if (!session) return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
 
-    const { id } = await params;
+    const { searchParams } = new URL(req.url);
+    let id = searchParams.get('id');
+    if (!id) {
+      try {
+        const body = await req.json();
+        id = body?.id;
+      } catch {}
+    }
+
     if (!id) {
       return NextResponse.json({ success: false, error: 'Template ID required' }, { status: 400 });
     }

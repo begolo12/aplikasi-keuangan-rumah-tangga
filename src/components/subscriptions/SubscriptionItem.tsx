@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Clock, CalendarCheck, Wallet, Trash2 } from '@phosphor-icons/react';
+import { Clock, CalendarCheck, Wallet, Trash } from '@phosphor-icons/react';
 import { Subscription } from '@/lib/types';
 import { formatRupiah, formatDateISO } from '@/lib/formatters';
 
@@ -94,7 +94,7 @@ export function SubscriptionItem({ subscription, onEdit, onDelete }: Subscriptio
                   className="p-1.5 hover:bg-expense/10 rounded-lg transition-colors text-text-muted hover:text-expense"
                   aria-label="Delete subscription"
                 >
-                  <Trash2 size={14} weight="bold" />
+                  <Trash size={14} weight="bold" />
                 </button>
               )}
             </div>

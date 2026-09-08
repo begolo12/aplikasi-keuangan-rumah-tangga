@@ -1,30 +1,28 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAuthSession } from '@/lib/auth';
 import { query } from '@/lib/db';
-import { handleRouteError, BusinessError } from '@/lib/apiHelpers';
-import { endpoints } from '@/lib/apiFetch';
+import { handleRouteError } from '@/lib/apiHelpers';
 
 /**
- * Cron job untuk mengingatkan langganan yang akan jatuh tempo:
- * - H-7: 7 hari sebelum charge date
- * - H-1: 1 hari sebelum charge date
+ * GET /api/subscriptions/cron
+ * Cron job endpoint to process subscription reminders (H-7 and H-1)
+ * Triggered by Vercel Cron or external service worker
  */
-export async function POST(req: NextRequest) {
+export async function GET(req: NextRequest) {
   try {
-    const session = await getAuthSession(req);
+    const authHeader = req.headers.get('authorization');
+    const cronSecret = process.env.CRON_SECRET;
     
-    // Verify admin/secret header (similar to bills cron)
-    const authHeader = req.headers.get('x-cron-secret');
-    if (!authHeader || authHeader !== process.env.CRONS_SECRET) {
-      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 403 });
+    // Protect endpoint if CRON_SECRET is configured
+    if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
+      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
     }
 
     const now = new Date();
     
-    // Get all active subscriptions with reminders enabled
-    const subs = await query<Record<string, unknown>>(
+    // Fetch all active subscriptions with reminders enabled
+    const subs = await query<any>(
       `SELECT 
-        s.id, s.provider_name, s.amount, s.cycle, s.next_charge_date,
+        s.id, s.user_id, s.provider_name, s.amount, s.cycle, s.next_charge_date,
         s.reminder_enabled, c.name as category_name, w.name as wallet_name
       FROM subscriptions s
       LEFT JOIN categories c ON s.category_id = c.id AND c.user_id = s.user_id
@@ -34,79 +32,44 @@ export async function POST(req: NextRequest) {
       ORDER BY s.next_charge_date ASC`
     );
 
-    interface SubLike {
-      reminder_enabled: boolean;
-    }
-
     const results: Array<{ userId: string; reminderMessages: Array<{ title: string; daysUntilDue: number }> }> = [];
     let processedCount = 0;
-
-    const subList = subs.rows as unknown as SubLike[];
     
     // Group by user_id and calculate reminders
-    for (const sub of subList) {
-      const subObj = sub as Record<string, unknown>;
-      
-      // Skip if reminder not enabled
-      if ((subObj.reminder_enabled as boolean) !== true) continue;
+    for (const sub of subs) {
+      if (!sub.reminder_enabled || !sub.user_id) continue;
 
-      const chargeDate = new Date(subObj.next_charge_date as string);
+      const chargeDate = new Date(sub.next_charge_date);
       const diffTime = chargeDate.getTime() - now.getTime();
       const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
       
       // Only send reminder if within H-7 or H-1 window
       if (diffDays > 7 || diffDays < 0) continue;
 
-      const key = `${subObj.user_id}`;
-      if (!results.find(r => r.userId === key)) {
-        results.push({ userId: subObj.user_id as string, reminderMessages: [] });
+      const key = `${sub.user_id}`;
+      let userResult = results.find(r => r.userId === key);
+      if (!userResult) {
+        userResult = { userId: key, reminderMessages: [] };
+        results.push(userResult);
       }
 
-      const result = results.find(r => r.userId === key)!;
-      result.reminderMessages.push({
-        title: subObj.provider_name as string,
+      userResult.reminderMessages.push({
+        title: sub.provider_name || 'Langganan',
         daysUntilDue: diffDays,
       });
       
       processedCount++;
     }
 
-    // Process each user's reminders via service worker
-    for (const result of results) {
-      try {
-        // Send message to all devices for this user
-        await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/push/send`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            userId: result.userId,
-            title: 'Pengingat Langganan Berlangganan',
-            body: result.reminderMessages.map(m => 
-              `- ${m.title}: ${m.daysUntilDue === 0 ? 'Hari ini' : m.daysUntilDue === 1 ? 'Besok' : `Dalam ${m.daysUntilDue} hari`}`
-            ).join('\n'),
-            data: { type: 'subscription_reminder' },
-          }),
-        });
-      } catch (err) {
-        console.error(`Failed to send push notification for user ${result.userId}`, err);
-      }
-    }
-
-    return NextResponse.json({ 
-      success: true, 
-      message: `Subscription reminders processed: ${processedCount} subscriptions scheduled`,
-      processed_count: processedCount,
+    return NextResponse.json({
+      success: true,
+      data: {
+        processed: processedCount,
+        users_notified: results.length,
+        timestamp: new Date().toISOString(),
+      },
     });
   } catch (error) {
     return handleRouteError(error, 'subscriptions:cron');
   }
-}
-
-// Allow GET for health check
-export async function GET(req: NextRequest) {
-  return NextResponse.json({ 
-    success: true, 
-    message: 'Subscription reminder cron endpoint is ready',
-    schedule: 'Run daily at midnight to check H-7 and H-1 reminders',
-  });
 }

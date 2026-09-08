@@ -1,4 +1,4 @@
-export type WalletType = 'cash' | 'bank' | 'ewallet' | 'savings';
+export type WalletType = 'cash' | 'bank' | 'ewallet' | 'savings' | 'envelope';
 export type TransactionType = 'expense' | 'income' | 'transfer';
 export type CategoryType = 'expense' | 'income';
 
@@ -8,6 +8,7 @@ export interface User {
   email: string;
   family_name: string;
   avatar_url?: string | null;
+  currency?: string;
   created_at: string;
   updated_at: string;
 }
@@ -24,6 +25,9 @@ export interface Wallet {
   sort_order: number;
   reconciled_at?: string | null;
   last_reconciled_balance?: number | null;
+  linked_goal_id?: string | null;
+  is_shared?: boolean;
+  household_id?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -56,6 +60,7 @@ export interface Transaction {
   to_wallet_name?: string | null;
   asset_id?: string | null;
   asset_name?: string | null;
+  recorder_name?: string | null;
   description?: string | null;
   date: string; // YYYY-MM-DD
   edited_at?: string | null; // Terisi bila transaksi pernah direvisi lewat edit
@@ -76,30 +81,13 @@ export interface Budget {
   percentage: number;
   month: number;
   year: number;
+  effective_limit?: number;
+  rollover_amount?: number;
+  rollover_enabled?: boolean;
   created_at: string;
 }
 
-
-
-export interface Subscription {
-  id: string;
-  user_id: string;
-  provider_name: string;
-  amount: number;
-  cycle: 'daily' | 'weekly' | 'monthly' | 'yearly';
-  next_charge_date: string;
-  category_id?: string | null;
-  category_name?: string | null;
-  wallet_id?: string | null;
-  wallet_name?: string | null;
-  is_active: boolean;
-  reminder_enabled: boolean;
-  created_at: string;
-  updated_at: string;
-}
-
-
-export type RecurringType = 'expense' | 'income';
+export type RecurringType = 'expense' | 'income' | 'transfer';
 
 export interface RecurringBill {
   id: string;
@@ -112,8 +100,11 @@ export interface RecurringBill {
   category_name?: string | null;
   wallet_id?: string | null;
   wallet_name?: string | null;
+  to_wallet_id?: string | null;
+  to_wallet_name?: string | null;
   asset_id?: string | null;
   asset_name?: string | null;
+  debt_id?: string | null;
   auto_record?: boolean;
   is_active: boolean;
   is_paid?: boolean;
@@ -122,8 +113,6 @@ export interface RecurringBill {
   status?: 'paid' | 'due_today' | 'overdue' | 'due_soon' | 'upcoming';
   created_at: string;
 }
-
-
 
 export interface Subscription {
   id: string;
@@ -142,7 +131,6 @@ export interface Subscription {
   updated_at: string;
 }
 
-
 export interface FinancialSafetyPlan {
   monthly_budget: number;
   reserve_4_months: number; // 4x Anggaran
@@ -153,6 +141,7 @@ export interface FinancialSafetyPlan {
   progress_pct: number;
   can_expand_expense: boolean; // True jika current_cash >= total_min_required
   cold_money_amount: number; // Uang dingin yang bebas dipakai
+  is_default_budget?: boolean;
 }
 
 export interface ColdMoneyInfo {
@@ -196,6 +185,7 @@ export interface ExpenseProjection {
   days_passed: number;
   days_in_month: number;
   burn_rate_daily: number;
+  is_default_budget?: boolean;
 }
 
 export interface DebtSimulationResult {
@@ -224,31 +214,12 @@ export interface BillPayment {
   created_at: string;
 }
 
-
-
-export interface Subscription {
-  id: string;
-  user_id: string;
-  provider_name: string;
-  amount: number;
-  cycle: 'daily' | 'weekly' | 'monthly' | 'yearly';
-  next_charge_date: string;
-  category_id?: string | null;
-  category_name?: string | null;
-  wallet_id?: string | null;
-  wallet_name?: string | null;
-  is_active: boolean;
-  reminder_enabled: boolean;
-  created_at: string;
-  updated_at: string;
-}
-
-
 export interface AppSettings {
   id: string;
   user_id: string;
   family_name: string;
   currency: string;
+  theme_mode?: 'light' | 'dark' | 'system';
   updated_at: string;
 }
 
@@ -273,11 +244,14 @@ export interface Debt {
   tenor_months?: number | null; // Tenor (Bulan)
   monthly_installment?: number | null; // Estimasi cicilan per bulan
   total_interest?: number | null; // Total beban bunga
+  start_date?: string | null;
   due_date?: string | null;
   notes?: string | null;
   status: DebtStatus;
   days_until_due?: number;
   is_overdue?: boolean;
+  linked_bill_id?: string | null;
+  active_bills_count?: number;
   created_at: string;
   updated_at: string;
 }
@@ -293,26 +267,6 @@ export interface DebtPayment {
   notes?: string | null;
   created_at: string;
 }
-
-
-
-export interface Subscription {
-  id: string;
-  user_id: string;
-  provider_name: string;
-  amount: number;
-  cycle: 'daily' | 'weekly' | 'monthly' | 'yearly';
-  next_charge_date: string;
-  category_id?: string | null;
-  category_name?: string | null;
-  wallet_id?: string | null;
-  wallet_name?: string | null;
-  is_active: boolean;
-  reminder_enabled: boolean;
-  created_at: string;
-  updated_at: string;
-}
-
 
 export type AssetCategory =
   | 'kendaraan'
@@ -447,6 +401,7 @@ export interface FinancialEvent {
   created_at: string; // ISO datetime
   updated_at: string; // ISO datetime
 }
+
 export type RecurrenceRuleType = 'none' | 'daily' | 'weekly' | 'monthly' | 'yearly';
 
 export interface EventNotificationSettings {
@@ -465,6 +420,7 @@ export interface EventExpansionParams {
 export interface EventExpansionResult extends FinancialEvent {
   occurrences: string[]; // Array of ISO date strings
 }
+
 export type CurrencyType = 'IDR' | 'USD' | 'EUR' | 'CNY';
 
 export interface CurrencyRate {
@@ -473,3 +429,81 @@ export interface CurrencyRate {
   rates: Record<string, number>;
 }
 
+export interface HouseholdMember {
+  user_id: string;
+  name: string;
+  email: string;
+  role: 'owner' | 'member';
+  joined_at: string;
+}
+
+export interface HouseholdInfo {
+  id: string;
+  name: string;
+  invite_code?: string;
+  created_at: string;
+}
+
+export interface HouseholdState {
+  household: HouseholdInfo | null;
+  role: 'owner' | 'member' | null;
+  members: HouseholdMember[];
+  new_activity_count: number;
+}
+
+export interface HouseholdMemberReport {
+  user_id: string;
+  name: string;
+  expense: number;
+  income: number;
+  transfer_out: number;
+  transfer_in: number;
+  transaction_count: number;
+}
+
+export interface InsightItem {
+  id?: string;
+  type: 'spike' | 'overdraft' | 'bill_tip';
+  title: string;
+  description: string;
+  severity: 'high' | 'medium' | 'low';
+}
+
+export interface InsightsData {
+  month: number;
+  year: number;
+  health: {
+    score: number;
+    condition: 'excellent' | 'good' | 'warning' | 'critical';
+  };
+  insights: InsightItem[];
+}
+
+export interface YearlyMonthDatum {
+  month: number;
+  income: number;
+  expense: number;
+  net: number;
+}
+
+export interface YearlyCategoryDatum {
+  id: string;
+  name: string;
+  icon: string;
+  color: string;
+  current_amount: number;
+  previous_amount: number;
+  delta: number;
+  delta_pct: number | null;
+}
+
+export interface YearlyReportData {
+  year: number;
+  months: YearlyMonthDatum[];
+  categories: YearlyCategoryDatum[];
+  top_categories: YearlyCategoryDatum[];
+  total_income: number;
+  total_expense: number;
+  net_savings: number;
+  savings_rate_pct: number;
+}

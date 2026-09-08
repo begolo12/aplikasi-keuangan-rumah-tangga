@@ -1,8 +1,9 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import type { CurrencyType } from '@/lib/types';
-import { formatCurrency } from '@/lib/formatters';
+import type { User, AppSettings, CurrencyType } from '@/lib/types';
+import { formatCurrency, formatCurrencySymbol } from '@/lib/formatters';
+import { apiFetch, endpoints, ApiError } from '@/lib/apiFetch';
 import { Button } from '../ui/Button';
 import {
   DownloadSimple,
@@ -35,6 +36,7 @@ export function SettingsView({ user, settings, onRefresh, onLogout }: SettingsVi
   const [isSaving, setIsSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [themeMode, setThemeMode] = useState<ThemeMode>('system');
   const [exchangeRates, setExchangeRates] = useState<Record<string, number>>({});
   const [isLoadingRates, setIsLoadingRates] = useState(false);
 
@@ -147,6 +149,7 @@ export function SettingsView({ user, settings, onRefresh, onLogout }: SettingsVi
           family_name: familyName.trim(),
           currency: userCurrency,
         },
+      });
 
       setSaveSuccess(true);
       setTimeout(() => setSaveSuccess(false), 3000);
@@ -320,7 +323,7 @@ export function SettingsView({ user, settings, onRefresh, onLogout }: SettingsVi
             <div className="bg-surface-2 border border-border rounded-2xl p-4 space-y-2">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-bold text-text-muted flex items-center gap-1">
-                  Kurs Live (dari {formatCurrencySymbol(userCurrency)})
+                  Kurs Live (dari {formatCurrencySymbol((userCurrency as CurrencyType) || 'IDR')})
                 </span>
                 {isLoadingRates && (
                   <span className="text-xs text-text-muted animate-pulse">...</span>

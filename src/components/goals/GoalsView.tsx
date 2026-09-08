@@ -7,7 +7,6 @@ import { Button } from '../ui/Button';
 import { Wallet, SavingsGoal } from '@/lib/types';
 import { apiFetch, endpoints, ApiError } from '@/lib/apiFetch';
 import { formatRupiah, formatDate, getLocalDateString } from '@/lib/formatters';
-CUT 246:=247:
 import {
   Target,
   Plus,
@@ -244,7 +243,6 @@ export function GoalsView({ wallets, onRefreshParent }: GoalsViewProps) {
           } else if (monthsNeeded && monthsNeeded >= 1) {
             const etaDate = new Date();
             etaDate.setMonth(etaDate.getMonth() + Math.ceil(monthsNeeded));
-import { getLocalDateString } from '@/lib/formatters';
             projectionText = `Estimasi tercapai sekitar ${formatDate(getLocalDateString(etaDate), 'long')} (${Math.ceil(monthsNeeded)} bulan lagi).`;
           } else if (g.target_date) {
             projectionText = `Kurang ${formatRupiah(g.remaining_amount)} lagi sampai ${g.target_date}.`;

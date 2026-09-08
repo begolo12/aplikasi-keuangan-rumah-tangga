@@ -41,6 +41,7 @@ export function calculateCollapseForecast(totalCash: number, monthlyBurn: number
   } else if (cash <= 0) {
     monthsUntilCollapse = 0;
     daysUntilCollapse = 0;
+    level = 'colapse';
     const d = new Date();
     d.setDate(d.getDate() + daysUntilCollapse);
     collapseDate = getLocalDateString(d);

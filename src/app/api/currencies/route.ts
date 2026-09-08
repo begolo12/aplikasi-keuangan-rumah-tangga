@@ -102,7 +102,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    if (!SUPPORTED_CURRENCIES[base] || !SUPPORTED_CURRENCIES[target]) {
+    if (!(base in SUPPORTED_CURRENCIES) || !(target in SUPPORTED_CURRENCIES)) {
       return NextResponse.json(
         { success: false, error: 'Mata uang tidak didukung' },
         { status: 400 }

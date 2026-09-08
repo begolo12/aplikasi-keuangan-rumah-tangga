@@ -2,20 +2,18 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAuthSession } from '@/lib/auth';
 import { query } from '@/lib/db';
 import { handleRouteError, BusinessError } from '@/lib/apiHelpers';
-import ICAL from 'ical.js';
 
 /**
  * GET /api/events/export
- * Export financial events to iCal (.ics) format for Google Calendar import
+ * Export financial events to iCal (.ics) format for Google Calendar / Apple Calendar import
  */
 export async function GET(req: NextRequest) {
   try {
     const session = await getAuthSession(req);
-    if (!session || !session.user?.id) {
+    if (!session?.userId) {
       throw new BusinessError('Unauthorized', 401);
     }
 
-    const userId = session.user.id;
     const searchParams = req.nextUrl.searchParams;
     const startDate = searchParams.get('startDate');
     const endDate = searchParams.get('endDate');
@@ -23,7 +21,7 @@ export async function GET(req: NextRequest) {
     let queryText = `SELECT id, title, type, date, amount, description 
                      FROM financial_events 
                      WHERE user_id = $1 AND is_active = true`;
-    let queryParams = [userId];
+    const queryParams: (string | number)[] = [session.userId];
 
     if (startDate && endDate) {
       queryText += ` AND date >= $2 AND date <= $3`;
@@ -32,10 +30,16 @@ export async function GET(req: NextRequest) {
 
     queryText += ` ORDER BY date ASC, title ASC`;
 
-    const result = await query(queryText, queryParams);
-    const events = result.rows;
+    const events = await query<{
+      id: string;
+      title: string;
+      type: string;
+      date: string;
+      amount: number | null;
+      description: string | null;
+    }>(queryText, queryParams);
 
-    const icsContent = generateIcsFile(events, userId);
+    const icsContent = generateIcsFile(events);
     
     return new NextResponse(icsContent, {
       headers: {
@@ -44,8 +48,16 @@ export async function GET(req: NextRequest) {
       },
     });
   } catch (error) {
-    return handleRouteError(error);
+    return handleRouteError(error, 'events:export');
   }
+}
+
+function escapeIcalText(text: string): string {
+  return text
+    .replace(/\\/g, '\\\\')
+    .replace(/;/g, '\\;')
+    .replace(/,/g, '\\,')
+    .replace(/\n/g, '\\n');
 }
 
 function generateIcsFile(
@@ -58,97 +70,34 @@ function generateIcsFile(
     description: string | null;
   }>
 ): string {
-  const calendar = new ICAL.Component('vcalendar');
-  calendar.addPropertyWithValue('version', '2.0');
-  calendar.addPropertyWithValue('prodid', '-//KasKeluarga//Financial Events//ID');
-  
-  const vcalSub = calendar.getFirstSubcomponent();
+  const lines: string[] = [
+    'BEGIN:VCALENDAR',
+    'VERSION:2.0',
+    'PRODID:-//KasKeluarga//Financial Events//ID',
+    'CALSCALE:GREGORIAN',
+  ];
 
-  events.forEach(event => {
-    const eventComp = new ICAL.Component('vevent');
-    
-    const uid = `${event.id}_${Date.now()}`;
-    eventComp.addPropertyWithValue('uid', uid);
-    
-    const now = new Date();
-    const dtstamp = ICAL.Time.fromJSDate(now, true);
-    eventComp.addPropertyWithValue('dtstamp', dtstamp);
-    
-    const dtstart = parseDateStringForIcal(event.date);
-    const dtstartProp = new ICAL.Property({
-      name: 'dtstart',
-      value: dtstart,
-      parameters: { value: 'date' },
-    });
-    eventComp.addProperty(dtstartProp);
-    
-    eventComp.addPropertyWithValue('summary', escapeIcalText(event.title));
-    
-    const description = formatIcalDescription(event);
-    eventComp.addPropertyWithValue('description', description);
-    
-    eventComp.addPropertyWithValue('status', 'CONFIRMED');
-    
-    vcalSub.addSubcomponent(eventComp);
-  });
+  const nowStamp = new Date().toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
 
-  return calendar.toString();
-}
+  for (const event of events) {
+    const cleanDate = event.date.replace(/-/g, '');
+    const descParts: string[] = [];
+    if (event.type) descParts.push(`Tipe: ${event.type}`);
+    if (event.amount) descParts.push(`Nominal: Rp ${event.amount.toLocaleString('id-ID')}`);
+    if (event.description) descParts.push(event.description);
 
-function parseDateStringForIcal(dateStr: string): ICAL.Time {
-  const parts = dateStr.split('-');
-  const year = parseInt(parts[0], 10);
-  const month = parseInt(parts[1], 10);
-  const day = parseInt(parts[2], 10);
-  
-  return ICAL.Time.fromDateFields(year, month - 1, day);
-}
-
-function escapeIcalText(text: string): string {
-  return text
-    .replace(/\\/g, '\\\\')
-    .replace(/;/g, '\\;')
-    .replace(/,/g, '\\,')
-    .replace(/\n/g, '\\n');
-}
-
-function formatIcalDescription(event: {
-  amount: number | null;
-  type: string;
-  description: string | null;
-}): string {
-  const parts: string[] = [];
-  
-  if (event.amount !== null && event.amount !== undefined) {
-    const formattedAmount = formatCurrency(event.amount);
-    parts.push(`Jumlah: ${formattedAmount}`);
+    lines.push(
+      'BEGIN:VEVENT',
+      `UID:kaskeluarga-event-${event.id}@kaskeluarga.local`,
+      `DTSTAMP:${nowStamp}`,
+      `DTSTART;VALUE=DATE:${cleanDate}`,
+      `SUMMARY:${escapeIcalText(event.title)}`,
+      `DESCRIPTION:${escapeIcalText(descParts.join(' | '))}`,
+      'STATUS:CONFIRMED',
+      'END:VEVENT'
+    );
   }
-  
-  const typeLabel = getTypeLabel(event.type);
-  parts.push(`Tipe: ${typeLabel}`);
-  
-  if (event.description) {
-    parts.push(`Keterangan: ${event.description}`);
-  }
-  
-  return parts.join('\n') || 'Tidak ada deskripsi';
-}
 
-function formatCurrency(amount: number): string {
-  return new Intl.NumberFormat('id-ID', {
-    style: 'currency',
-    currency: 'IDR',
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(amount);
-}
-
-function getTypeLabel(type: string): string {
-  const labels: Record<string, string> = {
-    bonus: 'Bonus/Pemasukan Tambahan',
-    insurance_renewal: 'Perpanjangan Asuransi',
-    tax_deadline: 'Batas Waktu Pajak',
-    investment_contribution: 'Kontribusi Investasi',
-  };
-  return labels[type] || type;
+  lines.push('END:VCALENDAR', '');
+  return lines.join('\r\n');
 }

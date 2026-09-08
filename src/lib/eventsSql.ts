@@ -44,7 +44,7 @@ export const GET_UPCOMING_EVENTS_SQL = `
   WHERE user_id = $1
     AND is_active = TRUE
     AND date >= CURRENT_DATE
-    AND date <= CURRENT_DATE + INTERVAL '${$2} days'
+    AND date <= CURRENT_DATE + ($2 * INTERVAL '1 day')
   ORDER BY date ASC
 `;
 

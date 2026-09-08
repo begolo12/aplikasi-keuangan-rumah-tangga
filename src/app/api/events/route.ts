@@ -6,11 +6,10 @@ import { handleRouteError, BusinessError } from '@/lib/apiHelpers';
 export async function GET(req: NextRequest) {
   try {
     const session = await getAuthSession(req);
-    if (!session || !session.user?.id) {
+    if (!session?.userId) {
       throw new BusinessError('Unauthorized', 401);
     }
 
-    const userId = session.user.id;
     const events = await query(
       `SELECT 
         id, user_id, title, type, date, amount, description, 
@@ -19,19 +18,19 @@ export async function GET(req: NextRequest) {
        FROM financial_events 
        WHERE user_id = $1 
        ORDER BY date DESC, created_at DESC`,
-      [userId]
+      [session.userId]
     );
 
-    return NextResponse.json(events);
+    return NextResponse.json({ success: true, data: events });
   } catch (error) {
-    return handleRouteError(error);
+    return handleRouteError(error, 'events:list');
   }
 }
 
 export async function POST(req: NextRequest) {
   try {
     const session = await getAuthSession(req);
-    if (!session || !session.user?.id) {
+    if (!session?.userId) {
       throw new BusinessError('Unauthorized', 401);
     }
 
@@ -53,7 +52,7 @@ export async function POST(req: NextRequest) {
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
        RETURNING *`,
       [
-        session.user.id,
+        session.userId,
         title,
         type,
         date,
@@ -64,8 +63,8 @@ export async function POST(req: NextRequest) {
       ]
     );
 
-    return NextResponse.json(result.rows[0], { status: 201 });
+    return NextResponse.json({ success: true, data: result[0] }, { status: 201 });
   } catch (error) {
-    return handleRouteError(error);
+    return handleRouteError(error, 'events:create');
   }
 }

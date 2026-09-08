@@ -40,26 +40,21 @@ export async function GET(req: NextRequest) {
       [session.userId, ...(cycle ? [cycle] : [])]
     );
 
-    interface SubLike {
-      is_active: boolean;
-      reminder_enabled: boolean;
-    }
-
-    const formatted: Subscription[] = (subs as unknown as SubLike[]).map((s) => ({
-      id: s.id,
-      user_id: s.user_id,
-      provider_name: s.provider_name,
-      amount: parseFloat(s.amount as string),
+    const formatted: Subscription[] = (subs as any[]).map((s) => ({
+      id: String(s.id),
+      user_id: String(s.user_id),
+      provider_name: String(s.provider_name),
+      amount: parseFloat(String(s.amount)),
       cycle: s.cycle as Subscription['cycle'],
-      next_charge_date: s.next_charge_date,
-      category_id: s.category_id,
-      category_name: s.category_name,
-      wallet_id: s.wallet_id,
-      wallet_name: s.wallet_name,
-      is_active: s.is_active,
-      reminder_enabled: s.reminder_enabled,
-      created_at: s.created_at,
-      updated_at: s.updated_at,
+      next_charge_date: String(s.next_charge_date),
+      category_id: s.category_id ? String(s.category_id) : null,
+      category_name: s.category_name ? String(s.category_name) : null,
+      wallet_id: s.wallet_id ? String(s.wallet_id) : null,
+      wallet_name: s.wallet_name ? String(s.wallet_name) : null,
+      is_active: Boolean(s.is_active),
+      reminder_enabled: Boolean(s.reminder_enabled),
+      created_at: String(s.created_at),
+      updated_at: String(s.updated_at),
     }));
 
     return NextResponse.json({ success: true, data: formatted });

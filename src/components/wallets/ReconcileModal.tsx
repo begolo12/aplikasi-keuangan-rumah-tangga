@@ -1,10 +1,12 @@
-import { getLocalDateString } from '@/lib/formatters';
-import React, { useState } from 'react';
+'use client';
 
+import React, { useState } from 'react';
+import { getLocalDateString, formatRupiah } from '@/lib/formatters';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
+import { AmountInput } from '../ui/AmountInput';
 import { Wallet } from '@/lib/types';
-import { apiFetch, endpoints } from '@/lib/apiFetch';
+import { apiFetch, endpoints, ApiError } from '@/lib/apiFetch';
 
 import {
   ArrowsClockwise,

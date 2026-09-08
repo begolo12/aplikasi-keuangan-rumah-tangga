@@ -5,7 +5,7 @@ import { Asset, AssetCategory, DepreciationMethod, Wallet } from '@/lib/types';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { AmountInput } from '../ui/AmountInput';
-import { formatRupiah } from '@/lib/formatters';
+import { formatRupiah, getLocalDateString } from '@/lib/formatters';
 import {
   Car,
   Laptop,

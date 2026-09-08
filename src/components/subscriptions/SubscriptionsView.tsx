@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { Subscription, Wallet, Category } from '@/lib/types';
 import { SubscriptionItem } from './SubscriptionItem';
-import { Plus, CalendarCheck, TrendingUp, CheckCircle, XCircle } from '@phosphor-icons/react';
+import { Plus, CalendarCheck, CheckCircle, XCircle, CircleDashed } from '@phosphor-icons/react';
 import { formatRupiah } from '@/lib/formatters';
 import { Modal } from '../ui/Modal';
 import { AmountInput } from '../ui/AmountInput';
@@ -33,7 +33,7 @@ export function SubscriptionsView({
 
   // Form state
   const [providerName, setProviderName] = useState('');
-  const [amount, setAmount] = useState<number | ''>('');
+  const [amount, setAmount] = useState<number>(0);
   const [cycle, setCycle] = useState<'daily' | 'weekly' | 'monthly' | 'yearly'>('monthly');
   const [nextChargeDate, setNextChargeDate] = useState(() => new Date().toISOString().split('T')[0]);
   const [categoryId, setCategoryId] = useState<string | null>(null);
@@ -58,7 +58,7 @@ export function SubscriptionsView({
     setError(null);
 
     try {
-      const res = await apiFetch(endpoints.subscriptions(), {
+      await apiFetch(endpoints.subscriptions, {
         method: 'POST',
         json: {
           provider_name: providerName,
@@ -73,7 +73,7 @@ export function SubscriptionsView({
 
       setIsAddOpen(false);
       setProviderName('');
-      setAmount('');
+      setAmount(0);
       setCycle('monthly');
       setNextChargeDate(new Date().toISOString().split('T')[0]);
       setCategoryId(null);
@@ -136,7 +136,7 @@ export function SubscriptionsView({
 
         <div className="p-3 sm:p-4 bg-primary/10 border border-primary/20 rounded-2xl shadow-xs space-y-1">
           <div className="flex items-center gap-1.5 text-primary text-xs font-bold">
-            <TrendingUp size={16} weight="fill" />
+            <CircleDashed size={16} weight="fill" />
             <span className="truncate">Prosentasi Anggaran</span>
           </div>
           <p className="text-sm sm:text-base font-extrabold text-primary">
@@ -224,7 +224,6 @@ export function SubscriptionsView({
               value={amount}
               onChange={(val) => setAmount(val)}
               placeholder="0"
-              required
             />
           </div>
 

@@ -128,6 +128,8 @@ export const recurringBillSchema = z.object({
 
 export const payBillSchema = z.object({
   wallet_id: z.string().uuid('Pilih dompet untuk pembayaran'),
+  amount: z.number().positive('Nominal pembayaran harus lebih dari 0').optional().nullable(),
+  paid_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Format tanggal harus YYYY-MM-DD').default(() => getLocalDateString()),
 });
 
 export const settingsSchema = z.object({
@@ -206,6 +208,7 @@ export const goalContributionSchema = z.object({
 });
 
 export const assetSchema = z.object({
+  name: z.string().min(1, 'Nama aset wajib diisi').max(100),
   category: z.enum(['kendaraan', 'elektronik', 'properti', 'perhiasan_emas', 'alat_usaha', 'lainnya'], {
     errorMap: () => ({ message: 'Kategori aset tidak valid' }),
   }),

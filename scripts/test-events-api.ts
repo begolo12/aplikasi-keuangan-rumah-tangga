@@ -17,8 +17,8 @@ try {
     console.log('❌ Missing GET or POST handler in events/route.ts');
     process.exit(1);
   }
-} catch (e) {
-  console.error('❌ Cannot read events/route.ts:', e.message);
+} catch (e: any) {
+  console.error('❌ Cannot read events/route.ts:', e?.message);
   process.exit(1);
 }
 
@@ -33,8 +33,8 @@ try {
     console.log('❌ Missing GET/PUT/DELETE handler in events/[id]/route.ts');
     process.exit(1);
   }
-} catch (e) {
-  console.error('❌ Cannot read events/[id]/route.ts:', e.message);
+} catch (e: any) {
+  console.error('❌ Cannot read events/[id]/route.ts:', e?.message);
   process.exit(1);
 }
 
@@ -49,8 +49,8 @@ try {
     console.log('❌ Export route missing iCal generation');
     process.exit(1);
   }
-} catch (e) {
-  console.error('❌ Cannot read export/route.ts:', e.message);
+} catch (e: any) {
+  console.error('❌ Cannot read export/route.ts:', e?.message);
   process.exit(1);
 }
 
@@ -64,8 +64,8 @@ try {
     console.log('❌ FinancialEvent not found in types.ts');
     process.exit(1);
   }
-} catch (e) {
-  console.error('❌ Cannot read types.ts:', e.message);
+} catch (e: any) {
+  console.error('❌ Cannot read types.ts:', e?.message);
   process.exit(1);
 }
 

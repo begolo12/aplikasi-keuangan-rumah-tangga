@@ -1,3 +1,0 @@
-module.exports=[14239,e=>{e.v(e=>Promise.resolve().then(()=>e(43793)))},75176,e=>{"use strict";var o=e.i(66680),r=e.i(43793);async function s(e){return(await (0,r.query)("SELECT household_id, role::text AS role FROM household_members WHERE user_id = $1 LIMIT 1",[e]))[0]??null}e.s(["generateInviteCode",0,function(){let e="ABCDEFGHJKLMNPQRSTUVWXYZ23456789",r="";for(let s=0;s<8;s++)r+=e[(0,o.randomInt)(e.length)];return r},"getMembership",0,s,"walletAccessCondition",0,function(e){return`(user_id = $${e} OR (is_shared = TRUE AND household_id IN (SELECT household_id FROM household_members WHERE user_id = $${e})))`}])}];
-
-//# sourceMappingURL=src_lib_0y3g747._.js.map

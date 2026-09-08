@@ -1,31 +1,32 @@
 import { FinancialEvent } from './types';
 import { apiFetch, endpoints } from './apiFetch';
 
-export async function getFinancialEvents(userId: string): Promise<FinancialEvent[]> {
-  return apiFetch<FinancialEvent[]>(endpoints.financialEvents, {
+export async function getFinancialEvents(_userId?: string): Promise<FinancialEvent[]> {
+  const res = await apiFetch<{ success: boolean; data: FinancialEvent[] }>(endpoints.financialEvents, {
     method: 'GET',
-    params: { user_id: userId },
   });
+  return res.data || (Array.isArray(res) ? res : []);
 }
 
-export async function createFinancialEvent(userId: string, data: Partial<FinancialEvent>): Promise<FinancialEvent> {
-  return apiFetch<FinancialEvent>(endpoints.financialEvents, {
+export async function createFinancialEvent(_userId: string, data: Partial<FinancialEvent>): Promise<FinancialEvent> {
+  const res = await apiFetch<{ success: boolean; data: FinancialEvent }>(endpoints.financialEvents, {
     method: 'POST',
-    json: { ...data, user_id: userId },
+    json: data,
   });
+  return res.data || (res as unknown as FinancialEvent);
 }
 
 export async function updateFinancialEvent(id: string, data: Partial<FinancialEvent>): Promise<FinancialEvent> {
-  return apiFetch<FinancialEvent>(`${endpoints.financialEvents}/${id}`, {
+  const res = await apiFetch<{ success: boolean; data: FinancialEvent }>(endpoints.financialEvent(id), {
     method: 'PUT',
     json: data,
   });
+  return res.data || (res as unknown as FinancialEvent);
 }
 
 export async function deleteFinancialEvent(id: string): Promise<void> {
-  return apiFetch(endpoints.financialEvents, {
+  await apiFetch(endpoints.financialEvent(id), {
     method: 'DELETE',
-    params: { id },
   });
 }
 

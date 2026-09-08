@@ -1,1 +1,0 @@
-(globalThis.TURBOPACK||(globalThis.TURBOPACK=[])).push(["object"==typeof document?document.currentScript:void 0,21373,(o,e,t)=>{var r=Error("Could not parse module '[project]/src/components/goals/GoalsView.tsx'\n\nExpected ';', '}' or <eof>");throw r.code="MODULE_UNPARSABLE",r},93779,function(o){o.n(o.i(21373))}]);

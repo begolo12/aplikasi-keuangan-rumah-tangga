@@ -33,6 +33,7 @@ import { clearOfflineQueue } from '@/lib/offlineQueue';
 import { ReceiptParserModal } from '@/components/transactions/ReceiptParserModal';
 import { HouseholdState } from '@/lib/types';
 import { ReminderScheduler } from '@/components/pwa/ReminderScheduler';
+import { LandingView } from '@/components/landing/LandingView';
 
 
 const TransactionModal = dynamic(
@@ -267,25 +268,23 @@ export default function MainPage() {
       try {
         const res = await fetch('/api/auth/me');
         if (!res.ok) {
-          router.replace('/login');
+          setIsAuthLoading(false);
           return;
         }
         const data = await res.json();
         const userObj = data?.data?.user || (data?.data?.id ? data.data : null);
         if (data.success && userObj) {
           setUser(userObj);
-        } else {
-          router.replace('/login');
         }
       } catch {
-        router.replace('/login');
+        // Not authenticated
       } finally {
         setIsAuthLoading(false);
       }
     };
 
     checkAuth();
-  }, [router]);
+  }, []);
 
   // 1b. Handle URL Search Params Action (e.g. from PWA Shortcuts & push notification)
   useEffect(() => {
@@ -582,42 +581,33 @@ export default function MainPage() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isTxModalOpen, editingTransaction, handleOpenAddModal, isEventModalOpen]);
 
+  if (isAuthLoading) {
+    return <DashboardSkeleton />;
+  }
+
+  if (!user) {
+    return <LandingView />;
+  }
 
   return (
     <AppShell
-      title="KasKeluarga"
-
-      subtitle="Keuangan Keluarga"
-      user={user}
-      onLogout={handleLogout}
-      balanceHeader={<BalanceHeader
-        totalBalance={summary.total_balance}
-        walletCount={wallets.length}
-        safeToSpend={summary.safe_to_spend}
-        pendingBillsAmount={summary.total_bills_pending_amount}
-        payableDueAmount={summary.total_payable_due}
-        monthlyRecurringTotal={subscriptions.reduce((sum, s) => {
-          if (s.cycle === 'monthly') return sum + s.amount;
-          if (s.cycle === 'yearly') return sum + s.amount / 12;
-          if (s.cycle === 'weekly') return sum + s.amount * 4.33;
-          if (s.cycle === 'daily') return sum + s.amount * 30;
-          return sum;
-        }, 0)}
-        onManageWallets={() => handleTabChange('wallets')}
-        onNavigateToDebts={() => handleTabChange('debts')}
-      />}
       activeTab={activeTab}
       onTabChange={handleTabChange}
+      onOpenAddModal={() => handleOpenAddModal('expense')}
+      onOpenTypedModal={handleOpenAddModal}
+      currentMonth={currentMonth}
+      currentYear={currentYear}
+      onPeriodChange={handlePeriodChange}
+      userName={user.name}
+      userEmail={user.email}
+      familyName={settings?.family_name || user.family_name || 'Keluarga Bahagia'}
+      userId={user.id}
+      onLogout={handleLogout}
+      onDataRefresh={refetch}
+      pendingBillsCount={summary.bill_pending_count}
+      overbudgetCount={summary.budget_over_count}
+      unpaidDebtsCount={summary.payable_unpaid_count}
       householdActivityCount={householdActivityCount}
-      exportButton={
-        <a
-          href={endpoints.backupExport}
-          target="_blank"
-          className="flex items-center gap-2 min-h-[44px] px-3 rounded-xl bg-primary text-white text-xs font-bold hover:opacity-90 active:opacity-80 transition-opacity"
-        >
-          Export Data
-        </a>
-      }
     >
       {/* Error Message */}
       {dataError ? (
@@ -674,6 +664,13 @@ export default function MainPage() {
             safeToSpend={summary.safe_to_spend}
             pendingBillsAmount={summary.total_bills_pending_amount}
             payableDueAmount={summary.total_payable_due}
+            monthlyRecurringTotal={subscriptions.reduce((sum, s) => {
+              if (s.cycle === 'monthly') return sum + s.amount;
+              if (s.cycle === 'yearly') return sum + s.amount / 12;
+              if (s.cycle === 'weekly') return sum + s.amount * 4.33;
+              if (s.cycle === 'daily') return sum + s.amount * 30;
+              return sum;
+            }, 0)}
             onManageWallets={() => handleTabChange('wallets')}
             onNavigateToDebts={() => handleTabChange('debts')}
           />
