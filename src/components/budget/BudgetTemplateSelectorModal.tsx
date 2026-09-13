@@ -1,9 +1,9 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
-import { X, Sparkle, CheckCircle } from '@phosphor-icons/react';
+import { Sparkle, CheckCircle } from '@phosphor-icons/react';
 import { BudgetTemplate, Category } from '@/lib/types';
 import { apiFetch, endpoints } from '@/lib/apiFetch';
 
@@ -25,42 +25,51 @@ export function BudgetTemplateSelectorModal({
   const [isLoading, setIsLoading] = useState(true);
   const [isSelecting, setIsSelecting] = useState(false);
   const [hasSelected, setHasSelected] = useState(false);
+  const [prevIsOpen, setPrevIsOpen] = useState(isOpen);
+
+  if (isOpen !== prevIsOpen) {
+    setPrevIsOpen(isOpen);
+    if (isOpen) {
+      setIsLoading(true);
+    }
+  }
 
   const expenseCategories = categories.filter((c) => c.type === 'expense');
 
-  const fetchAIRecommendation = async () => {
-    try {
-      return await apiFetch(endpoints.budgetAiRecommend);
-    } catch {
-      return null;
-    }
-  };
-
-  const loadTemplates = useCallback(async () => {
-    setIsLoading(true);
-    try {
-      const [userTemplatesRes, aiResult]: any = await Promise.all([
-        apiFetch<{ success: boolean; data: BudgetTemplate[] }>(endpoints.budgetTemplates),
-        fetchAIRecommendation(),
-      ]);
-
-      setTemplates(userTemplatesRes?.data || []);
-
-      if (aiResult?.success && aiResult?.data?.template) {
-        setAiSuggestion(aiResult.data.template);
-      }
-    } catch (error) {
-      console.error('Failed to load templates:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
-
   useEffect(() => {
-    if (isOpen) {
-      loadTemplates();
-    }
-  }, [isOpen, loadTemplates]);
+    if (!isOpen) return;
+    let cancelled = false;
+
+    const fetchAIRecommendation = async () => {
+      try {
+        return await apiFetch(endpoints.budgetAiRecommend);
+      } catch {
+        return null;
+      }
+    };
+
+    Promise.all([
+      apiFetch<{ success: boolean; data: BudgetTemplate[] }>(endpoints.budgetTemplates),
+      fetchAIRecommendation(),
+    ])
+      .then(([userTemplatesRes, aiResult]: any) => {
+        if (cancelled) return;
+        setTemplates(userTemplatesRes?.data || []);
+        if (aiResult?.success && aiResult?.data?.template) {
+          setAiSuggestion(aiResult.data.template);
+        }
+      })
+      .catch((error) => {
+        console.error('Failed to load templates:', error);
+      })
+      .finally(() => {
+        if (!cancelled) setIsLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isOpen]);
 
   const handleSelectTemplate = async (template: BudgetTemplate) => {
     setIsSelecting(true);
@@ -88,17 +97,7 @@ export function BudgetTemplateSelectorModal({
     return cat?.color || '#6B7280';
   };
 
-  const formatCurrency = (amount: number): string => {
-    return new Intl.NumberFormat('id-ID', {
-      style: 'currency',
-      currency: 'IDR',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(amount);
-  };
-
   const renderAllocationBar = (allocations: Array<{ category_id: string; percentage: number }>) => {
-    const totalIncome = 5000000; // Assumed income for visualization
     return (
       <div className="space-y-2">
         {allocations.slice(0, 3).map((alloc, idx) => (
@@ -107,10 +106,10 @@ export function BudgetTemplateSelectorModal({
               className="w-3 h-3 rounded-full flex-shrink-0"
               style={{ backgroundColor: getCategoryColor(alloc.category_id) }}
             />
-            <span className="text-xs text-gray-600 flex-1 truncate">
+            <span className="text-xs text-text-muted flex-1 truncate">
               {getCategoryName(alloc.category_id)}
             </span>
-            <span className="text-xs font-medium text-gray-700">{alloc.percentage}%</span>
+            <span className="text-xs font-medium text-text">{alloc.percentage}%</span>
           </div>
         ))}
       </div>
@@ -122,20 +121,20 @@ export function BudgetTemplateSelectorModal({
       <div className="space-y-4">
         {/* AI Recommendation Card */}
         {aiSuggestion && !hasSelected && (
-          <div className="bg-gradient-to-br from-purple-50 to-indigo-50 border border-purple-200 rounded-xl p-4 shadow-sm">
+          <div className="bg-primary-subtle border border-primary/25 rounded-2xl p-4">
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
-                <Sparkle className="text-purple-600" size={20} />
-                <h3 className="font-bold text-purple-900">Rekomendasi AI</h3>
+                <Sparkle className="text-primary" size={20} />
+                <h3 className="font-bold text-text">Rekomendasi AI</h3>
               </div>
-              <span className="text-xs bg-purple-100 text-purple-700 px-2 py-1 rounded-full">
+              <span className="text-xs bg-primary/15 text-primary px-2 py-1 rounded-xl font-semibold">
                 Personalized
               </span>
             </div>
 
             <div className="mb-3">
-              <h4 className="font-semibold text-gray-900 mb-1">{aiSuggestion.name}</h4>
-              <p className="text-sm text-gray-600">{aiSuggestion.description}</p>
+              <h4 className="font-semibold text-text mb-1">{aiSuggestion.name}</h4>
+              <p className="text-sm text-text-muted">{aiSuggestion.description}</p>
             </div>
 
             <div className="mb-3">
@@ -145,7 +144,7 @@ export function BudgetTemplateSelectorModal({
             <Button
               onClick={() => handleSelectTemplate(aiSuggestion)}
               disabled={isSelecting}
-              className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white"
+              className="w-full"
             >
               {isSelecting ? 'Memuat...' : 'Gunakan Rekomendasi Ini'}
             </Button>
@@ -154,32 +153,32 @@ export function BudgetTemplateSelectorModal({
 
         {/* User Custom Templates */}
         <div>
-          <h3 className="font-semibold text-gray-900 mb-3">Template Anda</h3>
+          <h3 className="font-semibold text-text mb-3">Template Anda</h3>
           <div className="space-y-2 max-h-64 overflow-y-auto">
             {isLoading ? (
-              <div className="text-center py-8 text-gray-500">Memuat template...</div>
+              <div className="text-center py-8 text-text-muted">Memuat template...</div>
             ) : templates.length === 0 ? (
-              <div className="text-center py-8 text-gray-500">Belum ada template kustom</div>
+              <div className="text-center py-8 text-text-muted">Belum ada template kustom</div>
             ) : (
               templates.map((template) => (
                 <button
                   key={template.id}
                   onClick={() => handleSelectTemplate(template)}
                   disabled={isSelecting}
-                  className={`w-full text-left p-3 border rounded-xl transition-all ${
+                  className={`w-full text-left p-3 border rounded-2xl transition-all ${
                     hasSelected
-                      ? 'opacity-50 cursor-not-allowed'
-                      : 'hover:border-purple-300 hover:shadow-sm bg-white'
+                      ? 'opacity-50 cursor-not-allowed border-border'
+                      : 'hover:border-primary/40 bg-surface border-border'
                   }`}
                 >
                   <div className="flex items-center justify-between mb-2">
-                    <h4 className="font-medium text-gray-900">{template.name}</h4>
+                    <h4 className="font-medium text-text">{template.name}</h4>
                     {template.is_default && (
-                      <CheckCircle className="text-green-600" size={16} />
+                      <CheckCircle className="text-income" size={16} />
                     )}
                   </div>
                   {template.description && (
-                    <p className="text-xs text-gray-600 mb-2">{template.description}</p>
+                    <p className="text-xs text-text-muted mb-2">{template.description}</p>
                   )}
                   {renderAllocationBar(template.allocations)}
                 </button>

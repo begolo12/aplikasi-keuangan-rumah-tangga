@@ -4,10 +4,10 @@ import React, { useRef, useState } from 'react';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import type { FinancialEvent } from '@/lib/types';
-import { apiFetch } from '@/lib/apiFetch';
+import { apiFetch, ApiError } from '@/lib/apiFetch';
 import { enqueueOfflineMutation } from '@/lib/offlineQueue';
 import { Plus, PencilSimple, Trash } from '@phosphor-icons/react';
-import { formatRupiah, formatDate, getLocalDateString } from '@/lib/formatters';
+import { getLocalDateString } from '@/lib/formatters';
 import { WifiSlash } from '@phosphor-icons/react';
 
 type EventTypeId = 'bonus' | 'insurance_renewal' | 'tax_deadline' | 'investment_contribution';
@@ -119,6 +119,29 @@ export function EventModal({ isOpen, onClose, editingEvent, userId, onSuccess }:
       onClose();
       setShowDeleteConfirm(false);
     } catch (err: unknown) {
+      // Jaringan putus mendadak saat submit (bukan penolakan server 4xx/5xx):
+      // simpan ke antrean offline agar input tidak hilang.
+      const isServerRejection = err instanceof ApiError && err.status !== 0;
+      const looksOffline = !isServerRejection;
+      if (looksOffline) {
+        try {
+          await enqueueOfflineMutation({
+            userId,
+            endpoint: isEditing ? `/api/events/${editingEvent!.id}` : '/api/events',
+            method: isEditing ? 'PUT' : 'POST',
+            payload,
+          });
+          setOfflineNotice(true);
+          setTimeout(() => {
+            onSuccess();
+            onClose();
+            setShowDeleteConfirm(false);
+          }, 1500);
+          return;
+        } catch {
+          // IndexedDB gagal: tampilkan error jaringan biasa.
+        }
+      }
       setError(err instanceof Error ? err.message : 'Terjadi kesalahan sistem.');
     } finally {
       submittingRef.current = false;
@@ -163,14 +186,16 @@ export function EventModal({ isOpen, onClose, editingEvent, userId, onSuccess }:
     }
   };
 
-  const eventTypes: Array<{ id: EventTypeId; label: string; color: string }> = [
-    { id: 'bonus', label: 'Bonus & Tunjangan', color: '#10b181' },
-    { id: 'insurance_renewal', label: 'Perpanjangan Asuransi', color: '#f59e0b' },
-    { id: 'tax_deadline', label: 'Batas Waktu Pajak', color: '#ef4444' },
-    { id: 'investment_contribution', label: 'Kontribusi Investasi', color: '#3b82f6' },
+  const eventTypes: Array<{ id: EventTypeId; label: string; color: string; bg: string }> = [
+    { id: 'bonus', label: 'Bonus & Tunjangan', color: 'hsl(var(--color-income))', bg: 'hsl(var(--color-income) / 0.08)' },
+    { id: 'insurance_renewal', label: 'Perpanjangan Asuransi', color: 'hsl(var(--color-warning))', bg: 'hsl(var(--color-warning) / 0.08)' },
+    { id: 'tax_deadline', label: 'Batas Waktu Pajak', color: 'hsl(var(--color-expense))', bg: 'hsl(var(--color-expense) / 0.08)' },
+    { id: 'investment_contribution', label: 'Kontribusi Investasi', color: 'hsl(var(--color-transfer))', bg: 'hsl(var(--color-transfer) / 0.08)' },
   ];
 
-  const selectedTypeColor = eventTypes.find((t) => t.id === formData.type)?.color || '#3b82f6';
+  const selectedType = eventTypes.find((t) => t.id === formData.type);
+  const selectedTypeColor = selectedType?.color || 'hsl(var(--color-transfer))';
+  const selectedTypeBg = selectedType?.bg || 'hsl(var(--color-transfer) / 0.08)';
 
   const showDeleteDialog = !isEditing && showDeleteConfirm;
   const showEditDialog = isEditing && showDeleteConfirm;
@@ -219,11 +244,11 @@ export function EventModal({ isOpen, onClose, editingEvent, userId, onSuccess }:
                   onClick={() => handleInputChange('type', type.id)}
                   className={`p-3 rounded-xl text-left text-xs font-semibold transition-all border-2 ${
                     formData.type === type.id
-                      ? 'border-current shadow-md'
+                      ? 'border-current'
                       : 'border-border/50 hover:border-border'
                   }`}
                   style={{
-                    backgroundColor: formData.type === type.id ? `${selectedTypeColor}15` : 'transparent',
+                    backgroundColor: formData.type === type.id ? selectedTypeBg : 'transparent',
                     borderColor: formData.type === type.id ? selectedTypeColor : undefined,
                     color: formData.type === type.id ? selectedTypeColor : undefined,
                   }}

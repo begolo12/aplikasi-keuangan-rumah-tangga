@@ -3,6 +3,73 @@
 Log eksekusi plan. Entri baru ditambahkan di bagian paling atas.
 Format entri lihat `AGENTS.md` bagian "Langkah 3 — Catat ke Changelog".
 
+## [2026-09-13] Perbaikan Jitter Bottom Nav Mobile & Konsistensi Visual Menyeluruh
+
+**Plan**: `docs/plans/2026-09-13-perbaikan-jitter-bottom-nav-dan-konsistensi-visual.md`
+
+### Berubah
+- **Akar jitter bottom nav dibereskan** (`BottomNav.tsx`): `backdrop-blur-xl` pada elemen `fixed` dihapus (memicu repaint penuh tiap frame scroll), `bg-surface/97` yang tidak valid diganti `bg-surface` solid, `shadow-lg` diganti bayangan tipis terarah, posisi item `items-center` → `items-end`, overhang FAB `-top-4`/`border-4` dihapus, indikator tab aktif diperbaiki (sebelumnya `<span absolute>` tanpa parent relative sehingga melayang ke container), tap target dinaikkan ke 56×48 px, dan overlay FAB tidak lagi memakai blur.
+- **Tinggi viewport**: seluruh `min-h-screen`/`h-screen`/`100vh` diganti `dvh` (`AppShell`, `layout.tsx`, `not-found`, `AuthCard`, `LandingView`, `SidebarNav`). Ini mencegah address bar mobile yang menyusut mengubah tinggi dokumen — penyebab kedua goyangan.
+- **Elastic bounce dicegah**: `overscroll-behavior-y: none` di `html` dan `body`; duplikasi `padding-bottom: safe-area-inset` di body dihapus karena BottomNav sudah mengurusnya.
+- **Kelas CSS mati dihidupkan**: proyek memakai Tailwind v3.4.17 tetapi banyak kelas ditulis dengan sintaks v4 sehingga tidak pernah ter-render. Token `shadow-2xs`, `shadow-xs`, dan `backdrop-blur-xs` kini didefinisikan di `tailwind.config.ts`; kelas `animate-in fade-in zoom-in-95` (plugin `tailwindcss-animate` tidak terpasang) diganti `animate-scale-in` lokal.
+- **Aturan tap target iOS dipersempit**: sebelumnya `button, a, [role="button"]` global dipaksa 44 px sehingga tombol ikon kecil membengkak dan merusak tata letak. Kini hanya `nav button`, `nav a`, `main button.min-h-[44px]`, `form button[type="submit"]`, dan `button[data-tap-target="lg"]`.
+- **Token semantik menggantikan warna di luar palet** pada `BalanceHeader`, `CategoryIcon`, `AssetsView`, `BudgetView`, `BudgetTemplateSelectorModal`, `ColdMoneyCard` (blue-500 → transfer), `HouseholdView` (red-* → expense), `SubscriptionsView` (emerald-* → income), `BalanceHeader`, dan `EventModal`. Preset warna kategori lama tetap dipertahankan sebagai key agar data kategori di DB tidak perlu migrasi.
+- **Warna acara keuangan tidak lagi hex hardcoded**: `CalendarView`, `EventModal`, dan `ReminderScheduler` kini memakai `hsl(var(--color-*))` sehingga ikut tema gelap; sebelumnya titik kalender tetap terang di mode gelap.
+- **Bayangan diturunkan pada elemen non-mengambang** (hero saldo, kartu auth, tombol submit modal, logo sidebar) sesuai DESIGN.md yang membatasi bayangan untuk elemen mengambang saja.
+- **Radius diseragamkan**: kartu dompet `rounded-xl` → `rounded-2xl`, tombol ikon header `rounded-lg` → `rounded-xl`, kontrol 36 px → 44 px (Bills, Debts, Wallets, Household, BalanceHeader, ExpenseProjection, CashflowStatement, EmergencyFund, FinancialSafetyPlan, DebtItem).
+- **Tipografi angka**: `font-display-num` + `tabular-nums` diterapkan pada angka besar di `WalletsView`; sebaliknya `font-display-num` dihapus dari teks non-angka "Rapi & Tenang" di `LandingView` (melanggar aturan DESIGN.md).
+- **Bug logika diperbaiki** di `BudgetRecommendationCard.tsx`: template literal rusak membuat persentase sisa pemasukan selalu salah render (`${(surplus / (totalIncome || 1)) * 100}.toFixed(1)}%`); kini memakai `savingsRate.toFixed(1)`.
+- Selector CSS mati dibersihkan dari `globals.css` (`nav[aria-label="Mobile Bottom Navigation"]` tidak pernah cocok, `aside:not([class*="w-\[72px\]"])` berisiko menimpa lebar sidebar collapsed).
+
+### Dampak
+Tampilan tidak berubah struktur, hanya konsistensi warna/radius/bayangan. Tidak ada migrasi DB dan tidak ada perubahan logika keuangan. Warna kategori tersimpan di DB tetap berfungsi karena key lama dipertahankan di `CategoryIcon`. Verifikasi: `npm run lint` 0 error (1 warning lama `tabHistory`), `npm run build` lulus, `npm run test:audit` 151/151 lulus. Jitter bottom nav perlu dikonfirmasi manual di perangkat nyata karena tidak bisa diuji otomatis.
+
+## [2026-09-09] Perbaikan Kritis Navigasi Tab (Klik Tab Tidak Berpindah Halaman)
+
+### Berubah
+- **Fix `handleTabChange` di `src/app/page.tsx`**: Handler navigasi sebelumnya hanya memanggil `window.history.pushState` tanpa `setActiveTab(newTab)` dan tanpa menambah `tabHistory`, sehingga klik tab/sidebar/bottom-nav tidak pernah mengubah tampilan dan pengguna terpaksa refresh untuk pindah halaman. Kini klik tab langsung memindahkan view, mencatat riwayat navigasi, dan tetap tercatat di history browser (tombol back mobile kembali ke tab sebelumnya).
+
+### Dampak
+Navigasi antar-halaman berfungsi normal tanpa refresh. Perilaku back-button Android/mobile tetap: tutup modal dulu, lalu mundur per tab, lalu konfirmasi keluar di beranda.
+
+## [2026-09-09] Optimasi Performa: Bootstrap 2-Batch, Paralelisasi Fetch, & Production Server
+
+### Berubah
+- **Bootstrap Dashboard 2 Batch**: Menggabungkan query ringan (wallets, categories, settings, total saldo, tagihan pending, ringkasan bulanan) ke batch pertama (6 paralel) dan query berat CTE budget ke batch kedua di `src/app/api/dashboard/bootstrap/route.ts`. Latensi turun dari 3 round-trip menjadi 2 tanpa melebihi connection pool Neon (max 10).
+- **Paralelisasi Fetch Client**: Menggabungkan request `financial-events` dan `households` di `src/app/page.tsx` dari eksekusi berurutan menjadi `Promise.allSettled` paralel, memangkas 1 round-trip jaringan per muat dashboard.
+- **Production Server**: KasKeluarga kini dijalankan via `next start` (production build) di port 3001, bukan dev server Turbopack yang compile on-demand.
+
+### Dampak
+Halaman beranda merespons ~43 ms. Dashboard memuat lebih cepat berkat pipeline query & fetch yang lebih pendek. Port 3000 tetap dipesan aplikasi lain (itenary-serenity).
+
+## [2026-09-09] Perbaikan Visual, UI/UX, dan Eliminasi Data Palsu
+**Plan**: `docs/plans/2026-09-09-perbaikan-visual-ui-ux-dan-anti-data-palsu.md`
+
+### Berubah
+- **Eliminasi Data Palsu Landing Page**: Menghapus seluruh metrik palsu (10K+ users, 1M+ transactions, 99.9% uptime, 4.9/5 satisfaction) dan rating bintang fiktif di `src/components/landing/LandingView.tsx`. Mengganti paket SaaS fiktif dengan panduan mode penggunaan nyata (Mode Mandiri vs Mode Keluarga Bersama).
+- **Penyelarasan Tema Klasik Rumah**: Mengganti gradien hardcoded Tailwind di landing page dengan token tema `DESIGN.md` (`bg-background` kertas ivory, `text-primary`, `bg-surface`, `border-border`).
+- **Pembersihan Modul QuickActions**: Menghapus entri duplikat "Langganan", membuang class CSS tidak valid (`text-success`), merapikan baris shortcut desktop menjadi 6 modul simetris (Anggaran, Tagihan, Langganan, Hutang, Aset, Laporan), serta menerapkan palet netral dengan badge peringatan semantik.
+- **Aksesibilitas Mobile**: Menambahkan modul "Langganan" ke dalam sheet navigasi bawah `src/components/layout/BottomNav.tsx` dan meneruskan `subscriptionCount` ke shell navigasi.
+- **Konsistensi Identitas Brand**: Menyelaraskan nama header sidebar di `src/components/layout/SidebarNav.tsx` menjadi "KasKeluarga".
+- **Higiene Teks & Copywriting**: Menghapus karakter em dash (`—`) pada pesan simulasi di `src/components/evaluation/ScenarioSimulator.tsx`.
+
+### Dampak
+Tidak ada breaking change. Antarmuka kini sepenuhnya jujur tanpa data palsu, modul langganan dapat diakses di ponsel, dan tampilan visual konsisten dengan standar Klasik Rumah.
+
+## [2026-09-09] Penyelesaian Audit Menyeluruh, Integritas Buku Besar, & Hardening Aplikasi
+
+**Plan**: `docs/plans/2026-09-09-penyelesaian-audit-dan-hardening-aplikasi.md`
+
+### Berubah
+- **Keamanan & Otorisasi**: Validasi ketat DDL inisialisasi schema di `src/app/api/init/route.ts` (SEC-01), eliminasi crash server CSRF `window.location.protocol` di `src/lib/apiHelpers.ts` (SEC-02), proteksi fail-closed `CRON_SECRET` di `src/app/api/subscriptions/cron/route.ts` (SEC-03), dan penambahan header `Content-Security-Policy` di `next.config.mjs` (SEC-06).
+- **Integritas Pembukuan & Finansial**: Pencatatan mutasi arus kas penuh (`selling_price`) pada penjualan aset di `src/app/api/assets/[id]/sell/route.ts` (FIN-01), dan penyatuan kembali biaya admin ke transaksi induk di `src/app/api/transactions/route.ts` untuk mencegah orphan fee (FIN-02).
+- **Kinerja & Skalabilitas Database**: Batching konkurensi query (maksimal 4 paralel per batch) di `src/app/api/dashboard/bootstrap/route.ts` dan `src/app/api/backup/export/route.ts` guna mencegah saturasi connection pool Neon PostgreSQL (PERF-01).
+- **Rate Limiting & Auth Caching**: Pembersihan berkala (pruning) map rate limit di `src/lib/rateLimit.ts` (SEC-04) dan short-lived in-memory cache untuk `token_version` di `src/lib/auth.ts` (SEC-05).
+- **Kompatibilitas & Higiene Kode**: Polyfill `withResolvers` di `src/lib/offlineQueue.ts` (COMPAT-01), sanitasi karakter tab/CR pada CSV injection di `src/app/api/reports/export-csv/route.ts` (SEC-07), penghapusan residu berkas sementara (CLEAN-01), dan eliminasi seluruh 24 warning ESLint menjadi 0 error 0 warning.
+
+### Dampak
+Tidak ada breaking change. Keamanan API diperketat, saldo dompet kini 100% konsisten dengan riwayat transaksi saat menjual aset, dan stabilitas endpoint bootstrap meningkat signifikan di bawah beban multi-koneksi.
+
 ## [2026-09-08] Perbaikan Server Error 500 (DB Migration, Insights Query, & Safe Event Loading)
 
 **Plan**: `docs/plans/2026-09-08-perbaikan-server-error-db-migration-dan-insights.md`

@@ -171,7 +171,7 @@ export function DebtItem({ debt, onPay, onDelete }: DebtItemProps) {
             onClick={() => setShowConfirm(true)}
             title="Hapus Data"
             aria-label={`Hapus ${debt.person_name}`}
-            className="min-w-[36px] min-h-[36px] flex items-center justify-center text-text-muted hover:text-expense hover:bg-expense/10 rounded-xl transition-colors shrink-0"
+            className="min-w-[36px] min-h-[44px] flex items-center justify-center text-text-muted hover:text-expense hover:bg-expense/10 rounded-xl transition-colors shrink-0"
           >
             <Trash size={17} />
           </button>

@@ -126,10 +126,10 @@ export function TopHeader({
   };
 
   return (
-    <header className="sticky top-0 z-30 bg-background/80 backdrop-blur-md border-b border-border px-3 sm:px-4 md:px-8 py-2.5 sm:py-3 transition-colors">
+    <header className="isolate sticky top-0 z-30 bg-background/95 backdrop-blur-sm border-b border-border px-3 sm:px-4 md:px-8 py-2.5 sm:py-3 transition-colors">
       <div className="flex items-center justify-between max-w-7xl mx-auto gap-2 sm:gap-4">
         {/* Context-aware Left Header: Period Selector on period-tabs, or Section Badge on non-period tabs */}
-        {['assets', 'debts', 'wallets', 'goals', 'reports', 'settings'].includes(activeTab) ? (
+        {['assets', 'debts', 'wallets', 'goals', 'reports', 'household', 'subscriptions', 'settings'].includes(activeTab) ? (
           <div className="flex items-center gap-2 px-1">
             <span className="text-xs sm:text-sm font-extrabold text-text capitalize">
               {activeTab === 'assets'
@@ -142,6 +142,10 @@ export function TopHeader({
                 ? 'Target Tabungan'
                 : activeTab === 'reports'
                 ? 'Laporan & Ekspor'
+                : activeTab === 'household'
+                ? 'Kas Keluarga Bersama'
+                : activeTab === 'subscriptions'
+                ? 'Langganan'
                 : 'Pengaturan & Backup'}
             </span>
           </div>
@@ -153,7 +157,7 @@ export function TopHeader({
               onClick={handlePrevMonth}
               aria-label="Bulan sebelumnya"
               title="Bulan Sebelumnya"
-              className="min-w-[36px] min-h-[36px] sm:min-w-[40px] sm:min-h-[40px] flex items-center justify-center hover:bg-surface-2 rounded-lg text-text-muted hover:text-text transition-colors"
+              className="min-w-[44px] min-h-[44px] flex items-center justify-center hover:bg-surface-2 rounded-xl text-text-muted hover:text-text transition-colors"
             >
               <CaretLeft size={16} weight="bold" />
             </button>
@@ -165,7 +169,7 @@ export function TopHeader({
               onClick={handleNextMonth}
               aria-label="Bulan berikutnya"
               title="Bulan Berikutnya"
-              className="min-w-[36px] min-h-[36px] sm:min-w-[40px] sm:min-h-[40px] flex items-center justify-center hover:bg-surface-2 rounded-lg text-text-muted hover:text-text transition-colors"
+              className="min-w-[44px] min-h-[44px] flex items-center justify-center hover:bg-surface-2 rounded-xl text-text-muted hover:text-text transition-colors"
             >
               <CaretRight size={16} weight="bold" />
             </button>
@@ -180,7 +184,7 @@ export function TopHeader({
             onClick={togglePrivacyMode}
             title={isPrivacyMode ? 'Tampilkan Nominal Saldo' : 'Sensor Nominal Saldo (Mode Privasi)'}
             aria-label={isPrivacyMode ? 'Tampilkan Nominal Saldo' : 'Sensor Nominal Saldo (Mode Privasi)'}
-            className={`w-9 h-9 flex items-center justify-center rounded-2xl border transition-colors shadow-2xs ${
+            className={`w-11 h-11 flex items-center justify-center rounded-2xl border transition-colors shadow-2xs ${
               isPrivacyMode
                 ? 'bg-warning/15 text-warning border-warning/30'
                 : 'bg-surface text-text-muted hover:text-text border-border'

@@ -129,7 +129,7 @@ export function WalletsView({ wallets, onRefresh, onOpenTransfer, onAddWallet }:
       <div className="p-5 bg-surface border border-border rounded-3xl flex items-center justify-between shadow-xs">
         <div>
           <p className="text-xs font-semibold text-text-muted">Total Saldo di Semua Pos</p>
-          <p className="text-xl md:text-3xl font-extrabold text-primary mt-1">
+          <p className="font-display-num text-xl md:text-3xl font-extrabold text-primary mt-1 tabular-nums">
             {formatRupiah(totalBalance)}
           </p>
         </div>
@@ -195,14 +195,14 @@ export function WalletsView({ wallets, onRefresh, onOpenTransfer, onAddWallet }:
                     type="button"
                     disabled={isDeleting}
                     onClick={() => handleDelete(wallet.id)}
-                    className="min-h-[36px] px-3 py-1.5 bg-expense text-white text-xs font-bold rounded-xl hover:opacity-90 transition-opacity shadow-2xs"
+                    className="min-h-[44px] px-3 py-1.5 bg-expense text-white text-xs font-bold rounded-xl hover:opacity-90 transition-opacity shadow-2xs"
                   >
                     {isDeleting ? '...' : 'Hapus'}
                   </button>
                   <button
                     type="button"
                     onClick={() => setConfirmDeleteId(null)}
-                    className="min-h-[36px] px-3 py-1.5 bg-surface-2 hover:bg-surface-3 text-text text-xs font-semibold rounded-xl border border-border transition-colors"
+                    className="min-h-[44px] px-3 py-1.5 bg-surface-2 hover:bg-surface-3 text-text text-xs font-semibold rounded-xl border border-border transition-colors"
                   >
                     Batal
                   </button>
@@ -234,7 +234,7 @@ export function WalletsView({ wallets, onRefresh, onOpenTransfer, onAddWallet }:
             <div className="pt-2 border-t border-border/60 flex items-center justify-between">
               <div className="space-y-0.5 min-w-0 flex-1 pr-2">
                 <span className="text-[10px] text-text-muted block">Saldo Tercatat</span>
-                <span className={`text-base sm:text-lg font-extrabold ${wallet.balance < 0 ? 'text-expense' : 'text-text'}`}>
+                <span className={`font-display-num text-base sm:text-lg font-extrabold tabular-nums ${wallet.balance < 0 ? 'text-expense' : 'text-text'}`}>
                   {formatRupiah(wallet.balance)}
                 </span>
                 {wallet.balance < 0 && (

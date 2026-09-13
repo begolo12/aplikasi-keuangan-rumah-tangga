@@ -38,6 +38,8 @@ interface SidebarNavProps {
   pendingBillsCount?: number;
   overbudgetCount?: number;
   unpaidDebtsCount?: number;
+  subscriptionCount?: number;
+  householdActivityCount?: number;
 }
 
 interface NavSection {
@@ -61,6 +63,8 @@ export function SidebarNav({
   pendingBillsCount = 0,
   overbudgetCount = 0,
   unpaidDebtsCount = 0,
+  subscriptionCount = 0,
+  householdActivityCount = 0,
 }: SidebarNavProps) {
   const [isCollapsed, setIsCollapsed] = useState<boolean>(() => {
     if (typeof window === 'undefined') return false;
@@ -127,7 +131,7 @@ export function SidebarNav({
       title: 'Kas & Anggaran',
       items: [
         { id: 'wallets', label: 'Pos Kas & Rekening', icon: Wallet },
-        { id: 'household', label: 'Kas Keluarga Bersama', icon: UsersThree },
+        { id: 'household', label: 'Kas Keluarga Bersama', icon: UsersThree, badge: householdActivityCount > 0 ? String(householdActivityCount) : undefined },
         {
           id: 'budget',
           label: 'Anggaran Bulanan',
@@ -140,7 +144,12 @@ export function SidebarNav({
           icon: Receipt,
           badge: pendingBillsCount > 0 ? String(pendingBillsCount) : undefined,
         },
-        { id: 'subscriptions', label: 'Langganan', icon: Clock },
+        {
+          id: 'subscriptions',
+          label: 'Langganan',
+          icon: Clock,
+          badge: subscriptionCount > 0 ? String(subscriptionCount) : undefined,
+        },
         { id: 'goals', label: 'Target Tabungan', icon: Target },
       ],
     },
@@ -173,7 +182,7 @@ export function SidebarNav({
 
   return (
     <aside
-      className={`hidden md:flex flex-col shrink-0 bg-surface border-r border-border min-h-screen sticky top-0 h-screen justify-between transition-all duration-300 ease-in-out overflow-y-auto no-scrollbar select-none z-30 ${
+      className={`hidden md:flex flex-col shrink-0 bg-surface border-r border-border sticky top-0 h-dvh justify-between transition-all duration-300 ease-in-out overflow-y-auto no-scrollbar select-none z-30 ${
         isCollapsed ? 'w-[72px] px-2.5 py-4' : 'w-64 p-4'
       }`}
     >
@@ -183,7 +192,7 @@ export function SidebarNav({
           <div className={`flex items-center gap-3 min-w-0 ${isCollapsed ? 'justify-center w-full' : ''}`}>
             <div
               onClick={() => isCollapsed && toggleCollapsed()}
-              className={`w-9 h-9 bg-primary text-primary-fg rounded-2xl flex items-center justify-center shadow-md shadow-primary/20 ring-1 ring-primary/20 shrink-0 ${
+              className={`w-9 h-9 bg-primary text-primary-fg rounded-2xl flex items-center justify-center shadow-sm shadow-primary/15 ring-1 ring-primary/20 shrink-0 ${
                 isCollapsed ? 'cursor-pointer hover:scale-105 transition-transform' : ''
               }`}
               title={isCollapsed ? 'Klik untuk memperluas sidebar' : undefined}
@@ -192,7 +201,7 @@ export function SidebarNav({
             </div>
             {!isCollapsed && (
               <div className="min-w-0 flex-1">
-                <h1 className="text-base font-extrabold text-text leading-tight tracking-tight">KasPribadi</h1>
+                <h1 className="text-base font-extrabold text-text leading-tight tracking-tight">KasKeluarga</h1>
                 <p className="text-[11px] text-text-muted font-medium truncate">{familyName}</p>
               </div>
             )}
@@ -223,7 +232,7 @@ export function SidebarNav({
                 aria-expanded={isDropdownOpen}
                 aria-haspopup="true"
                 aria-label="Catat Transaksi"
-                className="w-10 h-10 bg-primary hover:bg-primary-hover active:scale-95 text-primary-fg font-bold rounded-2xl flex items-center justify-center shadow-md shadow-primary/25 transition-all"
+                className="w-10 h-10 bg-primary hover:bg-primary-hover active:scale-95 text-primary-fg font-bold rounded-2xl flex items-center justify-center shadow-sm shadow-primary/20 transition-all"
               >
                 <Plus size={20} weight="bold" />
               </button>
@@ -244,7 +253,7 @@ export function SidebarNav({
               onClick={() => setIsDropdownOpen(!isDropdownOpen)}
               aria-expanded={isDropdownOpen}
               aria-haspopup="true"
-              className="w-full h-9.5 bg-primary hover:bg-primary-hover active:scale-[0.98] text-primary-fg font-bold rounded-xl flex items-center justify-between px-3.5 shadow-sm shadow-primary/20 transition-all text-xs group"
+              className="w-full h-[38px] bg-primary hover:bg-primary-hover active:scale-[0.98] text-primary-fg font-bold rounded-xl flex items-center justify-between px-3.5 shadow-sm shadow-primary/20 transition-all text-xs group"
             >
               <div className="flex items-center gap-2">
                 <Plus size={16} weight="bold" />
@@ -264,7 +273,7 @@ export function SidebarNav({
           {/* Dropdown Menu Card */}
           {isDropdownOpen && (
             <div
-              className={`absolute z-50 bg-surface/98 backdrop-blur-md border border-border rounded-2xl shadow-xl p-1.5 space-y-1 animate-in fade-in zoom-in-95 duration-150 ${
+              className={`absolute z-50 bg-surface border border-border rounded-2xl shadow-lg p-1.5 space-y-1 animate-scale-in origin-top-left ${
                 isCollapsed
                   ? 'left-full top-0 ml-2.5 w-60'
                   : 'left-0 right-0 top-full mt-2'

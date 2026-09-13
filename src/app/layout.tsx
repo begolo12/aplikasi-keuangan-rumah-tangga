@@ -54,7 +54,7 @@ export default function RootLayout({
           }}
         />
       </head>
-      <body className="min-h-screen bg-background text-text antialiased selection:bg-primary selection:text-white">
+      <body className="min-h-dvh bg-background text-text antialiased selection:bg-primary selection:text-white">
         <ServiceWorkerRegister />
         {children}
       </body>

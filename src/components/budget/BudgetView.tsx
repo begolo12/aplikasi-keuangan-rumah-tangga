@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Budget, Category, Wallet, RecurringBill, Debt, BudgetTemplate } from '@/lib/types';
+import { Budget, Category, Wallet, RecurringBill, Debt } from '@/lib/types';
 import { BudgetProgressBar } from './BudgetProgressBar';
 import { FinancialSafetyPlanCard, calculateFinancialSafetyPlan } from './FinancialSafetyPlanCard';
 import { ExpenseProjectionCard } from './ExpenseProjectionCard';
@@ -189,7 +189,7 @@ export function BudgetView({
             variant="outline"
             size="md"
             onClick={handleOpenTemplateSelector}
-            className="bg-gradient-to-r from-purple-50 to-indigo-50 border-purple-200 text-purple-900 hover:from-purple-100 hover:to-indigo-100"
+            className="bg-primary-subtle border-primary/25 text-primary hover:bg-primary/15"
           >
             <Sparkle size={18} />
             Gunakan Template
@@ -315,7 +315,7 @@ export function BudgetView({
             variant={plan.can_expand_expense ? 'primary' : 'danger'}
             size="lg"
             isLoading={isLoading}
-            className="w-full mt-4 font-bold shadow-md"
+            className="w-full mt-4 font-bold shadow-xs"
           >
             {editingBudget ? 'Simpan Perubahan Anggaran' : 'Tetapkan Anggaran Kategori'}
           </Button>

@@ -125,7 +125,7 @@ export default function RegisterPage() {
           variant="primary"
           size="lg"
           isLoading={isLoading}
-          className="w-full mt-2 text-base font-bold shadow-md"
+          className="w-full mt-2 text-base font-bold shadow-xs"
         >
           Daftar & Mulai
         </Button>

@@ -178,8 +178,8 @@ export function HouseholdView({ onRefreshParent }: HouseholdViewProps) {
 
   if (error) {
     return (
-      <div className="rounded-2xl border border-red-200 bg-red-50 p-6 text-center space-y-3">
-        <p className="text-sm font-semibold text-red-700">{error}</p>
+      <div className="rounded-2xl border border-expense/30 bg-expense-subtle p-6 text-center space-y-3">
+        <p className="text-sm font-semibold text-expense">{error}</p>
         <button
           type="button"
           onClick={() => {
@@ -210,7 +210,7 @@ export function HouseholdView({ onRefreshParent }: HouseholdViewProps) {
         </div>
 
         {actionError && (
-          <div role="alert" className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
+          <div role="alert" className="rounded-xl border border-expense/30 bg-expense-subtle px-4 py-3 text-sm font-semibold text-expense">
             {actionError}
           </div>
         )}
@@ -277,7 +277,7 @@ export function HouseholdView({ onRefreshParent }: HouseholdViewProps) {
   return (
     <div className="space-y-4">
       {actionError && (
-        <div role="alert" className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
+        <div role="alert" className="rounded-xl border border-expense/30 bg-expense-subtle px-4 py-3 text-sm font-semibold text-expense">
           {actionError}
         </div>
       )}
@@ -355,7 +355,7 @@ export function HouseholdView({ onRefreshParent }: HouseholdViewProps) {
                 <button
                   type="button"
                   onClick={() => setRemoveMemberTarget({ id: m.user_id, name: m.name })}
-                  className="min-h-[36px] px-2.5 rounded-lg text-expense text-[10px] font-bold hover:bg-expense/10 transition-colors shrink-0"
+                  className="min-h-[44px] px-2.5 rounded-lg text-expense text-[10px] font-bold hover:bg-expense/10 transition-colors shrink-0"
                 >
                   Keluarkan
                 </button>

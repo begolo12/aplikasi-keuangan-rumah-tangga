@@ -89,7 +89,7 @@ export function ColdMoneyCard({
     <div
       className={`p-4 sm:p-5 rounded-3xl border transition-all shadow-xs ${
         info.is_available
-          ? 'bg-blue-500/5 border-blue-500/25'
+          ? 'bg-transfer-subtle border-transfer/30'
           : 'bg-surface border-border'
       }`}
     >
@@ -154,7 +154,7 @@ export function ColdMoneyCard({
         <div
           className={`p-3 rounded-2xl border space-y-1 ${
             info.is_available
-              ? 'bg-blue-500/10 border-blue-500/30'
+              ? 'bg-transfer-subtle border-transfer/35'
               : 'bg-surface-2 border-border'
           }`}
         >
@@ -178,7 +178,7 @@ export function ColdMoneyCard({
       <div
         className={`p-3.5 rounded-2xl border text-xs flex items-start gap-2.5 ${
           info.is_available
-            ? 'bg-blue-500/10 border-blue-500/20 text-text'
+            ? 'bg-transfer-subtle border-transfer/25 text-text'
             : 'bg-surface-2 border-border/70 text-text'
         }`}
       >

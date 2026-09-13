@@ -6,8 +6,8 @@ import { AmountInput } from '../ui/AmountInput';
 import { Button } from '../ui/Button';
 import { Wallet, Category, Transaction, TransactionType, AssetCategory, ParsedReceiptResult, Budget } from '@/lib/types';
 import { enqueueOfflineMutation } from '@/lib/offlineQueue';
-import { apiFetch, endpoints } from '@/lib/apiFetch';
-import { formatRupiah, getLocalDateString, formatCurrency } from '@/lib/formatters';
+import { apiFetch, endpoints, ApiError } from '@/lib/apiFetch';
+import { formatRupiah, getLocalDateString } from '@/lib/formatters';
 import { ReceiptParserModal } from './ReceiptParserModal';
 import { WifiSlash, Sparkle, Package, PencilSimple, Plus } from '@phosphor-icons/react';
 
@@ -195,6 +195,27 @@ function TransactionForm({
       onSuccess();
       onClose();
     } catch (err: unknown) {
+      // Jaringan putus mendadak saat submit (bukan penolakan server 4xx/5xx):
+      // simpan ke antrean offline agar input tidak hilang.
+      const isServerRejection = err instanceof ApiError && err.status !== 0;
+      if (!isServerRejection) {
+        try {
+          await enqueueOfflineMutation({
+            userId,
+            endpoint: isEditing && editingTransaction ? `/api/transactions/${editingTransaction.id}` : '/api/transactions',
+            method: isEditing ? 'PUT' : 'POST',
+            payload,
+          });
+          setOfflineNotice(true);
+          setTimeout(() => {
+            onSuccess();
+            onClose();
+          }, 1200);
+          return;
+        } catch {
+          // IndexedDB gagal: tampilkan error jaringan biasa.
+        }
+      }
       setError(err instanceof Error ? err.message : 'Terjadi kesalahan sistem.');
     } finally {
       submittingRef.current = false;
@@ -527,7 +548,7 @@ function TransactionForm({
         variant={type === 'expense' ? 'danger' : type === 'income' ? 'income' : 'primary'}
         size="lg"
         isLoading={isLoading}
-        className="w-full mt-4 text-base font-bold shadow-md"
+        className="w-full mt-4 text-base font-bold shadow-xs"
       >
         {isEditing
           ? 'Simpan Perubahan Transaksi'

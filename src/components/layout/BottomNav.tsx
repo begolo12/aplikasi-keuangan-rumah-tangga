@@ -21,6 +21,7 @@ import {
   Plus,
   CalendarBlank,
   UsersThree,
+  Clock,
 } from '@phosphor-icons/react';
 import { TransactionType } from '@/lib/types';
 
@@ -35,6 +36,7 @@ interface BottomNavProps {
   overbudgetCount?: number;
   unpaidDebtsCount?: number;
   householdActivityCount?: number;
+  subscriptionCount?: number;
 }
 
 export function BottomNav({
@@ -46,6 +48,7 @@ export function BottomNav({
   overbudgetCount = 0,
   unpaidDebtsCount = 0,
   householdActivityCount = 0,
+  subscriptionCount = 0,
 }: BottomNavProps) {
   const [isMoreOpen, setIsMoreOpen] = useState(false);
   const sheetRef = useRef<HTMLDivElement>(null);
@@ -104,6 +107,7 @@ export function BottomNav({
     { id: 'household' as NavTab, label: 'Keluarga', icon: UsersThree, badge: householdActivityCount > 0 ? householdActivityCount : undefined },
     { id: 'budget' as NavTab, label: 'Anggaran', icon: Vault, badge: overbudgetCount > 0 ? overbudgetCount : undefined },
     { id: 'bills' as NavTab, label: 'Tagihan', icon: Receipt, badge: pendingBillsCount > 0 ? pendingBillsCount : undefined },
+    { id: 'subscriptions' as NavTab, label: 'Langganan', icon: Clock, badge: subscriptionCount > 0 ? subscriptionCount : undefined },
     { id: 'debts' as NavTab, label: 'Hutang', icon: HandCoins, badge: unpaidDebtsCount > 0 ? unpaidDebtsCount : undefined },
     { id: 'goals' as NavTab, label: 'Target', icon: Target },
     { id: 'assets' as NavTab, label: 'Aset', icon: Package },
@@ -112,14 +116,20 @@ export function BottomNav({
     { id: 'settings' as NavTab, label: 'Pengaturan', icon: Gear },
   ];
 
-  const iMoreActive = ['calendar', 'household', 'budget', 'bills', 'debts', 'assets', 'goals', 'reports', 'evaluation', 'settings'].includes(activeTab);
-  const totalBadge = (overbudgetCount > 0 ? 1 : 0) + (pendingBillsCount > 0 ? 1 : 0) + (unpaidDebtsCount > 0 ? 1 : 0);
+  const iMoreActive = ['calendar', 'household', 'budget', 'bills', 'subscriptions', 'debts', 'assets', 'goals', 'reports', 'evaluation', 'settings'].includes(activeTab);
+  const totalBadge = (overbudgetCount > 0 ? 1 : 0) + (pendingBillsCount > 0 ? 1 : 0) + (unpaidDebtsCount > 0 ? 1 : 0) + (subscriptionCount > 0 ? 1 : 0) + (householdActivityCount > 0 ? 1 : 0);
 
   return (
     <>
-      {/* Bottom Navigation Bar */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-surface/97 backdrop-blur-xl border-t border-border pb-[max(env(safe-area-inset-bottom),0.25rem)] shadow-lg">
-        <div className="flex items-center justify-around max-w-lg mx-auto px-1 pt-1 relative">
+      {/* Bottom Navigation Bar
+          Catatan: TIDAK memakai backdrop-blur. Blur pada elemen fixed memicu repaint
+          di setiap frame scroll dan itulah penyebab nav terlihat bergoyang di HP.
+          Warna solid + border sudah cukup dan jauh lebih murah. */}
+      <nav
+        aria-label="Navigasi Utama Bawah"
+        className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-surface border-t border-border shadow-[0_-2px_10px_rgba(0,0,0,0.06)] pb-[max(env(safe-area-inset-bottom),0.25rem)]"
+      >
+        <div className="flex items-end justify-around max-w-lg mx-auto px-1 pt-1.5">
           {/* Left Tabs */}
           {TAB_PRIMARY.map((tab) => {
             const Icon = tab.icon;
@@ -129,30 +139,31 @@ export function BottomNav({
                 key={tab.id}
                 type="button"
                 onClick={() => handleTabChange(tab.id)}
-                className={`flex flex-col items-center justify-center py-1 px-2.5 min-w-[54px] min-h-[46px] rounded-xl transition-all ${
+                aria-current={isActive ? 'page' : undefined}
+                className={`relative flex flex-col items-center justify-center py-1 px-2.5 min-w-[56px] min-h-[48px] rounded-xl transition-colors duration-150 ${
                   isActive ? 'text-primary' : 'text-text-muted'
                 }`}
               >
                 <Icon size={22} weight={isActive ? 'fill' : 'regular'} />
-                <span className={`text-[10px] mt-0.5 font-semibold ${isActive ? 'text-primary' : 'text-text-muted'}`}>
-                  {tab.label}
-                </span>
+                <span className="text-[10px] mt-0.5 font-semibold">{tab.label}</span>
                 {isActive && (
-                  <span className="absolute bottom-0 w-6 h-0.5 bg-primary rounded-full" style={{ position: 'absolute', bottom: '2px' }} />
+                  <span className="absolute top-0 w-6 h-0.5 bg-primary rounded-full" />
                 )}
               </button>
             );
           })}
 
-          {/* Center FAB */}
-          <div className="relative -top-4 flex flex-col items-center">
+          {/* Center FAB: duduk rata dengan baris tab, tidak lagi menonjol keluar
+              (overhang negatif membuat tinggi nav berubah dan memicu goyangan). */}
+          <div className="flex flex-col items-center">
             <button
               type="button"
               onClick={onOpenAddModal}
-              className="w-14 h-14 bg-primary text-primary-fg rounded-full flex items-center justify-center shadow-lg shadow-primary/30 border-4 border-surface active:scale-90 transition-transform"
+              data-tap-target="lg"
+              className="w-[52px] h-[52px] min-w-[52px] min-h-[52px] bg-primary text-primary-fg rounded-full flex items-center justify-center shadow-lg shadow-primary/25 active:scale-90 transition-transform"
               aria-label="Catat Transaksi Baru"
             >
-              <Plus size={26} weight="bold" />
+              <Plus size={24} weight="bold" />
             </button>
             <span className="text-[10px] font-bold text-primary mt-0.5">Catat</span>
           </div>
@@ -166,14 +177,16 @@ export function BottomNav({
                 key={tab.id}
                 type="button"
                 onClick={() => handleTabChange(tab.id)}
-                className={`flex flex-col items-center justify-center py-1 px-2.5 min-w-[54px] min-h-[46px] rounded-xl transition-all ${
+                aria-current={isActive ? 'page' : undefined}
+                className={`relative flex flex-col items-center justify-center py-1 px-2.5 min-w-[56px] min-h-[48px] rounded-xl transition-colors duration-150 ${
                   isActive ? 'text-primary' : 'text-text-muted'
                 }`}
               >
                 <Icon size={22} weight={isActive ? 'fill' : 'regular'} />
-                <span className={`text-[10px] mt-0.5 font-semibold ${isActive ? 'text-primary' : 'text-text-muted'}`}>
-                  {tab.label}
-                </span>
+                <span className="text-[10px] mt-0.5 font-semibold">{tab.label}</span>
+                {isActive && (
+                  <span className="absolute top-0 w-6 h-0.5 bg-primary rounded-full" />
+                )}
               </button>
             );
           })}
@@ -184,26 +197,31 @@ export function BottomNav({
             ref={moreTriggerRef}
             onClick={() => setIsMoreOpen(!isMoreOpen)}
             aria-expanded={isMoreOpen}
-            className={`flex flex-col items-center justify-center py-1 px-2.5 min-w-[54px] min-h-[46px] rounded-xl transition-all relative ${
+            aria-label="Menu lainnya"
+            className={`relative flex flex-col items-center justify-center py-1 px-2.5 min-w-[56px] min-h-[48px] rounded-xl transition-colors duration-150 ${
               iMoreActive || isMoreOpen ? 'text-primary' : 'text-text-muted'
             }`}
           >
             {totalBadge > 0 && (
-              <span className="absolute top-1 right-2 w-4 h-4 bg-expense text-white rounded-full text-[9px] font-bold flex items-center justify-center">
+              <span className="absolute top-1.5 right-2.5 w-4 h-4 bg-expense text-white rounded-full text-[9px] font-bold flex items-center justify-center">
                 {totalBadge}
               </span>
             )}
             {isMoreOpen ? <X size={22} weight="bold" /> : <DotsThree size={22} weight="bold" />}
-            <span className={`text-[10px] mt-0.5 font-semibold ${iMoreActive || isMoreOpen ? 'text-primary' : 'text-text-muted'}`}>
-              Lainnya
-            </span>
+            <span className="text-[10px] mt-0.5 font-semibold">Lainnya</span>
+            {(iMoreActive || isMoreOpen) && (
+              <span className="absolute top-0 w-6 h-0.5 bg-primary rounded-full" />
+            )}
           </button>
         </div>
       </nav>
 
       {/* More Sheet Overlay */}
       {isMoreOpen && (
-        <div className="md:hidden fixed inset-0 z-50 bg-black/40 backdrop-blur-xs animate-fade-in" onClick={() => setIsMoreOpen(false)} />
+        <div
+          className="md:hidden fixed inset-0 z-50 bg-black/45 animate-fade-in"
+          onClick={() => setIsMoreOpen(false)}
+        />
       )}
 
       {/* More Bottom Sheet */}
@@ -225,7 +243,8 @@ export function BottomNav({
             <button
               type="button"
               onClick={() => setIsMoreOpen(false)}
-              className="p-1.5 text-text-muted hover:text-text hover:bg-surface-2 rounded-xl transition-colors"
+              aria-label="Tutup menu"
+              className="p-1.5 text-text-muted hover:text-text hover:bg-surface-2 rounded-xl transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
             >
               <X size={18} />
             </button>

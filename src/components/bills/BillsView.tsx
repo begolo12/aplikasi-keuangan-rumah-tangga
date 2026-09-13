@@ -242,7 +242,7 @@ export function BillsView({
         <button
           type="button"
           onClick={() => setActiveFilter('all')}
-          className={`min-h-[36px] px-3.5 text-xs font-bold rounded-xl transition-colors shrink-0 ${
+          className={`min-h-[44px] px-3.5 text-xs font-bold rounded-xl transition-colors shrink-0 ${
             activeFilter === 'all'
               ? 'bg-text text-background'
               : 'bg-surface border border-border text-text-muted hover:text-text'
@@ -253,7 +253,7 @@ export function BillsView({
         <button
           type="button"
           onClick={() => setActiveFilter('expense')}
-          className={`min-h-[36px] px-3.5 text-xs font-bold rounded-xl transition-colors shrink-0 ${
+          className={`min-h-[44px] px-3.5 text-xs font-bold rounded-xl transition-colors shrink-0 ${
             activeFilter === 'expense'
               ? 'bg-expense text-white'
               : 'bg-surface border border-border text-text-muted hover:text-text'
@@ -264,7 +264,7 @@ export function BillsView({
         <button
           type="button"
           onClick={() => setActiveFilter('income')}
-          className={`min-h-[36px] px-3.5 text-xs font-bold rounded-xl transition-colors shrink-0 ${
+          className={`min-h-[44px] px-3.5 text-xs font-bold rounded-xl transition-colors shrink-0 ${
             activeFilter === 'income'
               ? 'bg-income text-white'
               : 'bg-surface border border-border text-text-muted hover:text-text'
@@ -276,7 +276,7 @@ export function BillsView({
           <button
             type="button"
             onClick={() => setActiveFilter('transfer')}
-            className={`min-h-[36px] px-3.5 text-xs font-bold rounded-xl transition-colors shrink-0 ${
+            className={`min-h-[44px] px-3.5 text-xs font-bold rounded-xl transition-colors shrink-0 ${
               activeFilter === 'transfer'
                 ? 'bg-primary text-white'
                 : 'bg-surface border border-border text-text-muted hover:text-text'

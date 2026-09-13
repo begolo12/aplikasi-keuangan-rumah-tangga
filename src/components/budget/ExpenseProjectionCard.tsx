@@ -318,13 +318,13 @@ export function ExpenseProjectionCard({
             <button
               type="button"
               onClick={() => setIsEditingRemaining(false)}
-              className="min-h-[36px] px-3.5 py-1.5 bg-surface-3 text-text rounded-xl text-xs font-semibold hover:bg-surface border border-border"
+              className="min-h-[44px] px-3.5 py-1.5 bg-surface-3 text-text rounded-xl text-xs font-semibold hover:bg-surface border border-border"
             >
               Batal
             </button>
             <button
               type="submit"
-              className="min-h-[36px] px-4 py-1.5 bg-primary text-white rounded-xl text-xs font-bold hover:opacity-90 transition-opacity"
+              className="min-h-[44px] px-4 py-1.5 bg-primary text-white rounded-xl text-xs font-bold hover:opacity-90 transition-opacity"
             >
               Terapkan Proyeksi
             </button>

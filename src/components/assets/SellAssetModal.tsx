@@ -291,7 +291,7 @@ export function SellAssetModal({
           variant="primary"
           size="lg"
           isLoading={isLoading}
-          className="w-full mt-4 font-bold shadow-md"
+          className="w-full mt-4 font-bold shadow-xs"
         >
           Konfirmasi Jual & Terima Kas {formatRupiah(sellingPrice)}
         </Button>

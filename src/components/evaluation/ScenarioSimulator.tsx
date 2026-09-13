@@ -564,7 +564,7 @@ export function ScenarioSimulator({
 
                   {projection12.firstNegative ? (
                     <p className="text-[11px] font-bold text-expense bg-expense/10 border border-expense/20 rounded-xl px-2.5 py-1.5">
-                      Kas diproyeksi minus pada {projection12.firstNegative.label} (bulan ke-{projection12.firstNegative.idx}) — {formatRupiah(projection12.firstNegative.cashScenario)}.
+                      Kas diproyeksi minus pada {projection12.firstNegative.label} (bulan ke-{projection12.firstNegative.idx}): {formatRupiah(projection12.firstNegative.cashScenario)}.
                     </p>
                   ) : projection12.firstBelowReserve ? (
                     <p className="text-[11px] font-bold text-warning bg-warning/10 border border-warning/20 rounded-xl px-2.5 py-1.5">

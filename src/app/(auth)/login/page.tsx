@@ -88,7 +88,7 @@ export default function LoginPage() {
           variant="primary"
           size="lg"
           isLoading={isLoading}
-          className="w-full mt-2 text-base font-bold shadow-md"
+          className="w-full mt-2 text-base font-bold shadow-xs"
         >
           Masuk ke Akun
         </Button>

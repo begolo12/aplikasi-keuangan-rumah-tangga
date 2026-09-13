@@ -23,7 +23,7 @@ const eventTypes: EventTypeConfig[] = [
     slug: 'bonus',
     label: 'Pemasukan Tambahan',
     description: 'Bonus, tunjangan, atau pemasukan ekstra lainnya',
-    color: '#10b181', // emerald-500 (income color)
+    color: 'hsl(var(--color-income))',
     textColor: '#ffffff',
     icon: TrendUp,
     category: 'income'
@@ -32,7 +32,7 @@ const eventTypes: EventTypeConfig[] = [
     slug: 'insurance_renewal',
     label: 'Perpanjangan Polis Asuransi',
     description: 'Tanggal jatuh tempo perpanjangan asuransi',
-    color: '#f59e0b', // amber-500 (warning color)
+    color: 'hsl(var(--color-warning))',
     textColor: '#ffffff',
     icon: FileText,
     category: 'warning'
@@ -41,7 +41,7 @@ const eventTypes: EventTypeConfig[] = [
     slug: 'tax_deadline',
     label: 'Batas Waktu Pembayaran Pajak',
     description: 'Jatuh tempo pembayaran pajak tahunan/bulanan',
-    color: '#ef4444', // red-500 (expense color)
+    color: 'hsl(var(--color-expense))',
     textColor: '#ffffff',
     icon: WarningCircle,
     category: 'expense'
@@ -50,7 +50,7 @@ const eventTypes: EventTypeConfig[] = [
     slug: 'investment_contribution',
     label: 'Kontribusi Investasi',
     description: 'Kontribusi investasi rutin bulanan/tahunan',
-    color: '#3b82f6', // blue-500 (primary color)
+    color: 'hsl(var(--color-transfer))',
     textColor: '#ffffff',
     icon: ChartPieSlice,
     category: 'primary'
@@ -58,10 +58,10 @@ const eventTypes: EventTypeConfig[] = [
 ];
 
 export const EVENT_TYPE_COLORS: Record<FinancialEventType, string> = {
-  bonus: '#10b181',
-  insurance_renewal: '#f59e0b',
-  tax_deadline: '#ef4444',
-  investment_contribution: '#3b82f6'
+  bonus: 'hsl(var(--color-income))',
+  insurance_renewal: 'hsl(var(--color-warning))',
+  tax_deadline: 'hsl(var(--color-expense))',
+  investment_contribution: 'hsl(var(--color-transfer))'
 };
 
 export const EVENT_TYPE_ICONS: Record<FinancialEventType, React.ElementType> = {

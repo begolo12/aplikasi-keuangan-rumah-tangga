@@ -43,7 +43,7 @@ export function WalletScroller({ wallets, onAddWallet, onTransfer }: WalletScrol
           return (
           <div
             key={wallet.id}
-            className="snap-start shrink-0 w-[190px] md:w-auto p-3 sm:p-3.5 bg-surface border border-border rounded-xl sm:rounded-2xl flex flex-col justify-between hover:border-primary/40 transition-all shadow-2xs"
+            className="snap-start shrink-0 w-[190px] md:w-auto p-3 sm:p-3.5 bg-surface border border-border rounded-2xl flex flex-col justify-between hover:border-primary/40 transition-all shadow-2xs"
           >
             <div className="flex items-center justify-between mb-2">
               <CategoryIcon name={wallet.icon} color={wallet.color} size={17} className="w-8 h-8" />

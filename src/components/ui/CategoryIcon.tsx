@@ -59,16 +59,21 @@ const ICON_MAP: Record<string, React.ElementType> = {
   'car': Car,
 };
 
+/* Warna kategori dipetakan ke palet DESIGN.md ("Klasik Rumah"): maksimal 3 core
+   (emerald/primary, terracotta/expense, hijau lumut/income) + transfer & warning sebagai
+   semantik. Key lama dipertahankan agar data kategori yang sudah tersimpan di database
+   tetap resolve tanpa migrasi. */
 const COLOR_MAP: Record<string, { bg: string; text: string }> = {
-  emerald: { bg: 'bg-emerald-50 dark:bg-emerald-950/40', text: 'text-emerald-600 dark:text-emerald-400' },
-  teal: { bg: 'bg-teal-50 dark:bg-teal-950/40', text: 'text-teal-600 dark:text-teal-400' },
-  blue: { bg: 'bg-blue-50 dark:bg-blue-950/40', text: 'text-blue-600 dark:text-blue-400' },
-  indigo: { bg: 'bg-indigo-50 dark:bg-indigo-950/40', text: 'text-indigo-600 dark:text-indigo-400' },
-  purple: { bg: 'bg-purple-50 dark:bg-purple-950/40', text: 'text-purple-600 dark:text-purple-400' },
-  orange: { bg: 'bg-orange-50 dark:bg-orange-950/40', text: 'text-orange-600 dark:text-orange-400' },
-  amber: { bg: 'bg-amber-50 dark:bg-amber-950/40', text: 'text-amber-600 dark:text-amber-400' },
-  rose: { bg: 'bg-rose-50 dark:bg-rose-950/40', text: 'text-rose-600 dark:text-rose-400' },
-  red: { bg: 'bg-red-50 dark:bg-red-950/40', text: 'text-red-600 dark:text-red-400' },
+  emerald: { bg: 'bg-primary-subtle', text: 'text-primary' },
+  teal: { bg: 'bg-primary-subtle', text: 'text-primary' },
+  blue: { bg: 'bg-transfer-subtle', text: 'text-transfer' },
+  indigo: { bg: 'bg-transfer-subtle', text: 'text-transfer' },
+  purple: { bg: 'bg-transfer-subtle', text: 'text-transfer' },
+  orange: { bg: 'bg-expense-subtle', text: 'text-expense' },
+  amber: { bg: 'bg-warning-subtle', text: 'text-warning' },
+  rose: { bg: 'bg-expense-subtle', text: 'text-expense' },
+  red: { bg: 'bg-expense-subtle', text: 'text-expense' },
+  green: { bg: 'bg-income-subtle', text: 'text-income' },
   gray: { bg: 'bg-surface-2', text: 'text-text-muted' },
 };
 

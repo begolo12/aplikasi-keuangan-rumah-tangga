@@ -98,8 +98,6 @@ export function SubscriptionsView({
     }
   };
 
-  const getFirstDefaultWallet = () => wallets.find((w) => w.is_default) || wallets[0];
-
   return (
     <div className="space-y-5 sm:space-y-6">
       {/* Header */}
@@ -147,14 +145,14 @@ export function SubscriptionsView({
 
         <div className="p-3 sm:p-4 bg-surface border border-border rounded-2xl shadow-xs space-y-1 flex flex-col justify-between">
           <div className="flex items-center gap-1.5 text-text-muted text-xs font-bold">
-            <CheckCircle size={16} weight="bold" className="text-emerald-500" />
+            <CheckCircle size={16} weight="bold" className="text-income" />
             <span className="truncate">Status</span>
           </div>
           <div className="flex items-center gap-2">
             {activeSubs.length > 0 ? (
               <>
-                <CheckCircle size={16} weight="fill" className="text-emerald-500" />
-                <span className="text-sm font-bold text-emerald-600">{activeSubs.length} Aktif</span>
+                <CheckCircle size={16} weight="fill" className="text-income" />
+                <span className="text-sm font-bold text-income">{activeSubs.length} Aktif</span>
               </>
             ) : (
               <>

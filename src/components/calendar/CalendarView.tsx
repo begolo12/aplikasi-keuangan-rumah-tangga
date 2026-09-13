@@ -38,10 +38,10 @@ type DailyAgg = {
 
 const WEEKDAYS = ['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min'];
 const EVENT_COLORS: Record<FinancialEvent['type'], string> = {
-  bonus: '#10b181',
-  insurance_renewal: '#f59e0b',
-  tax_deadline: '#ef4444',
-  investment_contribution: '#3b82f6',
+  bonus: 'bg-income',
+  insurance_renewal: 'bg-warning',
+  tax_deadline: 'bg-expense',
+  investment_contribution: 'bg-transfer',
 };
 
 function daysInMonth(month: number, year: number): number {
@@ -63,7 +63,7 @@ export function CalendarView({
   onEditTransaction,
   onDeleteTransaction: _onDeleteTransaction,
   onOpenAddModal,
-  onOpenEventModal,
+  onOpenEventModal: _onOpenEventModal,
   onEditEvent,
 }: CalendarViewProps) {
   const [selectedDay, setSelectedDay] = useState<number | null>(null);
@@ -301,10 +301,9 @@ export function CalendarView({
                 {hasEvents && selectedDay === day && (
                   <div className="absolute bottom-1 left-1/2 -translate-x-1/2 flex gap-1">
                     {dayEvents.map((event, idx) => (
-                      <div 
-                        key={idx} 
-                        className="w-2 h-2 rounded-full cursor-pointer hover:scale-125 transition-transform" 
-                        style={{ backgroundColor: EVENT_COLORS[event.type] }}
+                      <div
+                        key={idx}
+                        className={`w-2 h-2 rounded-full cursor-pointer hover:scale-125 transition-transform ${EVENT_COLORS[event.type]}`}
                         title={`Edit: ${event.title}`}
                       />
                     ))}
@@ -445,10 +444,10 @@ export function CalendarView({
                   <h4 className="text-xs font-bold text-text">Acara Keuangan</h4>
                   {selectedDayEvents.map((event) => {
                     const typeColors: Record<string, string> = {
-                      bonus: 'bg-[#10b181]',
-                      insurance_renewal: 'bg-[#f59e0b]',
-                      tax_deadline: 'bg-[#ef4444]',
-                      investment_contribution: 'bg-[#3b82f6]',
+                      bonus: 'bg-income',
+                      insurance_renewal: 'bg-warning',
+                      tax_deadline: 'bg-expense',
+                      investment_contribution: 'bg-transfer',
                     };
                     const typeLabels: Record<string, string> = {
                       bonus: 'Bonus',

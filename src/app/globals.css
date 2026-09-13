@@ -62,11 +62,18 @@
     -webkit-tap-highlight-color: transparent;
   }
 
+  html {
+    /* Cegah elastic bounce & pull-to-refresh yang membuat elemen fixed terlihat bergoyang saat scroll */
+    overscroll-behavior-y: none;
+  }
+
   body {
     background-color: hsl(var(--color-bg));
     color: hsl(var(--color-text));
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
-    padding-bottom: env(safe-area-inset-bottom);
+    /* padding-bottom dihapus: BottomNav sudah mengurus safe-area sendiri.
+       Dua lapis padding membuat tinggi dokumen berubah saat address bar mobile menyusut. */
+    overscroll-behavior-y: none;
     transition: background-color 0.35s ease, color 0.35s ease;
   }
 }
@@ -235,47 +242,19 @@ html.privacy-mode [data-amount] {
 
 /* Medium devices (md: 768px) - Landscape tablets, small desktops */
 @media (min-width: 768px) {
-  /* Sidebar appears on md+ */
-  aside.hidden.md\:flex {
-    width: 16rem; /* w-64 */
-  }
-  
   /* Main content adjusts */
   main {
     padding: 1.5rem;
   }
-  
-  /* Hide mobile bottom nav on md+ */
-  nav[aria-label="Mobile Bottom Navigation"] {
-    display: none !important;
-  }
-  
+
   /* Show desktop header elements */
-  .top-header-desktop {
-    display: flex !important;
-  }
 }
+
 /* Large devices (lg: 1024px) - Desktop monitors */
 @media (min-width: 1024px) {
-  /* Expanded sidebar with full features */
-  aside:not([class*="w-\[72px\]"]) {
-    width: 16rem;
-    padding: 1rem;
-  }
-  
-  /* Tooltips fully visible */
-  .absolute.left-full.ml-2\.5 {
-    margin-left: 0.625rem;
-  }
-  
   /* Better spacing for wide screens */
   main {
     padding: 1.5rem 2rem;
-  }
-  
-  /* Optimize grid layouts for larger screens */
-  .grid-cols-1.lg\:grid-cols-2 {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
@@ -292,7 +271,7 @@ html.privacy-mode [data-amount] {
   aside {
     position: sticky;
     top: 0;
-    height: 100vh;
+    height: 100dvh;
   }
 }
 
@@ -359,10 +338,15 @@ html.privacy-mode [data-amount] {
     touch-action: manipulation;
   }
   
-  /* Better tap targets for iOS */
-  button, a, [role="button"] {
+  /* Tap target aman untuk kontrol utama mobile saja.
+     Aturan global lama memaksa SEMUA button/a jadi 44px sehingga tombol ikon kecil
+     (mis. tombol bulan di header) membengkak dan merusak tata letak. */
+  nav button,
+  nav a,
+  main button.min-h-\[44px\],
+  form button[type="submit"],
+  button[data-tap-target="lg"] {
     min-height: 44px;
-    min-width: 44px;
   }
 }
 

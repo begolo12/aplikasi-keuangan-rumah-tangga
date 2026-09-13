@@ -144,7 +144,7 @@ export function FinancialSafetyPlanCard({
           <button
             type="button"
             onClick={onNavigateToWallets}
-            className="self-start sm:self-center text-xs font-bold text-primary hover:underline flex items-center gap-1 min-h-[36px]"
+            className="self-start sm:self-center text-xs font-bold text-primary hover:underline flex items-center gap-1 min-h-[44px]"
           >
             <Vault size={16} weight="bold" />
             <span>Pos Tabungan & Kas</span>

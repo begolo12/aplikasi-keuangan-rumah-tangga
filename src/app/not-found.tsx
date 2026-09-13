@@ -5,7 +5,7 @@ import { Compass } from '@phosphor-icons/react';
 
 export default function NotFound() {
   return (
-    <div className="min-h-screen flex items-center justify-center p-6 bg-background">
+    <div className="min-h-dvh flex items-center justify-center p-6 bg-background">
       <div className="max-w-md w-full text-center space-y-4">
         <div className="mx-auto w-14 h-14 rounded-2xl bg-primary/10 text-primary flex items-center justify-center">
           <Compass size={28} weight="duotone" />

@@ -92,26 +92,26 @@ export function ThemeToggle({ className = '' }: ThemeToggleProps) {
       aria-label={isDark ? 'Beralih ke mode terang' : 'Beralih ke mode gelap'}
       title={isDark ? 'Mode Gelap (Klik untuk mode terang)' : 'Mode Terang (Klik untuk mode gelap)'}
       onClick={toggleTheme}
-      className={`group relative inline-flex h-8 w-14 shrink-0 cursor-pointer items-center rounded-full p-1 border transition-all duration-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 active:scale-95 ${
+      className={`group relative inline-flex h-8 w-14 shrink-0 cursor-pointer items-center rounded-full p-1 border transition-all duration-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 active:scale-95 before:absolute before:-inset-1.5 before:content-[''] ${
         isDark
-          ? 'bg-surface-3/80 border-border hover:bg-surface-3 shadow-inner'
-          : 'bg-surface-2 border-border hover:bg-surface-2/80 shadow-inner'
+          ? 'bg-surface-3 border-border'
+          : 'bg-surface-2 border-border'
       } ${className}`}
     >
       {/* Background ambient icons */}
-      <span className="absolute left-1.5 flex items-center justify-center text-amber-500/60 pointer-events-none transition-opacity duration-300">
+      <span className="absolute left-1.5 flex items-center justify-center text-primary/45 pointer-events-none transition-opacity duration-300">
         <Sun size={13} weight="bold" />
       </span>
-      <span className="absolute right-1.5 flex items-center justify-center text-blue-400/60 pointer-events-none transition-opacity duration-300">
+      <span className="absolute right-1.5 flex items-center justify-center text-transfer/45 pointer-events-none transition-opacity duration-300">
         <Moon size={13} weight="bold" />
       </span>
 
       {/* Animated Sliding Knob */}
       <span
-        className={`relative z-10 flex h-6 w-6 transform items-center justify-center rounded-full shadow-md transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] ${
+        className={`relative z-10 flex h-6 w-6 transform items-center justify-center rounded-full shadow-sm transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] ${
           isDark
-            ? 'translate-x-6 bg-surface-2 text-indigo-400 border border-border/80'
-            : 'translate-x-0 bg-white text-amber-500 border border-black/5'
+            ? 'translate-x-6 bg-surface-2 text-transfer border border-border'
+            : 'translate-x-0 bg-surface text-primary border border-border'
         }`}
       >
         <span

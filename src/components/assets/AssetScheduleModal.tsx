@@ -286,7 +286,7 @@ export function AssetScheduleModal({
           variant={actionType === 'incidental' ? 'danger' : 'primary'}
           size="lg"
           isLoading={isLoading}
-          className="w-full mt-4 font-bold shadow-md"
+          className="w-full mt-4 font-bold shadow-xs"
         >
           {actionType === 'incidental'
             ? 'Catat Pengeluaran Insidental Sekarang'

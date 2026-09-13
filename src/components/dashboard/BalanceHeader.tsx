@@ -41,7 +41,7 @@ export function BalanceHeader({
     };
   }, [effectiveSafeToSpend]);
   return (
-    <div className="relative overflow-hidden rounded-2xl sm:rounded-3xl bg-gradient-to-br from-primary via-primary-hover to-primary-deep p-4 sm:p-5 md:p-6 text-white shadow-md shadow-primary/15 transition-all">
+    <div className="relative overflow-hidden rounded-2xl sm:rounded-3xl bg-gradient-to-br from-primary via-primary-hover to-primary-deep p-4 sm:p-5 md:p-6 text-white shadow-sm shadow-primary/10 transition-all">
       {/* Subtle decorative glow */}
       <div className="absolute -right-10 -bottom-10 w-40 h-40 bg-white/10 rounded-full blur-3xl pointer-events-none" />
 
@@ -50,12 +50,12 @@ export function BalanceHeader({
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 sm:gap-4">
           <div className="space-y-1 min-w-0">
             <div className="flex items-center gap-1.5 text-white/80 text-[10px] sm:text-xs font-bold tracking-wider uppercase">
-              <ShieldCheck size={15} weight="fill" className="text-emerald-200 shrink-0" />
+              <ShieldCheck size={15} weight="fill" className="text-white shrink-0" />
               <span className="truncate">Total Saldo Kas & Likuiditas</span>
             </div>
 
             <div className="flex items-center gap-2.5 sm:gap-3 flex-wrap">
-              <h1 className={`font-display-num text-3xl sm:text-4xl md:text-[2.75rem] leading-tight whitespace-nowrap tabular-nums ${totalBalance < 0 ? 'text-red-100' : 'text-white'}`}>
+              <h1 className="font-display-num text-3xl sm:text-4xl md:text-[2.75rem] leading-tight whitespace-nowrap tabular-nums text-white">
                 {showBalance ? formatRupiah(totalBalance) : '••••••••••••'}
               </h1>
               <button
@@ -78,7 +78,7 @@ export function BalanceHeader({
             {onNavigateToDebts && (
               <button
                 onClick={onNavigateToDebts}
-                className="min-h-[36px] px-3.5 py-1.5 bg-white/15 hover:bg-white/25 border border-white/20 rounded-xl text-xs font-bold text-white flex items-center gap-1.5 backdrop-blur-sm active:scale-95 transition-all shadow-2xs"
+                className="min-h-[44px] px-3.5 py-1.5 bg-white/15 hover:bg-white/25 border border-white/20 rounded-xl text-xs font-bold text-white flex items-center gap-1.5 backdrop-blur-sm active:scale-95 transition-all shadow-2xs"
               >
                 <HandCoins size={16} weight="duotone" />
                 <span>Hutang-Piutang</span>
@@ -88,7 +88,7 @@ export function BalanceHeader({
             {onManageWallets && (
               <button
                 onClick={onManageWallets}
-                className="min-h-[36px] px-3.5 py-1.5 bg-white/15 hover:bg-white/25 border border-white/20 rounded-xl text-xs font-bold text-white flex items-center gap-1.5 backdrop-blur-sm active:scale-95 transition-all shadow-2xs"
+                className="min-h-[44px] px-3.5 py-1.5 bg-white/15 hover:bg-white/25 border border-white/20 rounded-xl text-xs font-bold text-white flex items-center gap-1.5 backdrop-blur-sm active:scale-95 transition-all shadow-2xs"
               >
                 <Wallet size={16} weight="duotone" />
                 <span>Kelola Pos Kas</span>
@@ -117,8 +117,8 @@ export function BalanceHeader({
             <span
               className={`text-[10px] font-bold px-2 py-0.5 rounded-xl border shrink-0 ${
                 isHealthy
-                  ? 'bg-emerald-400/20 text-emerald-100 border-emerald-400/30'
-                  : 'bg-red-400/20 text-red-100 border-red-400/30'
+                  ? 'bg-white/15 text-white border-white/25'
+                  : 'bg-warning/25 text-white border-warning/40'
               }`}
             >
               {isHealthy ? 'Siap Pakai' : 'Defisit Kas'}
@@ -129,7 +129,7 @@ export function BalanceHeader({
           <div className="p-2.5 sm:p-3 bg-black/20 backdrop-blur-md rounded-2xl border border-white/15 flex items-center justify-between gap-2">
             <div className="flex items-center gap-2 min-w-0">
               <div className="w-6 h-6 rounded-xl bg-white/15 flex items-center justify-center shrink-0">
-                <CalendarCheck size={13} weight="fill" className="text-emerald-200" />
+                <CalendarCheck size={13} weight="fill" className="text-white" />
               </div>
               <div className="min-w-0">
                 <p className="text-[10px] text-white/75 font-semibold leading-tight">

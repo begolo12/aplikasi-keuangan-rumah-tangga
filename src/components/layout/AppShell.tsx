@@ -27,6 +27,7 @@ interface AppShellProps {
   overbudgetCount?: number;
   unpaidDebtsCount?: number;
   householdActivityCount?: number;
+  subscriptionCount?: number;
   children: React.ReactNode;
 }
 
@@ -48,10 +49,11 @@ export function AppShell({
   overbudgetCount = 0,
   unpaidDebtsCount = 0,
   householdActivityCount = 0,
+  subscriptionCount = 0,
   children,
 }: AppShellProps) {
   return (
-    <div className="min-h-screen bg-background text-text flex flex-col md:flex-row">
+    <div className="min-h-dvh bg-background text-text flex flex-col md:flex-row">
       {/* Sidebar for Desktop & Tablet */}
       <SidebarNav
         activeTab={activeTab}
@@ -64,10 +66,12 @@ export function AppShell({
         pendingBillsCount={pendingBillsCount}
         overbudgetCount={overbudgetCount}
         unpaidDebtsCount={unpaidDebtsCount}
+        subscriptionCount={subscriptionCount}
+        householdActivityCount={householdActivityCount}
       />
 
       {/* Main Container Area */}
-      <div className="flex-1 flex flex-col min-w-0 pb-[calc(6.5rem+env(safe-area-inset-bottom))] md:pb-8">
+      <div className="flex-1 flex flex-col min-w-0 pb-[calc(5.75rem+env(safe-area-inset-bottom))] md:pb-8">
         {/* Offline notification banner */}
         <OfflineBanner userId={userId} onSynced={onDataRefresh} />
 
@@ -100,6 +104,7 @@ export function AppShell({
         overbudgetCount={overbudgetCount}
         unpaidDebtsCount={unpaidDebtsCount}
         householdActivityCount={householdActivityCount}
+        subscriptionCount={subscriptionCount}
       />
 
       {/* iOS Safari Home Screen Banner */}

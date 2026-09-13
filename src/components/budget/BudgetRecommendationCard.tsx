@@ -94,7 +94,7 @@ export function BudgetRecommendationCard({
       return {
         title: 'Belum ada data pengeluaran',
         subtitle: 'Mulai catat transaksi untuk mendapat saran anggaran personal.',
-        icon: <Wallet size={24} className="text-gray-500" />,
+        icon: <Wallet size={24} className="text-text-muted" />,
         actionRequired: true,
       };
     }
@@ -105,8 +105,8 @@ export function BudgetRecommendationCard({
     if (surplus < 0) {
       return {
         title: 'Waspada: Pengeluaran Melebihi Pemasukan',
-        subtitle: `Anda defisit ${Math.abs(surplus).toLocaleString('id-ID')} bulan ini`,
-        icon: <TrendUp size={24} className="text-red-500" />,
+        subtitle: `Anda defisit Rp ${Math.abs(surplus).toLocaleString('id-ID')} bulan ini`,
+        icon: <TrendUp size={24} className="text-expense" />,
         urgency: 'high',
       };
     }
@@ -114,16 +114,16 @@ export function BudgetRecommendationCard({
     if (savingsRate < 10) {
       return {
         title: 'Potensi Tabungan Bisa Lebih Baik',
-        subtitle: `Hanya tersisa ${(surplus / (totalIncome || 1)) * 100}.toFixed(1)}% dari pemasukan`,
-        icon: <Sparkle size={24} className="text-yellow-500" />,
+        subtitle: `Hanya tersisa ${savingsRate.toFixed(1)}% dari pemasukan`,
+        icon: <Sparkle size={24} className="text-warning" />,
         urgency: 'medium',
       };
     }
 
     return {
       title: 'Kinerja Keuangan Sehat',
-      subtitle: `Surplus ${surplus.toLocaleString('id-ID')} (${savingsRate.toFixed(1)}%)`,
-      icon: <Sparkle size={24} className="text-green-500" />,
+      subtitle: `Surplus Rp ${surplus.toLocaleString('id-ID')} (${savingsRate.toFixed(1)}%)`,
+      icon: <Sparkle size={24} className="text-income" />,
       success: true,
     };
   };
@@ -132,21 +132,21 @@ export function BudgetRecommendationCard({
 
   return (
     <div
-      className={`p-4 rounded-xl border ${
+      className={`p-4 sm:p-5 rounded-2xl border ${
         greeting.urgency === 'high'
-          ? 'bg-red-50 border-red-200'
+          ? 'bg-expense-subtle border-expense/25'
           : greeting.success
-          ? 'bg-green-50 border-green-200'
+          ? 'bg-income-subtle border-income/25'
           : greeting.actionRequired || greeting.urgency === 'medium'
-          ? 'bg-yellow-50 border-yellow-200'
-          : 'bg-blue-50 border-blue-200'
+          ? 'bg-warning-subtle border-warning/25'
+          : 'bg-surface border-border'
       }`}
     >
       <div className="flex items-start gap-3 mb-3">
         <div>{greeting.icon}</div>
         <div className="flex-1">
-          <h3 className="font-semibold text-gray-900 mb-1">{greeting.title}</h3>
-          <p className="text-sm text-gray-600">{greeting.subtitle}</p>
+          <h3 className="font-semibold text-text mb-1">{greeting.title}</h3>
+          <p className="text-sm text-text-muted">{greeting.subtitle}</p>
         </div>
       </div>
 
@@ -159,25 +159,21 @@ export function BudgetRecommendationCard({
 
       {recommendation && (
         <div className="space-y-3">
-          <p className="text-sm text-gray-700 bg-white/60 p-3 rounded-lg">
+          <p className="text-sm text-text bg-surface/60 p-3 rounded-xl border border-border">
             {recommendation.suggestion}
           </p>
 
           {recommendation.potential_savings && (
-            <div className="text-xs text-gray-600">
-              💡 Potensi tabungan ideal:{' '}
-              <span className="font-medium text-green-700">
+            <div className="text-xs text-text-muted">
+              Potensi tabungan ideal:{' '}
+              <span className="font-medium text-income tabular-nums">
                 {(recommendation.potential_savings || 0).toLocaleString('id-ID')}
               </span>
             </div>
           )}
 
           <div className="flex gap-2">
-            <Button
-              onClick={() => window.dispatchEvent(new CustomEvent('open-budget-template-selector'))}
-              size="sm"
-              className="flex-1 bg-gradient-to-r from-purple-600 to-indigo-600 text-white hover:from-purple-700 hover:to-indigo-700"
-            >
+            <Button onClick={handleOpenTemplateSelector} size="sm" className="flex-1">
               Terapkan Template
             </Button>
             <Button onClick={generateSuggestion} variant="outline" size="sm">
@@ -189,8 +185,8 @@ export function BudgetRecommendationCard({
 
       {isGenerating && (
         <div className="flex items-center justify-center py-3">
-          <div className="animate-spin rounded-full h-5 w-5 border-2 border-purple-600 border-t-transparent mr-2" />
-          <span className="text-sm text-gray-600">Menganalisis pola pengeluaran...</span>
+          <div className="animate-spin rounded-full h-5 w-5 border-2 border-primary border-t-transparent mr-2" />
+          <span className="text-sm text-text-muted">Menganalisis pola pengeluaran...</span>
         </div>
       )}
     </div>
@@ -198,8 +194,10 @@ export function BudgetRecommendationCard({
 }
 
 // Listen for custom event to open template selector from outside
-window.addEventListener('open-budget-template-selector', () => {
-  // This should trigger a state update in the parent Dashboard component
-  // For now, we'll emit another event that can be caught by the main page
-  window.dispatchEvent(new CustomEvent('budget-recommendation-clicked'));
-});
+if (typeof window !== 'undefined') {
+  window.addEventListener('open-budget-template-selector', () => {
+    // This should trigger a state update in the parent Dashboard component
+    // For now, we'll emit another event that can be caught by the main page
+    window.dispatchEvent(new CustomEvent('budget-recommendation-clicked'));
+  });
+}

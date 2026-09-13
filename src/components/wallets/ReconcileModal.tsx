@@ -218,7 +218,7 @@ export function ReconcileModal({
           variant={isMatch ? 'outline' : 'primary'}
           size="lg"
           isLoading={isLoading}
-          className="w-full mt-4 font-bold shadow-md"
+          className="w-full mt-4 font-bold shadow-xs"
         >
           {isMatch
             ? 'Konfirmasi Saldo Sudah Cocok'

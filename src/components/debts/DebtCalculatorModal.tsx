@@ -372,7 +372,7 @@ export function DebtCalculatorModal({
             variant={status === 'danger' ? 'danger' : 'primary'}
             size="lg"
             isLoading={isSaving}
-            className="flex-2 font-bold shadow-md"
+            className="flex-2 font-bold shadow-xs"
           >
             Simpan Sebagai Hutang Aktif
           </Button>

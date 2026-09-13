@@ -366,7 +366,7 @@ export function DebtsView({
           <button
             type="button"
             onClick={() => setStatusFilter('all')}
-            className={`min-h-[36px] px-3 text-xs font-bold rounded-xl transition-colors shrink-0 ${
+            className={`min-h-[44px] px-3 text-xs font-bold rounded-xl transition-colors shrink-0 ${
               statusFilter === 'all'
                 ? 'bg-text text-background'
                 : 'bg-surface border border-border text-text-muted hover:text-text'
@@ -377,7 +377,7 @@ export function DebtsView({
           <button
             type="button"
             onClick={() => setStatusFilter('unpaid')}
-            className={`min-h-[36px] px-3 text-xs font-bold rounded-xl transition-colors shrink-0 ${
+            className={`min-h-[44px] px-3 text-xs font-bold rounded-xl transition-colors shrink-0 ${
               statusFilter === 'unpaid'
                 ? 'bg-text text-background'
                 : 'bg-surface border border-border text-text-muted hover:text-text'
@@ -388,7 +388,7 @@ export function DebtsView({
           <button
             type="button"
             onClick={() => setStatusFilter('paid')}
-            className={`min-h-[36px] px-3 text-xs font-bold rounded-xl transition-colors shrink-0 ${
+            className={`min-h-[44px] px-3 text-xs font-bold rounded-xl transition-colors shrink-0 ${
               statusFilter === 'paid'
                 ? 'bg-text text-background'
                 : 'bg-surface border border-border text-text-muted hover:text-text'
@@ -747,7 +747,7 @@ export function DebtsView({
             variant={addType === 'payable' ? 'danger' : 'primary'}
             size="lg"
             isLoading={isAdding}
-            className="w-full mt-4 font-bold shadow-md"
+            className="w-full mt-4 font-bold shadow-xs"
           >
             Simpan {addType === 'payable' ? 'Hutang' : 'Piutang'}
           </Button>
@@ -844,7 +844,7 @@ export function DebtsView({
               variant={selectedDebt.type === 'payable' ? 'danger' : 'primary'}
               size="lg"
               isLoading={isPaying}
-              className="w-full mt-4 font-bold shadow-md"
+              className="w-full mt-4 font-bold shadow-xs"
             >
               Proses {selectedDebt.type === 'payable' ? 'Pembayaran Hutang' : 'Penerimaan Piutang'}
             </Button>

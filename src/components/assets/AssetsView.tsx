@@ -47,11 +47,11 @@ interface AssetsApiResponse {
 
 const CATEGORY_MAP: Record<AssetCategory, { label: string; icon: React.ElementType; color: string }> = {
   kendaraan: { label: 'Kendaraan', icon: Car, color: 'bg-transfer/10 text-transfer border-transfer/25' },
-  elektronik: { label: 'Elektronik', icon: Laptop, color: 'bg-indigo-500/10 text-indigo-600 border-indigo-500/20' },
+  elektronik: { label: 'Elektronik', icon: Laptop, color: 'bg-transfer/10 text-transfer border-transfer/25' },
   properti: { label: 'Properti', icon: HouseLine, color: 'bg-income/10 text-income border-income/25' },
   perhiasan_emas: { label: 'Emas / Perhiasan', icon: Sparkle, color: 'bg-warning/10 text-warning border-warning/25' },
   alat_usaha: { label: 'Peralatan Usaha', icon: Wrench, color: 'bg-income/10 text-income border-income/25' },
-  lainnya: { label: 'Lainnya', icon: DotsThree, color: 'bg-gray-500/10 text-gray-600 border-gray-500/20' },
+  lainnya: { label: 'Lainnya', icon: DotsThree, color: 'bg-surface-2 text-text-muted border-border' },
 };
 
 export function AssetsView({ onRefreshParent }: AssetsViewProps) {
@@ -217,7 +217,7 @@ export function AssetsView({ onRefreshParent }: AssetsViewProps) {
         {/* Card 1: Total Nilai Perolehan Awal */}
         <div className="p-2.5 sm:p-3 bg-surface border border-border rounded-2xl flex flex-col justify-between gap-1 shadow-2xs">
           <div className="flex items-center gap-1.5 text-text-muted text-[10px] sm:text-xs font-semibold">
-            <Coins size={15} className="text-blue-500 shrink-0" weight="duotone" />
+            <Coins size={15} className="text-transfer shrink-0" weight="duotone" />
             <span className="truncate">Nilai Perolehan Awal</span>
           </div>
           <p className="text-xs sm:text-sm md:text-base font-extrabold text-text whitespace-nowrap tabular-nums tracking-tight">

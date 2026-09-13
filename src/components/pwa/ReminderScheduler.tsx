@@ -67,13 +67,13 @@ export function ReminderScheduler({ bills, budgets }: ReminderSchedulerProps) {
       }));
 
     const colorMap = {
-      bonus: '#10b181',
-      insurance_renewal: '#f59e0b',
-      tax_deadline: '#ef4444',
-      investment_contribution: '#3b82f6',
+      bonus: 'hsl(var(--color-income))',
+      insurance_renewal: 'hsl(var(--color-warning))',
+      tax_deadline: 'hsl(var(--color-expense))',
+      investment_contribution: 'hsl(var(--color-transfer))',
     };
 
-    const eventColor = (type: string): string => colorMap[type as keyof typeof colorMap] || '#6b7280';
+    const eventColor = (type: string): string => colorMap[type as keyof typeof colorMap] || 'hsl(var(--color-transfer))';
 
     // Fetch and filter upcoming events for notifications
     getUpcomingEvents()
