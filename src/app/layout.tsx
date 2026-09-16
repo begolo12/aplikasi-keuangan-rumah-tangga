@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next';
 import { Manrope, Fraunces } from 'next/font/google';
 import { ServiceWorkerRegister } from '@/components/pwa/ServiceWorkerRegister';
+import { ToastProvider } from '@/components/ui/Toast';
 import './globals.css';
 
 const manrope = Manrope({
@@ -56,7 +57,9 @@ export default function RootLayout({
       </head>
       <body className="min-h-dvh bg-background text-text antialiased selection:bg-primary selection:text-white">
         <ServiceWorkerRegister />
-        {children}
+        <ToastProvider>
+          {children}
+        </ToastProvider>
       </body>
     </html>
   );

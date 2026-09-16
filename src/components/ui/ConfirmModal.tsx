@@ -1,4 +1,4 @@
-﻿import React from 'react';
+import React from 'react';
 import { Modal } from './Modal';
 import { Button } from './Button';
 import { WarningCircle } from '@phosphor-icons/react';
@@ -26,14 +26,15 @@ export function ConfirmModal({
   variant = 'danger',
   isLoading = false,
 }: ConfirmModalProps) {
+  const messageId = React.useId();
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title={title} maxWidth="sm">
+    <Modal isOpen={isOpen} onClose={onClose} title={title} maxWidth="sm" ariaDescribedBy={messageId}>
       <div className="space-y-4">
         <div className="flex items-start gap-3">
           <div className="p-2.5 rounded-2xl bg-expense/10 text-expense shrink-0">
-            <WarningCircle size={24} weight="fill" />
+            <WarningCircle size={24} weight="fill" aria-hidden="true" />
           </div>
-          <p className="text-sm text-text-muted leading-relaxed pt-0.5">{message}</p>
+          <p id={messageId} className="text-sm text-text-muted leading-relaxed pt-0.5">{message}</p>
         </div>
 
         <div className="flex items-center justify-end gap-2 pt-2 border-t border-border/50">

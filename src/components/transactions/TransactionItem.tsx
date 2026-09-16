@@ -82,7 +82,7 @@ export function TransactionItem({ transaction, onDelete, onEdit, highlight }: Tr
               <HighlightMatch text={transaction.description || transaction.category_name || 'Transaksi Kas'} query={highlight} />
             )}
           </p>
-          <div className="flex items-center gap-1.5 text-[10px] sm:text-[11px] text-text-muted mt-0.5 flex-wrap">
+          <div className="flex items-center gap-1.5 text-[11px] text-text-muted mt-0.5 flex-wrap">
             <span>{formatDate(transaction.date, 'short')}</span>
             {transaction.edited_at && (
               <>
@@ -135,7 +135,7 @@ export function TransactionItem({ transaction, onDelete, onEdit, highlight }: Tr
 
         {isAssetSale ? (
           <span
-            className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-surface-2 text-text-muted border border-border"
+            className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-surface-2 text-text-muted border border-border"
             title="Transaksi pembukuan penjualan aset (dikelola melalui menu Aset)"
           >
             Aset
@@ -145,7 +145,7 @@ export function TransactionItem({ transaction, onDelete, onEdit, highlight }: Tr
             <button
               onClick={handleDelete}
               disabled={isDeleting}
-              className="px-2.5 py-1 bg-expense text-white text-xs font-bold rounded-lg hover:opacity-90 transition-opacity"
+              className="px-2.5 py-1 bg-expense text-expense-fg text-xs font-bold rounded-lg hover:opacity-90 transition-opacity"
             >
               {isDeleting ? '...' : 'Hapus'}
             </button>
@@ -164,7 +164,7 @@ export function TransactionItem({ transaction, onDelete, onEdit, highlight }: Tr
                 onClick={() => onEdit(transaction)}
                 aria-label="Edit transaksi"
                 title="Edit Transaksi"
-                className="opacity-100 md:opacity-0 md:group-hover:opacity-100 md:focus-visible:opacity-100 p-1.5 text-text-muted hover:text-primary hover:bg-primary/10 rounded-lg transition-all"
+                className="opacity-100 md:opacity-0 md:group-hover:opacity-100 md:focus-visible:opacity-100 inline-flex items-center justify-center min-w-[44px] min-h-[44px] p-1.5 text-text-muted hover:text-primary hover:bg-primary/10 rounded-lg transition-all"
               >
                 <PencilSimple size={16} />
               </button>
@@ -174,7 +174,7 @@ export function TransactionItem({ transaction, onDelete, onEdit, highlight }: Tr
               onClick={() => setShowConfirm(true)}
               aria-label="Hapus transaksi"
               title="Hapus Transaksi"
-              className="opacity-100 md:opacity-0 md:group-hover:opacity-100 md:focus-visible:opacity-100 p-1.5 text-text-muted hover:text-expense hover:bg-expense/10 rounded-lg transition-all"
+              className="opacity-100 md:opacity-0 md:group-hover:opacity-100 md:focus-visible:opacity-100 inline-flex items-center justify-center min-w-[44px] min-h-[44px] p-1.5 text-text-muted hover:text-expense hover:bg-expense/10 rounded-lg transition-all"
             >
               <Trash size={16} />
             </button>

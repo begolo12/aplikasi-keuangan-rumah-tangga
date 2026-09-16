@@ -10,6 +10,7 @@ import {
 import { formatRupiah, INDONESIAN_MONTHS } from '@/lib/formatters';
 import { Budget, ExpenseProjection, RecurringBill, Debt } from '@/lib/types';
 import { AmountInput } from '../ui/AmountInput';
+import { StatCard, StatGrid } from '../ui/StatCard';
 
 interface ExpenseProjectionCardProps {
   budgets: Budget[];
@@ -128,12 +129,12 @@ export function ExpenseProjectionCard({
                 Proyeksi Pengeluaran ({INDONESIAN_MONTHS[currentMonth - 1]} {currentYear})
               </h3>
               <span
-                className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full border ${
+                className={`text-[11px] font-extrabold px-2 py-0.5 rounded-full border ${
                   showNeutral
                     ? 'bg-surface-2 text-text-muted border-border'
                     : isSaving
                     ? 'bg-income/10 text-income border-income/20'
-                    : 'bg-expense/10 text-expense border-expense/20 animate-pulse'
+                    : 'bg-expense/10 text-expense border-expense/20'
                 }`}
               >
                 {showNeutral
@@ -143,7 +144,7 @@ export function ExpenseProjectionCard({
                   : `Inefisien (Boros ${Math.abs(projection.savings_percentage)}%)`}
               </span>
             </div>
-            <p className="text-[10px] sm:text-[11px] text-text-muted">
+            <p className="text-[11px] text-text-muted">
               Prakiraan total biaya akhir bulan berdasarkan realisasi berjalan & sisa kebutuhan riil.
             </p>
           </div>
@@ -152,7 +153,7 @@ export function ExpenseProjectionCard({
         <button
           type="button"
           onClick={handleOpenEdit}
-          className="self-start sm:self-center text-xs font-bold text-primary hover:underline flex items-center gap-1 min-h-[32px]"
+          className="self-start sm:self-center text-xs font-bold text-primary hover:underline flex items-center gap-1 min-h-[44px]"
         >
           <PencilSimple size={14} weight="bold" />
           <span>Sesuaikan Sisa Kebutuhan</span>
@@ -169,71 +170,47 @@ export function ExpenseProjectionCard({
       )}
 
       {/* 4-Metric Grid Calculation */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5">
-        {/* Rencana Awal */}
-        <div className="p-3 bg-surface-2 rounded-2xl border border-border/50 space-y-1">
-          <span className="text-[10px] sm:text-[11px] text-text-muted font-semibold block">
-            1. Rencana Awal
-          </span>
-          <p className="text-xs sm:text-sm md:text-base font-extrabold text-text tabular-nums whitespace-nowrap">
-            {formatRupiah(projection.planned_budget)}
-          </p>
-          <span className="text-[10px] text-text-muted block">Batas anggaran belanja</span>
-        </div>
+      <StatGrid layout="2-4" className="gap-2.5">
+        <StatCard
+          size="compact"
+          label="1. Rencana Awal"
+          value={formatRupiah(projection.planned_budget)}
+          hint="Batas anggaran belanja"
+        />
 
-        {/* Realisasi Terkini */}
-        <div className="p-3 bg-surface-2 rounded-2xl border border-border/50 space-y-1">
-          <span className="text-[10px] sm:text-[11px] text-text-muted font-semibold block">
-            2. Realisasi s/d Hari Ini
-          </span>
-          <p className="text-xs sm:text-sm md:text-base font-extrabold text-expense tabular-nums whitespace-nowrap">
-            {formatRupiah(projection.current_spent)}
-          </p>
-          <span className="text-[10px] text-text-muted block">
-            Hari ke-{projection.days_passed} dari {projection.days_in_month}
-          </span>
-        </div>
+        <StatCard
+          size="compact"
+          tone="expense"
+          label="2. Realisasi s/d Hari Ini"
+          value={formatRupiah(projection.current_spent)}
+          hint={`Hari ke-${projection.days_passed} dari ${projection.days_in_month}`}
+        />
 
-        {/* Sisa Estimasi Pengeluaran */}
-        <div className="p-3 bg-surface-2 rounded-2xl border border-border/50 space-y-1">
-          <div className="flex items-center justify-between">
-            <span className="text-[10px] sm:text-[11px] text-text-muted font-semibold block">
-              3. Sisa Kebutuhan Riil
-            </span>
-          </div>
-          <p className="text-xs sm:text-sm md:text-base font-extrabold text-primary tabular-nums whitespace-nowrap">
-            {formatRupiah(projection.remaining_estimated)}
-          </p>
-          <span className="text-[10px] text-text-muted block">
-            {customRemaining !== null ? 'Disesuaikan manual' : 'Estimasi otomatis'}
-          </span>
-        </div>
+        <StatCard
+          size="compact"
+          tone="primary"
+          label="3. Sisa Kebutuhan Riil"
+          value={formatRupiah(projection.remaining_estimated)}
+          hint={customRemaining !== null ? 'Disesuaikan manual' : 'Estimasi otomatis'}
+        />
 
-        {/* Proyeksi Akhir Bulan */}
-        <div
-          className={`p-3 rounded-2xl border space-y-1 ${
+        <StatCard
+          size="compact"
+          label="4. Proyeksi Akhir Bulan"
+          value={formatRupiah(projection.projected_total)}
+          tone={isSaving ? 'primary' : 'expense'}
+          className={
             isSaving
-              ? 'bg-primary/10 border-primary/20'
-              : 'bg-expense/10 border-expense/20'
-          }`}
-        >
-          <span className="text-[10px] sm:text-[11px] font-bold text-text-muted block">
-            4. Proyeksi Akhir Bulan
-          </span>
-          <p
-            className={`text-xs sm:text-sm md:text-base font-extrabold tabular-nums whitespace-nowrap ${
-              isSaving ? 'text-primary' : 'text-expense'
-            }`}
-          >
-            {formatRupiah(projection.projected_total)}
-          </p>
-          <span className="text-[10px] font-semibold text-text-muted block">
-            {isSaving
+              ? 'bg-primary/10 border border-primary/20 shadow-none'
+              : 'bg-expense/10 border border-expense/20 shadow-none'
+          }
+          hint={
+            isSaving
               ? `Hemat ${formatRupiah(projection.projected_savings)}`
-              : `Lebih ${formatRupiah(Math.abs(projection.projected_savings))}`}
-          </span>
-        </div>
-      </div>
+              : `Lebih ${formatRupiah(Math.abs(projection.projected_savings))}`
+          }
+        />
+      </StatGrid>
 
       {/* Visual Comparison Progress Bar */}
       <div className="p-3.5 bg-surface-2/60 rounded-2xl border border-border/50 space-y-2">
@@ -259,14 +236,14 @@ export function ExpenseProjectionCard({
         <div className="w-full h-3 bg-surface-3 rounded-full overflow-hidden flex border border-border/40">
           <div
             className="h-full bg-expense transition-all duration-500"
-            title={`Realisasi Terkini: ${formatRupiah(projection.current_spent)}`}
+            title="Realisasi terkini"
             style={{
               width: `${projection.planned_budget > 0 ? Math.min(100, (projection.current_spent / projection.planned_budget) * 100) : 0}%`,
             }}
           />
           <div
             className="h-full bg-primary/70 transition-all duration-500"
-            title={`Sisa Kebutuhan: ${formatRupiah(projection.remaining_estimated)}`}
+            title="Sisa kebutuhan"
             style={{
               width: `${
                 projection.planned_budget > 0
@@ -280,7 +257,7 @@ export function ExpenseProjectionCard({
           />
         </div>
 
-        <div className="flex items-center justify-between text-[10px] text-text-muted">
+        <div className="flex items-center justify-between text-[11px] text-text-muted">
           <span className="flex items-center gap-1">
             <span className="w-2 h-2 rounded-full bg-expense inline-block" /> Realisasi Terkini ({formatRupiah(projection.current_spent)})
           </span>
@@ -324,7 +301,7 @@ export function ExpenseProjectionCard({
             </button>
             <button
               type="submit"
-              className="min-h-[44px] px-4 py-1.5 bg-primary text-white rounded-xl text-xs font-bold hover:opacity-90 transition-opacity"
+              className="min-h-[44px] px-4 py-1.5 bg-primary text-primary-fg rounded-xl text-xs font-bold hover:opacity-90 transition-opacity"
             >
               Terapkan Proyeksi
             </button>

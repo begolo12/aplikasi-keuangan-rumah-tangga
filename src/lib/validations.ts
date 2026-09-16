@@ -272,5 +272,6 @@ export const parsedReceiptResultSchema = z.object({
   suggested_wallet_id: z.string().optional().nullable(),
   items: z.array(receiptItemSchema).optional().default([]),
   confidence: z.enum(['high', 'medium', 'low']).optional().default('high'),
+  source: z.enum(['ai', 'heuristic']).optional().default('heuristic'),
 });
 

@@ -154,22 +154,24 @@ export interface ColdMoneyInfo {
   recommendations: string[];
 }
 
+/** Rasio bernilai `null` berarti basis perhitungan belum ada (mis. pengeluaran 0),
+ *  bukan nol. UI wajib menampilkan "n/a" / "Belum cukup data" untuk nilai null. */
 export interface FinancialRatiosResult {
-  der_ratio: number; // Debt to Equity Ratio (%)
-  dar_ratio: number; // Debt to Asset Ratio (%)
-  dsr_ratio: number; // Debt Service Ratio (%)
-  liquidity_months: number; // Liquidity / Emergency reserve (Months)
-  savings_ratio: number; // Savings Rate (%)
-  oer_ratio: number; // Operating Expense Ratio (%)
-  health_score: number; // 0 - 100
-  condition_status: 'excellent' | 'good' | 'warning' | 'critical';
+  der_ratio: number | null; // Debt to Equity Ratio (%)
+  dar_ratio: number | null; // Debt to Asset Ratio (%)
+  dsr_ratio: number | null; // Debt Service Ratio (%)
+  liquidity_months: number | null; // Liquidity / Emergency reserve (Months)
+  savings_ratio: number | null; // Savings Rate (%)
+  oer_ratio: number | null; // Operating Expense Ratio (%)
+  health_score: number | null; // 0 - 100, null bila tidak ada basis data sama sekali
+  condition_status: 'excellent' | 'good' | 'warning' | 'critical' | 'unknown';
   condition_title: string;
   verdict_summary: string;
   ratio_details: {
     name: string;
     value: string;
     ideal: string;
-    status: 'safe' | 'warning' | 'danger';
+    status: 'safe' | 'warning' | 'danger' | 'unknown';
     description: string;
   }[];
   action_recommendations: string[];
@@ -371,6 +373,8 @@ export interface ParsedReceiptResult {
   suggested_wallet_id?: string | null;
   items?: ReceiptItem[];
   confidence?: 'high' | 'medium' | 'low';
+  /** Asal-usul hasil: 'ai' = dianalisis model, 'heuristic' = regex lokal tanpa AI. */
+  source?: 'ai' | 'heuristic';
 }
 
 export interface BudgetTemplate {
@@ -427,6 +431,8 @@ export interface CurrencyRate {
   base: string;
   timestamp: number;
   rates: Record<string, number>;
+  /** 'live' = dari penyedia kurs, 'fallback' = tabel statis di kode (perkiraan). */
+  source?: 'live' | 'fallback';
 }
 
 export interface HouseholdMember {
@@ -473,8 +479,9 @@ export interface InsightsData {
   month: number;
   year: number;
   health: {
-    score: number;
-    condition: 'excellent' | 'good' | 'warning' | 'critical';
+    /** null = belum ada data cukup untuk menilai. Jangan tampilkan angka apa pun. */
+    score: number | null;
+    condition: 'excellent' | 'good' | 'warning' | 'critical' | 'unknown';
   };
   insights: InsightItem[];
 }

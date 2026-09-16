@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { Debt } from '@/lib/types';
 import { formatRupiah, formatDate } from '@/lib/formatters';
+import { ProgressBar } from '../ui/ProgressBar';
 import {
   CheckCircle,
   WarningCircle,
@@ -43,7 +44,7 @@ export function DebtItem({ debt, onPay, onDelete }: DebtItemProps) {
   const getStatusBadge = () => {
     if (isPaid) {
       return (
-        <span className="flex items-center gap-1 text-[10px] sm:text-[11px] font-bold text-income bg-income/10 px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-full border border-income/20">
+        <span className="flex items-center gap-1 text-[11px] font-bold text-income bg-income/10 px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-full border border-income/20">
           <CheckCircle size={13} weight="fill" />
           <span>Lunas</span>
         </span>
@@ -52,7 +53,7 @@ export function DebtItem({ debt, onPay, onDelete }: DebtItemProps) {
 
     if (debt.is_overdue) {
       return (
-        <span className="flex items-center gap-1 text-[10px] sm:text-[11px] font-bold text-expense bg-expense/10 px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-full border border-expense/20">
+        <span className="flex items-center gap-1 text-[11px] font-bold text-expense bg-expense/10 px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-full border border-expense/20">
           <WarningCircle size={13} weight="fill" />
           <span>Menunggak</span>
         </span>
@@ -62,7 +63,7 @@ export function DebtItem({ debt, onPay, onDelete }: DebtItemProps) {
     if (debt.days_until_due !== undefined && debt.days_until_due !== null) {
       if (debt.days_until_due === 0) {
         return (
-          <span className="flex items-center gap-1 text-[10px] sm:text-[11px] font-bold text-expense bg-expense/10 px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-full border border-expense/20 animate-pulse">
+          <span className="flex items-center gap-1 text-[11px] font-bold text-expense bg-expense/10 px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-full border border-expense/20">
             <WarningCircle size={13} weight="fill" />
             <span>Jatuh Tempo Hari Ini</span>
           </span>
@@ -70,7 +71,7 @@ export function DebtItem({ debt, onPay, onDelete }: DebtItemProps) {
       }
       if (debt.days_until_due > 0 && debt.days_until_due <= 7) {
         return (
-          <span className="flex items-center gap-1 text-[10px] sm:text-[11px] font-bold text-warning bg-warning/10 px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-full border border-warning/25">
+          <span className="flex items-center gap-1 text-[11px] font-bold text-warning bg-warning/10 px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-full border border-warning/25">
             <Clock size={13} weight="bold" />
             <span>Jatuh Tempo {debt.days_until_due} Hari Lagi</span>
           </span>
@@ -80,7 +81,7 @@ export function DebtItem({ debt, onPay, onDelete }: DebtItemProps) {
 
     if (debt.due_date) {
       return (
-        <span className="flex items-center gap-1 text-[10px] sm:text-[11px] font-semibold text-text-muted bg-surface-2 px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-full border border-border">
+        <span className="flex items-center gap-1 text-[11px] font-semibold text-text-muted bg-surface-2 px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-full border border-border">
           <Clock size={13} />
           <span>Jatuh Tempo: {formatDate(debt.due_date, 'short')}</span>
         </span>
@@ -88,7 +89,7 @@ export function DebtItem({ debt, onPay, onDelete }: DebtItemProps) {
     }
 
     return (
-      <span className="text-[10px] sm:text-[11px] font-semibold text-text-muted bg-surface-2 px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-full border border-border">
+      <span className="text-[11px] font-semibold text-text-muted bg-surface-2 px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-full border border-border">
         Tanpa Batas Waktu
       </span>
     );
@@ -125,12 +126,12 @@ export function DebtItem({ debt, onPay, onDelete }: DebtItemProps) {
                 {debt.person_name}
               </h4>
               {debt.start_date && (
-                <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-md bg-surface-2 text-text-muted border border-border">
+                <span className="text-[11px] font-bold px-1.5 py-0.5 rounded-md bg-surface-2 text-text-muted border border-border">
                   Mulai {formatDate(debt.start_date, 'short')}
                 </span>
               )}
               {categoryLabel && (
-                <span className="text-[9px] font-extrabold px-1.5 py-0.5 rounded-md bg-surface-2 text-text-muted border border-border">
+                <span className="text-[11px] font-extrabold px-1.5 py-0.5 rounded-md bg-surface-2 text-text-muted border border-border">
                   {categoryLabel}
                 </span>
               )}
@@ -154,14 +155,14 @@ export function DebtItem({ debt, onPay, onDelete }: DebtItemProps) {
                 setShowConfirm(false);
               }}
               disabled={isDeleting}
-              className="min-h-[34px] px-2.5 py-1 bg-expense text-white text-xs font-bold rounded-xl hover:opacity-90 transition-opacity shadow-2xs disabled:opacity-50 disabled:pointer-events-none"
+              className="min-h-[44px] px-2.5 py-1 bg-expense text-expense-fg text-xs font-bold rounded-xl hover:opacity-90 transition-opacity shadow-2xs disabled:opacity-50 disabled:pointer-events-none"
             >
               {isDeleting ? 'Menghapus...' : 'Hapus'}
             </button>
             <button
               onClick={() => setShowConfirm(false)}
               disabled={isDeleting}
-              className="min-h-[34px] px-2.5 py-1 bg-surface-2 hover:bg-surface-3 text-text text-xs font-semibold rounded-xl border border-border transition-colors disabled:opacity-50"
+              className="min-h-[44px] px-2.5 py-1 bg-surface-2 hover:bg-surface-3 text-text text-xs font-semibold rounded-xl border border-border transition-colors disabled:opacity-50"
             >
               Batal
             </button>
@@ -212,14 +213,13 @@ export function DebtItem({ debt, onPay, onDelete }: DebtItemProps) {
           </span>
         </div>
 
-        <div className="w-full h-2.5 bg-surface-2 rounded-full overflow-hidden p-0.5">
-          <div
-            className={`h-full rounded-full transition-all duration-500 ${
-              isPaid ? 'bg-income' : isPayable ? 'bg-expense' : 'bg-primary'
-            }`}
-            style={{ width: `${percentage}%` }}
-          />
-        </div>
+        <ProgressBar
+          value={percentage}
+          size="md"
+          inset
+          barClassName={isPaid ? 'bg-income' : isPayable ? 'bg-expense' : 'bg-primary'}
+          ariaLabel={`Progres pembayaran ${percentage} persen`}
+        />
 
         <div className="flex items-center justify-between text-[11px] text-text-muted">
           <span>
@@ -237,10 +237,10 @@ export function DebtItem({ debt, onPay, onDelete }: DebtItemProps) {
         <div className="pt-1 flex items-center justify-end">
           <button
             onClick={() => onPay(debt)}
-            className={`w-full sm:w-auto min-h-[42px] px-4 py-2 text-xs font-bold rounded-xl active:scale-95 transition-all shadow-xs flex items-center justify-center gap-1.5 ${
+            className={`w-full sm:w-auto min-h-[44px] px-4 py-2 text-xs font-bold rounded-xl active:scale-95 transition-all shadow-xs flex items-center justify-center gap-1.5 ${
               isPayable
-                ? 'bg-expense text-white hover:bg-expense/90'
-                : 'bg-primary text-white hover:bg-primary-hover'
+                ? 'bg-expense text-expense-fg hover:bg-expense/90'
+                : 'bg-primary text-primary-fg hover:bg-primary-hover'
             }`}
           >
             <HandCoins size={16} weight="bold" />

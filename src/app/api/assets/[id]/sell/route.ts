@@ -115,48 +115,29 @@ export async function POST(req: NextRequest, context: RouteContext) {
       }
 
 
-      // 4. Catat laba/rugi penjualan (gain-only): yang masuk laporan hanya selisih
-      // vs nilai buku, bukan seluruh harga jual. Kas dompet tetap terima penuh (langkah 3).
-      let saleTrx = null;
-      if (gainLoss > 0) {
-        const gainDesc = validated.notes
-          ? `Laba Penjualan Aset: ${asset.name} (${validated.notes})`
-          : `Laba Penjualan Aset: ${asset.name} (+${formatRupiah(gainLoss)} vs nilai buku)`;
-        const insGain = await client.query(
-          `INSERT INTO transactions (
-            user_id, type, amount, category_id, wallet_id, asset_id, description, date
-          ) VALUES ($1, 'income', $2, NULL, $3, $4, $5, $6)
-          RETURNING *`,
-          [
-            session.userId,
-            gainLoss,
-            validated.wallet_id,
-            assetId,
-            gainDesc,
-            validated.sold_date,
-          ]
-        );
-        saleTrx = insGain.rows[0];
-      } else if (gainLoss < 0) {
-        const lossDesc = validated.notes
-          ? `Rugi Penjualan Aset: ${asset.name} (${validated.notes})`
-          : `Rugi Penjualan Aset: ${asset.name} (${formatRupiah(gainLoss)} vs nilai buku)`;
-        const insLoss = await client.query(
-          `INSERT INTO transactions (
-            user_id, type, amount, category_id, wallet_id, asset_id, description, date
-          ) VALUES ($1, 'expense', $2, NULL, $3, $4, $5, $6)
-          RETURNING *`,
-          [
-            session.userId,
-            Math.abs(gainLoss),
-            validated.wallet_id,
-            assetId,
-            lossDesc,
-            validated.sold_date,
-          ]
-        );
-        saleTrx = insLoss.rows[0];
-      }
+      // 4. Catat transaksi arus kas penerimaan penjualan aset:
+      // Seluruh harga jual riil dicatat sebagai pemasukan kas agar rekonsiliasi saldo dompet konsisten.
+      const saleDesc = validated.notes
+        ? `Penjualan Aset: ${asset.name} (${validated.notes})`
+        : gainLoss >= 0
+        ? `Penjualan Aset: ${asset.name} (Laba +${formatRupiah(gainLoss)} vs nilai buku)`
+        : `Penjualan Aset: ${asset.name} (Rugi ${formatRupiah(gainLoss)} vs nilai buku)`;
+
+      const insTrx = await client.query(
+        `INSERT INTO transactions (
+          user_id, type, amount, category_id, wallet_id, asset_id, description, date
+        ) VALUES ($1, 'income', $2, NULL, $3, $4, $5, $6)
+        RETURNING *`,
+        [
+          session.userId,
+          sellingPrice,
+          validated.wallet_id,
+          assetId,
+          saleDesc,
+          validated.sold_date,
+        ]
+      );
+      const saleTrx = insTrx.rows[0];
 
       // 5. Otomatis nonaktifkan semua jadwal rutin (pajak/servis) terkait aset ini
       await client.query(

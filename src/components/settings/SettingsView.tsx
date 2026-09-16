@@ -2,9 +2,11 @@
 
 import React, { useState, useEffect } from 'react';
 import type { User, AppSettings, CurrencyType } from '@/lib/types';
-import { formatCurrency, formatCurrencySymbol } from '@/lib/formatters';
+import { formatCurrencySymbol } from '@/lib/formatters';
 import { apiFetch, endpoints, ApiError } from '@/lib/apiFetch';
 import { Button } from '../ui/Button';
+import { Alert } from '../ui/Alert';
+import { FormLabel } from '../ui/FormLabel';
 import {
   DownloadSimple,
   UploadSimple,
@@ -13,7 +15,6 @@ import {
   CheckCircle,
   User as UserIcon,
   UsersThree,
-  WarningCircle,
   Sun,
   Moon,
   Desktop,
@@ -32,12 +33,15 @@ interface SettingsViewProps {
 export function SettingsView({ user, settings, onRefresh, onLogout }: SettingsViewProps) {
   const [userName, setUserName] = useState(user.name || '');
   const [familyName, setFamilyName] = useState(settings?.family_name || user.family_name || 'Keluarga Bahagia');
-  const [userCurrency, setUserCurrency] = useState<AppSettings['currency']>(settings?.currency || 'IDR');
+  // Pencatatan hanya mendukung Rupiah: seluruh nominal disimpan dan ditampilkan apa adanya.
+  // `settings.currency` lama (bila pernah diubah) diabaikan dan akan ditulis ulang jadi IDR saat simpan.
+  const userCurrency: AppSettings['currency'] = 'IDR';
   const [isSaving, setIsSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [themeMode, setThemeMode] = useState<ThemeMode>('system');
   const [exchangeRates, setExchangeRates] = useState<Record<string, number>>({});
+  const [rateSource, setRateSource] = useState<'live' | 'fallback' | null>(null);
   const [isLoadingRates, setIsLoadingRates] = useState(false);
 
   // Fetch exchange rates periodically
@@ -49,6 +53,7 @@ export function SettingsView({ user, settings, onRefresh, onLogout }: SettingsVi
         const data = await response.json();
         if (data.success && data.data?.rates) {
           setExchangeRates(data.data.rates);
+          setRateSource(data.data.source ?? null);
         }
       } catch (err) {
         console.warn('[Settings] Failed to fetch exchange rates:', err);
@@ -165,13 +170,11 @@ export function SettingsView({ user, settings, onRefresh, onLogout }: SettingsVi
     if (typeof window === 'undefined') return null;
     return window.localStorage.getItem('kaskeluarga-last-backup');
   });
-  // Usia cadangan dihitung di effect, bukan di render (purity).
-  const [backupDaysSince, setBackupDaysSince] = useState<number | null>(null);
-  useEffect(() => {
-    setBackupDaysSince(
-      lastBackupAt ? Math.floor((Date.now() - new Date(lastBackupAt).getTime()) / (1000 * 60 * 60 * 24)) : null
-    );
-  }, [lastBackupAt]);
+  const [backupDaysSince, setBackupDaysSince] = useState<number | null>(() => {
+    if (typeof window === 'undefined') return null;
+    const stored = window.localStorage.getItem('kaskeluarga-last-backup');
+    return stored ? Math.floor((Date.now() - new Date(stored).getTime()) / (1000 * 60 * 60 * 24)) : null;
+  });
 
   const handleExportBackup = () => {
     window.open(endpoints.backupExport, '_blank');
@@ -238,7 +241,7 @@ export function SettingsView({ user, settings, onRefresh, onLogout }: SettingsVi
       </div>
 
       {/* Card 1: Profil Pengguna & Kas */}
-      <div className="p-5 md:p-6 bg-surface border border-border rounded-3xl space-y-4 shadow-xs">
+      <div className="p-4 sm:p-5 bg-surface border border-border rounded-3xl space-y-4 shadow-xs">
         <h3 className="text-base font-bold text-text flex items-center gap-2">
           <UserIcon size={20} className="text-primary" weight="duotone" />
           <span>Profil Pengguna & Kas</span>
@@ -253,10 +256,9 @@ export function SettingsView({ user, settings, onRefresh, onLogout }: SettingsVi
           )}
 
           {saveError && (
-            <div role="alert" className="p-3 bg-expense/10 border border-expense/20 text-expense rounded-xl text-xs font-semibold flex items-center gap-2">
-              <WarningCircle size={16} weight="fill" />
-              <span>{saveError}</span>
-            </div>
+            <Alert tone="error" size="sm">
+              {saveError}
+            </Alert>
           )}
 
           <div className="space-y-1">
@@ -274,8 +276,9 @@ export function SettingsView({ user, settings, onRefresh, onLogout }: SettingsVi
           </div>
 
           <div className="space-y-1">
-            <label className="block text-xs font-semibold text-text-muted">Email Akun (Terdaftar)</label>
+            <FormLabel htmlFor="settings-user-email">Email Akun (Terdaftar)</FormLabel>
             <input
+              id="settings-user-email"
               type="email"
               disabled
               value={user.email}
@@ -300,40 +303,43 @@ export function SettingsView({ user, settings, onRefresh, onLogout }: SettingsVi
               />
             </div>
 
-          {/* Currency Selector */}
+          {/* Mata uang: pencatatan selalu Rupiah, jadi tidak ada yang bisa dipilih. */}
           <div className="space-y-1 pt-2">
-            <label htmlFor="settings-currency" className="block text-xs font-semibold text-text-muted">
-              Mata Uang Utama
-            </label>
-            <select
-              id="settings-currency"
-              value={userCurrency}
-              onChange={(e) => setUserCurrency(e.target.value as AppSettings['currency'])}
-              className="w-full h-11 px-4 bg-background border border-border rounded-xl text-sm font-medium focus:ring-2 focus:ring-primary focus:outline-none appearance-none"
-            >
-              <option value="IDR">IDR - Rupiah Indonesia (Rp)</option>
-              <option value="USD">USD - US Dollar ($)</option>
-              <option value="EUR">EUR - Euro (€)</option>
-              <option value="CNY">CNY - Chinese Yuan (¥)</option>
-            </select>
+            <span className="block text-xs font-semibold text-text-muted">Mata Uang Pencatatan</span>
+            <div className="flex items-center gap-2 h-11 px-4 bg-surface-2 border border-border rounded-xl">
+              <span className="text-sm font-semibold text-text">IDR - Rupiah Indonesia (Rp)</span>
+            </div>
+            <p className="text-[11px] text-text-muted">
+              Semua transaksi, saldo, dan laporan dicatat dalam Rupiah. Tabel kurs di bawah hanya
+              referensi bila Anda perlu membandingkan nilai.
+            </p>
           </div>
 
-          {/* Live Exchange Rates Display */}
+          {/* Tabel kurs referensi */}
           {Object.keys(exchangeRates).length > 0 && (
             <div className="bg-surface-2 border border-border rounded-2xl p-4 space-y-2">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-bold text-text-muted flex items-center gap-1">
-                  Kurs Live (dari {formatCurrencySymbol((userCurrency as CurrencyType) || 'IDR')})
+                  Kurs Referensi (dari {formatCurrencySymbol((userCurrency as CurrencyType) || 'IDR')})
+                  {rateSource === 'fallback' && (
+                    <span className="ml-1 font-semibold text-warning normal-case">· perkiraan</span>
+                  )}
                 </span>
                 {isLoadingRates && (
                   <span className="text-xs text-text-muted animate-pulse">...</span>
                 )}
               </div>
+              {rateSource === 'fallback' && (
+                <p className="text-[11px] text-text-muted">
+                  Penyedia kurs tidak bisa dihubungi, jadi angka di bawah berasal dari tabel cadangan
+                  aplikasi dan tidak mengikuti pasar terkini.
+                </p>
+              )}
               <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
                 {(['USD', 'EUR', 'CNY'] as const).map((curr) => (
                   <div key={curr} className="flex items-center justify-between px-3 py-2 bg-background rounded-lg">
                     <span className="text-xs font-bold text-text">{formatCurrencySymbol(curr)}</span>
-                    <span className="text-xs font-semibold text-text muted">
+                    <span className="text-xs font-semibold text-text-muted">
                       1 {curr} = {exchangeRates[curr]?.toFixed(2) || '-'} {userCurrency}
                     </span>
                   </div>
@@ -350,15 +356,6 @@ export function SettingsView({ user, settings, onRefresh, onLogout }: SettingsVi
             </div>
           )}
 
-          <Button
-            type="submit"
-            variant="primary"
-            size="md"
-            isLoading={isSaving}
-            leftIcon={<FloppyDisk size={18} weight="bold" />}
-          >
-            Simpan Perubahan
-          </Button>
           </div>
 
           <Button
@@ -374,7 +371,7 @@ export function SettingsView({ user, settings, onRefresh, onLogout }: SettingsVi
       </div>
 
       {/* Card 2: Tema & Tampilan */}
-      <div className="p-5 md:p-6 bg-surface border border-border rounded-3xl space-y-4 shadow-xs">
+      <div className="p-4 sm:p-5 bg-surface border border-border rounded-3xl space-y-4 shadow-xs">
         <h3 className="text-base font-bold text-text flex items-center gap-2">
           <PaintBrushBroad size={20} className="text-primary" weight="duotone" />
           <span>Tema & Tampilan</span>
@@ -410,7 +407,7 @@ export function SettingsView({ user, settings, onRefresh, onLogout }: SettingsVi
       </div>
 
       {/* Card 3: Backup & Restore JSON (Data Portability) */}
-      <div className="p-5 md:p-6 bg-surface border border-border rounded-3xl space-y-4 shadow-xs">
+      <div className="p-4 sm:p-5 bg-surface border border-border rounded-3xl space-y-4 shadow-xs">
         <h3 className="text-base font-bold text-text flex items-center gap-2">
           <DownloadSimple size={20} className="text-primary" weight="duotone" />
           <span>Cadangan & Pemulihan Data (Backup & Restore)</span>
@@ -427,10 +424,9 @@ export function SettingsView({ user, settings, onRefresh, onLogout }: SettingsVi
         )}
 
         {restoreError && (
-          <div role="alert" className="p-3 bg-expense/10 border border-expense/20 text-expense rounded-xl text-xs font-semibold flex items-center gap-2">
-            <WarningCircle size={16} weight="fill" />
-            <span>{restoreError}</span>
-          </div>
+          <Alert tone="error" size="sm">
+            {restoreError}
+          </Alert>
         )}
 
         {pendingRestoreFile && (
@@ -492,7 +488,7 @@ export function SettingsView({ user, settings, onRefresh, onLogout }: SettingsVi
       </div>
 
       {/* Card 4: Keluar Akun */}
-      <div className="p-5 md:p-6 bg-surface border border-border rounded-3xl flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-xs">
+      <div className="p-4 sm:p-5 bg-surface border border-border rounded-3xl flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-xs">
         <div>
           <h4 className="text-sm font-bold text-text">Keluar dari Sesi Aplikasi</h4>
           <p className="text-xs text-text-muted">

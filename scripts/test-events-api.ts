@@ -77,7 +77,7 @@ try {
   } else {
     console.log('⚠️  ical.js dependency might be missing');
   }
-} catch (e) {
+} catch {
   console.log('⚠️  Could not check package.json');
 }
 

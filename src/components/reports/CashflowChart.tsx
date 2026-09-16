@@ -3,6 +3,7 @@
 import React from 'react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { formatCompactRupiah, formatRupiah } from '@/lib/formatters';
+import { CHART_COLOR_EXPENSE, CHART_COLOR_INCOME } from '@/lib/chartPalette';
 
 interface DailyTrend {
   day: number;
@@ -52,8 +53,8 @@ export function CashflowChart({ data }: CashflowChartProps) {
             }}
           />
           <Legend wrapperStyle={{ fontSize: '12px', paddingTop: '8px' }} />
-          <Bar dataKey="Pemasukan" fill="#20986C" radius={[4, 4, 0, 0]} />
-          <Bar dataKey="Pengeluaran" fill="#D92B2B" radius={[4, 4, 0, 0]} />
+          <Bar dataKey="Pemasukan" fill={CHART_COLOR_INCOME} radius={[4, 4, 0, 0]} />
+          <Bar dataKey="Pengeluaran" fill={CHART_COLOR_EXPENSE} radius={[4, 4, 0, 0]} />
         </BarChart>
       </ResponsiveContainer>
     </div>

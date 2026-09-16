@@ -20,9 +20,11 @@ interface ModalProps {
   title?: React.ReactNode;
   children: React.ReactNode;
   maxWidth?: 'sm' | 'md' | 'lg' | 'xl';
+  /** id elemen yang menjelaskan isi dialog (mis. teks konsekuensi aksi destruktif). */
+  ariaDescribedBy?: string;
 }
 
-export function Modal({ isOpen, onClose, title, children, maxWidth = 'md' }: ModalProps) {
+export function Modal({ isOpen, onClose, title, children, maxWidth = 'md', ariaDescribedBy }: ModalProps) {
   const mounted = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const titleId = useId();
@@ -38,12 +40,17 @@ export function Modal({ isOpen, onClose, title, children, maxWidth = 'md' }: Mod
       const previousOverflow = document.body.style.overflow;
       document.body.style.overflow = 'hidden';
 
-    // Auto-focus elemen pertama hanya sekali saat modal dibuka
+    // Auto-focus hanya sekali saat modal dibuka.
+    // Prioritas: elemen bertanda data-autofocus (mis. input nominal di form transaksi),
+    // baru fallback ke kontrol pertama dalam urutan DOM.
     const timer = setTimeout(() => {
       if (!containerRef.current) return;
-      const firstInput = containerRef.current.querySelector<HTMLElement>(
-        'input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled])'
-      );
+      const preferred = containerRef.current.querySelector<HTMLElement>('[data-autofocus]');
+      const firstInput =
+        preferred ??
+        containerRef.current.querySelector<HTMLElement>(
+          'input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled])'
+        );
       if (firstInput) {
         firstInput.focus();
       }
@@ -110,7 +117,7 @@ export function Modal({ isOpen, onClose, title, children, maxWidth = 'md' }: Mod
     <div className="fixed inset-0 z-[999] flex items-end md:items-center justify-center">
       {/* Backdrop */}
       <div
-        className="fixed inset-0 bg-black/60 backdrop-blur-sm transition-opacity animate-fade-in"
+        className="fixed inset-0 bg-black/70 transition-opacity animate-fade-in"
         onClick={handleBackdropClick}
       />
 
@@ -120,6 +127,7 @@ export function Modal({ isOpen, onClose, title, children, maxWidth = 'md' }: Mod
         role="dialog"
         aria-modal="true"
         aria-labelledby={labelledBy}
+        aria-describedby={ariaDescribedBy}
         onMouseDown={(e) => e.stopPropagation()}
         onTouchStart={(e) => e.stopPropagation()}
         className={`relative z-10 w-full ${maxWidthClasses[maxWidth]} max-h-[88dvh] md:max-h-[85vh] bg-surface rounded-t-3xl md:rounded-3xl shadow-2xl flex flex-col overflow-hidden border border-border transition-transform animate-slide-up md:animate-scale-in`}
@@ -136,7 +144,7 @@ export function Modal({ isOpen, onClose, title, children, maxWidth = 'md' }: Mod
             type="button"
             onClick={() => onCloseRef.current()}
             aria-label="Tutup dialog"
-            className="p-1.5 text-text-muted hover:text-text hover:bg-surface-2 rounded-xl transition-colors"
+            className="inline-flex items-center justify-center min-w-[44px] min-h-[44px] p-1.5 text-text-muted hover:text-text hover:bg-surface-2 rounded-xl transition-colors"
           >
             <X size={20} />
           </button>

@@ -52,11 +52,12 @@ export async function POST(req: NextRequest) {
     });
 
     // 4. AI receipt learning: pemetaan merchant yang sudah yakin menimpa usulan AI.
+    // Hanya kategori yang ditimpa. `confidence` tidak ikut dinaikkan: pemetaan merchant
+    // membuktikan kategori benar, bukan nominalnya.
     if (result.merchant) {
       const learnedCategoryId = await getLearnedCategory(session.userId, result.merchant);
       if (learnedCategoryId) {
         (result as ParsedReceiptResult).suggested_category_id = learnedCategoryId;
-        (result as ParsedReceiptResult).confidence = 'high';
       }
     }
 

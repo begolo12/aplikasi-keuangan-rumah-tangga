@@ -11,6 +11,7 @@ import {
 } from '@phosphor-icons/react';
 import { formatRupiah, INDONESIAN_MONTHS } from '@/lib/formatters';
 import { Wallet, Debt, Asset, MonthlySummary as MonthlySummaryType } from '@/lib/types';
+import { totalLiquidCash } from '@/lib/money';
 
 interface BalanceSheetReportProps {
   summary: MonthlySummaryType | null;
@@ -32,7 +33,7 @@ export function BalanceSheetReport({
   onExportCsv,
 }: BalanceSheetReportProps) {
   // 1. Aset Lancar / Kas Likuid
-  const cashLiquid = wallets.reduce((sum, w) => sum + Math.max(0, w.balance || 0), 0);
+  const cashLiquid = totalLiquidCash(wallets);
   
   // 2. Piutang (Receivables)
   const receivablesTotal = debts
@@ -60,21 +61,28 @@ export function BalanceSheetReport({
   // TOTAL LIABILITAS
   const totalLiabilities = pendingBillsAmount + payablesTotal;
 
-  // 5. EKUITAS / KEKAYAAN BERSIH (NET WORTH)
+  // 5. KEKAYAAN BERSIH
   const netWorth = totalAssets - totalLiabilities;
-  const isHealthy = netWorth >= 0 && totalAssets > totalLiabilities * 2;
-  const solvencyRatio = totalLiabilities > 0 ? Math.round((totalAssets / totalLiabilities) * 10) / 10 : totalAssets > 0 ? 100 : 1;
+  // Tanpa aset dan tanpa kewajiban, laporan ini tidak punya isi: jangan mengaku sehat.
+  const hasAnyData = totalAssets > 0 || totalLiabilities > 0;
+  const isHealthy = hasAnyData && netWorth >= 0 && totalAssets > totalLiabilities * 2;
+  // null = tidak ada kewajiban untuk dibandingkan; bukan angka 100.
+  const solvencyRatio = totalLiabilities > 0 ? Math.round((totalAssets / totalLiabilities) * 10) / 10 : null;
 
   // Status Kondisi Keuangan untuk Mobile
   let conditionStatus = 'Kondisi Keuangan Baik (Sehat)';
   let conditionColor = 'bg-primary/10 text-primary border-primary/20';
   let conditionDesc = 'Total harta kekayaan Anda jauh melebihi seluruh kewajiban hutang.';
 
-  if (totalLiabilities > totalAssets) {
+  if (!hasAnyData) {
+    conditionStatus = 'Belum Cukup Data';
+    conditionColor = 'bg-surface-2 text-text-muted border-border';
+    conditionDesc = 'Belum ada saldo dompet, aset, atau hutang yang bisa dinilai. Catat data keuangan terlebih dahulu.';
+  } else if (totalLiabilities > totalAssets) {
     conditionStatus = 'Kondisi Keuangan Kritis (Jelek / Defisit)';
-    conditionColor = 'bg-expense/10 text-expense border-expense/20 animate-pulse';
+    conditionColor = 'bg-expense/10 text-expense border-expense/20';
     conditionDesc = 'Total hutang Anda melebihi seluruh aset yang dimiliki. Segera lakukan restrukturisasi hutang.';
-  } else if (totalLiabilities > 0 && solvencyRatio < 2) {
+  } else if (solvencyRatio !== null && solvencyRatio < 2) {
     conditionStatus = 'Kondisi Keuangan Perlu Waspada';
     conditionColor = 'bg-warning/10 text-warning border-warning/25';
     conditionDesc = 'Beban hutang cukup tinggi dibandingkan aset likuid yang dimiliki.';
@@ -92,13 +100,13 @@ export function BalanceSheetReport({
             <div>
               <div className="flex items-center gap-2 flex-wrap">
                 <h3 className="text-xs sm:text-sm md:text-base font-extrabold text-text">
-                  Neraca Keuangan Keluarga ({INDONESIAN_MONTHS[selectedMonth - 1]} {selectedYear})
+                  Harta &amp; Hutang Keluarga ({INDONESIAN_MONTHS[selectedMonth - 1]} {selectedYear})
                 </h3>
-                <span className={`text-[10px] font-extrabold px-2.5 py-0.5 rounded-full border ${conditionColor}`}>
+                <span className={`text-[11px] font-extrabold px-2.5 py-0.5 rounded-full border ${conditionColor}`}>
                   {conditionStatus}
                 </span>
               </div>
-              <p className="text-[10px] sm:text-[11px] text-text-muted">
+              <p className="text-[11px] text-text-muted">
                 Laporan Posisi Keuangan: Total Harta Aset vs Kewajiban Hutang & Kekayaan Bersih.
               </p>
             </div>
@@ -108,46 +116,46 @@ export function BalanceSheetReport({
             <button
               type="button"
               onClick={onExportCsv}
-              className="self-start sm:self-center text-xs font-bold text-primary hover:underline flex items-center gap-1 min-h-[32px]"
+              className="self-start sm:self-center text-xs font-bold text-primary hover:underline flex items-center gap-1 min-h-[44px]"
             >
               <FileCsv size={15} weight="bold" />
-              <span>Ekspor Neraca</span>
+              <span>Ekspor Harta &amp; Hutang</span>
             </button>
           )}
         </div>
 
-        {/* 3 Metrik Inti Neraca (Glanceable di Mobile) */}
+        {/* 3 metrik inti, mudah dipindai di layar HP */}
         <div className="grid grid-cols-3 gap-2 sm:gap-3">
           {/* Total Harta Aset */}
           <div className="p-2.5 sm:p-3.5 bg-surface-2 rounded-2xl border border-border/60 space-y-0.5 sm:space-y-1 text-center sm:text-left">
-            <span className="text-[10px] sm:text-xs text-text-muted font-semibold block">Total Harta (Aset)</span>
+            <span className="text-[11px] sm:text-xs text-text-muted font-semibold block">Total Harta (Aset)</span>
             <p className="font-display-num text-base md:text-lg text-text tabular-nums whitespace-nowrap">
               {formatRupiah(totalAssets)}
             </p>
-            <span className="text-[9px] sm:text-[10px] text-text-muted hidden sm:block">Kas + Piutang + Barang</span>
+            <span className="text-[11px] text-text-muted hidden sm:block">Kas + Piutang + Barang</span>
           </div>
 
           {/* Total Hutang Kewajiban */}
           <div className="p-2.5 sm:p-3.5 bg-surface-2 rounded-2xl border border-border/60 space-y-0.5 sm:space-y-1 text-center sm:text-left">
-            <span className="text-[10px] sm:text-xs text-text-muted font-semibold block">Total Hutang</span>
+            <span className="text-[11px] sm:text-xs text-text-muted font-semibold block">Total Hutang</span>
             <p className="font-display-num text-base md:text-lg text-expense tabular-nums whitespace-nowrap">
               {formatRupiah(totalLiabilities)}
             </p>
-            <span className="text-[9px] sm:text-[10px] text-text-muted hidden sm:block">Tagihan & Pinjaman</span>
+            <span className="text-[11px] text-text-muted hidden sm:block">Tagihan & Pinjaman</span>
           </div>
 
-          {/* Kekayaan Bersih (Net Worth) */}
+          {/* Kekayaan bersih */}
           <div className={`p-2.5 sm:p-3.5 rounded-2xl border space-y-0.5 sm:space-y-1 text-center sm:text-left ${
             netWorth >= 0 ? 'bg-primary/10 border-primary/20' : 'bg-expense/10 border-expense/20'
           }`}>
-            <span className="text-[10px] sm:text-xs font-bold text-text-muted block">Kekayaan Bersih</span>
+            <span className="text-[11px] sm:text-xs font-bold text-text-muted block">Kekayaan Bersih</span>
             <p className={`font-display-num text-base md:text-lg tabular-nums whitespace-nowrap ${
               netWorth >= 0 ? 'text-primary' : 'text-expense'
             }`}>
               {formatRupiah(netWorth)}
             </p>
-            <span className="text-[9px] sm:text-[10px] font-semibold text-text-muted hidden sm:block">
-              {solvencyRatio >= 100 ? 'Bebas Hutang' : `Solvabilitas ${solvencyRatio}x`}
+            <span className="text-[11px] font-semibold text-text-muted hidden sm:block">
+              {solvencyRatio === null ? 'n/a' : solvencyRatio >= 100 ? 'Bebas Hutang' : `Solvabilitas ${solvencyRatio}x`}
             </span>
           </div>
         </div>
@@ -157,7 +165,7 @@ export function BalanceSheetReport({
           {isHealthy ? (
             <CheckCircle size={17} weight="fill" className="text-primary shrink-0 mt-0.5" />
           ) : (
-            <WarningCircle size={17} weight="fill" className="text-expense shrink-0 mt-0.5" />
+            <WarningCircle size={17} weight="fill" className={`${hasAnyData ? 'text-expense' : 'text-text-muted'} shrink-0 mt-0.5`} />
           )}
           <p className="text-[11px] text-text-muted leading-relaxed">
             <span className="font-bold text-text">{conditionStatus}:</span> {conditionDesc}
@@ -165,7 +173,7 @@ export function BalanceSheetReport({
         </div>
       </div>
 
-      {/* Desktop Full Data: Format Neraca Berpasangan (Two-Column Balanced Sheet) */}
+      {/* Tampilan desktop: daftar harta dan hutang berdampingan */}
       <div className="hidden md:grid md:grid-cols-2 gap-4">
         {/* Kolom Kiri: HARTA & ASET */}
         <div className="p-4 sm:p-5 bg-surface border border-border rounded-3xl space-y-3 shadow-2xs">
@@ -180,7 +188,7 @@ export function BalanceSheetReport({
           <div className="space-y-2.5 text-xs">
             {/* Aset Lancar */}
             <div className="space-y-1">
-              <span className="font-bold text-text-muted uppercase text-[10px] tracking-wider block">
+              <span className="font-bold text-text-muted uppercase text-[11px] tracking-wider block">
                 1. Uang Kas & Tabungan (Likuid)
               </span>
               <div className="pl-2 space-y-1 divide-y divide-border/40">
@@ -201,7 +209,7 @@ export function BalanceSheetReport({
 
             {/* Piutang */}
             <div className="space-y-1 pt-1 border-t border-border/50">
-              <span className="font-bold text-text-muted uppercase text-[10px] tracking-wider block">
+              <span className="font-bold text-text-muted uppercase text-[11px] tracking-wider block">
                 2. Uang yang Dipinjam Orang Lain (Piutang)
               </span>
               <div className="pl-2 flex items-center justify-between">
@@ -212,7 +220,7 @@ export function BalanceSheetReport({
 
             {/* Aset Tetap */}
             <div className="space-y-1 pt-1 border-t border-border/50">
-              <span className="font-bold text-text-muted uppercase text-[10px] tracking-wider block">
+              <span className="font-bold text-text-muted uppercase text-[11px] tracking-wider block">
                 3. Barang Berharga & Properti (Aset Tetap)
               </span>
               <div className="pl-2 space-y-1 divide-y divide-border/40">
@@ -256,7 +264,7 @@ export function BalanceSheetReport({
           <div className="space-y-2.5 text-xs">
             {/* Kewajiban Lancar */}
             <div className="space-y-1">
-              <span className="font-bold text-text-muted uppercase text-[10px] tracking-wider block">
+              <span className="font-bold text-text-muted uppercase text-[11px] tracking-wider block">
                 1. Tagihan Rutin yang Belum Dibayar
               </span>
               <div className="pl-2 flex items-center justify-between">
@@ -267,7 +275,7 @@ export function BalanceSheetReport({
 
             {/* Kewajiban Jangka Panjang */}
             <div className="space-y-1 pt-1 border-t border-border/50">
-              <span className="font-bold text-text-muted uppercase text-[10px] tracking-wider block">
+              <span className="font-bold text-text-muted uppercase text-[11px] tracking-wider block">
                 2. Hutang Pinjaman yang Sedang Berjalan
               </span>
               <div className="pl-2 space-y-1 divide-y divide-border/40">
@@ -294,7 +302,7 @@ export function BalanceSheetReport({
 
             {/* Ekuitas / Kekayaan Bersih */}
             <div className="space-y-1 pt-1 border-t border-border/50">
-              <span className="font-bold text-text-muted uppercase text-[10px] tracking-wider block">
+              <span className="font-bold text-text-muted uppercase text-[11px] tracking-wider block">
                 3. Kekayaan Bersih Murni Keluarga
               </span>
               <div className="pl-2 space-y-1">

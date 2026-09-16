@@ -2,6 +2,7 @@
 
 import React, { useRef, useState } from 'react';
 import { Modal } from '../ui/Modal';
+import { Alert } from '../ui/Alert';
 import { AmountInput } from '../ui/AmountInput';
 import { Button } from '../ui/Button';
 import { Wallet, Category, Transaction, TransactionType, AssetCategory, ParsedReceiptResult, Budget } from '@/lib/types';
@@ -10,6 +11,7 @@ import { apiFetch, endpoints, ApiError } from '@/lib/apiFetch';
 import { formatRupiah, getLocalDateString } from '@/lib/formatters';
 import { ReceiptParserModal } from './ReceiptParserModal';
 import { WifiSlash, Sparkle, Package, PencilSimple, Plus } from '@phosphor-icons/react';
+import { useToast } from '../ui/Toast';
 
 interface TransactionModalProps {
   isOpen: boolean;
@@ -51,6 +53,7 @@ function TransactionForm({
 }: TransactionFormProps) {
 
   const isEditing = Boolean(editingTransaction);
+  const { notify } = useToast();
 
   const defaultW = wallets.find((w) => w.is_default) || wallets[0];
   const defaultWalletId = editingTransaction?.wallet_id || defaultW?.id || '';
@@ -192,6 +195,10 @@ function TransactionForm({
         }).catch(() => {});
       }
 
+      notify(
+        isEditing ? 'Perubahan transaksi tersimpan.' : 'Transaksi berhasil dicatat.',
+        { tone: 'success' }
+      );
       onSuccess();
       onClose();
     } catch (err: unknown) {
@@ -207,6 +214,7 @@ function TransactionForm({
             payload,
           });
           setOfflineNotice(true);
+          notify('Transaksi disimpan di perangkat dan akan dikirim saat online.', { tone: 'info' });
           setTimeout(() => {
             onSuccess();
             onClose();
@@ -216,7 +224,9 @@ function TransactionForm({
           // IndexedDB gagal: tampilkan error jaringan biasa.
         }
       }
-      setError(err instanceof Error ? err.message : 'Terjadi kesalahan sistem.');
+      const failMsg = err instanceof Error ? err.message : 'Terjadi kesalahan sistem.';
+      setError(failMsg);
+      notify(failMsg, { tone: 'error' });
     } finally {
       submittingRef.current = false;
       setIsLoading(false);
@@ -240,37 +250,43 @@ function TransactionForm({
       )}
 
       {error && (
-        <div role="alert" className="p-3.5 bg-expense/10 border border-expense/20 rounded-2xl text-expense text-xs font-semibold">
+        <Alert tone="error" size="sm">
           {error}
-        </div>
+        </Alert>
       )}
 
       {/* 1. Transaction Type Segmented Control & AI Scan button */}
       <div className="flex items-center gap-2">
-        <div className="grid grid-cols-3 gap-1.5 p-1 bg-surface-2 rounded-2xl flex-1">
+        <div role="radiogroup" aria-label="Tipe transaksi" className="grid grid-cols-3 gap-1.5 p-1 bg-surface-2 rounded-2xl flex-1">
           <button
             type="button"
+            role="radio"
+            aria-checked={type === 'expense'}
             onClick={() => handleTypeChange('expense')}
             className={`min-h-[44px] py-2 text-xs font-bold rounded-xl transition-all ${
-              type === 'expense' ? 'bg-expense text-white shadow-xs' : 'text-text-muted hover:text-text'
+              type === 'expense' ? 'bg-expense text-expense-fg shadow-xs' : 'text-text-muted hover:text-text'
             }`}
           >
             Pengeluaran
           </button>
           <button
             type="button"
+            role="radio"
+            aria-checked={type === 'income'}
             onClick={() => handleTypeChange('income')}
             className={`min-h-[44px] py-2 text-xs font-bold rounded-xl transition-all ${
-              type === 'income' ? 'bg-income text-white shadow-xs' : 'text-text-muted hover:text-text'
+              type === 'income' ? 'bg-income text-income-fg shadow-xs' : 'text-text-muted hover:text-text'
             }`}
           >
             Pemasukan
           </button>
           <button
             type="button"
+            role="radio"
+            aria-checked={type === 'transfer'}
             onClick={() => handleTypeChange('transfer')}
             className={`min-h-[44px] py-2 text-xs font-bold rounded-xl transition-all ${
-              type === 'transfer' ? 'bg-transfer text-white shadow-xs' : 'text-text-muted hover:text-text'
+              type === 'transfer' ? 'bg-transfer text-transfer-fg shadow-xs' : 'text-text-muted hover:text-text'
             }`}
           >
             Transfer
@@ -285,7 +301,7 @@ function TransactionForm({
             className="min-h-[44px] px-3 rounded-2xl bg-primary/10 hover:bg-primary/15 border border-primary/25 text-primary text-xs font-bold flex items-center gap-1.5 shrink-0 active:scale-95 transition-all shadow-2xs"
           >
             <Sparkle size={16} weight="fill" />
-            <span className="hidden sm:inline">Scan Struk</span>
+            <span>Scan Struk</span>
           </button>
         )}
       </div>
@@ -332,7 +348,7 @@ function TransactionForm({
           >
             {wallets.map((w) => (
               <option key={w.id} value={w.id}>
-                {w.name} ({formatRupiah(w.balance)})
+                {w.name}
               </option>
             ))}
           </select>
@@ -354,7 +370,7 @@ function TransactionForm({
                 .filter((w) => w.id !== walletId)
                 .map((w) => (
                   <option key={w.id} value={w.id}>
-                    {w.name} ({formatRupiah(w.balance)})
+                    {w.name}
                   </option>
                 ))}
             </select>
@@ -374,7 +390,7 @@ function TransactionForm({
       )}
 
       {/* 3. Amount Input with live formatting & presets */}
-      <AmountInput value={amount} onChange={setAmount} />
+      <AmountInput value={amount} onChange={setAmount} autoFocus />
 
       {/* Extra fee for transfer — use AmountInput agar konsisten & tidak ada input number mentah */}
       {type === 'transfer' && (
@@ -452,7 +468,7 @@ function TransactionForm({
             if (!assetName) setAssetName(e.target.value);
           }}
           placeholder="Contoh: Belanja mingguan pasar pagi"
-          className="w-full h-11 px-4 bg-background border border-border rounded-xl text-sm font-medium focus:ring-2 focus:ring-primary focus:outline-none placeholder:text-text-muted/40"
+          className="w-full h-11 px-4 bg-background border border-border rounded-xl text-sm font-medium focus:ring-2 focus:ring-primary focus:outline-none placeholder:text-text-muted"
         />
 
         {/* Quick Suggestions */}
@@ -493,7 +509,7 @@ function TransactionForm({
           {createAsset && (
             <div className="space-y-2 pt-1 pl-6">
               <div>
-                <label className="block text-[10px] font-semibold text-text-muted">Nama Aset</label>
+                <label className="block text-[11px] font-semibold text-text-muted">Nama Aset</label>
                 <input
                   type="text"
                   required={createAsset}
@@ -505,7 +521,7 @@ function TransactionForm({
               </div>
 
               <div>
-                <label className="block text-[10px] font-semibold text-text-muted">Kategori Aset</label>
+                <label className="block text-[11px] font-semibold text-text-muted">Kategori Aset</label>
                 <select
                   value={assetCategory}
                   onChange={(e) => setAssetCategory(e.target.value as AssetCategory)}

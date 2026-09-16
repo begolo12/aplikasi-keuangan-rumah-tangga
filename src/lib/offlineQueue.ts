@@ -22,8 +22,27 @@ export interface OfflineMutation {
   createdAt: number;
 }
 
+interface Resolvers<T> {
+  promise: Promise<T>;
+  resolve: (value: T | PromiseLike<T>) => void;
+  reject: (reason?: unknown) => void;
+}
+
+function withResolvers<T>(): Resolvers<T> {
+  if (typeof Promise.withResolvers === 'function') {
+    return Promise.withResolvers<T>();
+  }
+  let resolve!: (value: T | PromiseLike<T>) => void;
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((res, rej) => {
+    resolve = res;
+    reject = rej;
+  });
+  return { promise, resolve, reject };
+}
+
 function openDB(): Promise<IDBDatabase> {
-  const { promise, resolve, reject } = Promise.withResolvers<IDBDatabase>();
+  const { promise, resolve, reject } = withResolvers<IDBDatabase>();
   const req = indexedDB.open(DB_NAME, DB_VERSION);
   req.onupgradeneeded = () => {
     const db = req.result;
@@ -37,7 +56,7 @@ function openDB(): Promise<IDBDatabase> {
 }
 
 function putItem(db: IDBDatabase, item: OfflineMutation): Promise<void> {
-  const { promise, resolve, reject } = Promise.withResolvers<void>();
+  const { promise, resolve, reject } = withResolvers<void>();
   const tx = db.transaction(STORE_NAME, 'readwrite');
   tx.objectStore(STORE_NAME).put(item);
   tx.oncomplete = () => {
@@ -52,7 +71,7 @@ function putItem(db: IDBDatabase, item: OfflineMutation): Promise<void> {
 }
 
 function deleteItem(db: IDBDatabase, id: string): Promise<void> {
-  const { promise, resolve, reject } = Promise.withResolvers<void>();
+  const { promise, resolve, reject } = withResolvers<void>();
   const tx = db.transaction(STORE_NAME, 'readwrite');
   tx.objectStore(STORE_NAME).delete(id);
   tx.oncomplete = () => {
@@ -95,7 +114,7 @@ export async function enqueueOfflineMutation(
  */
 export async function getOfflineMutations(userId: string): Promise<OfflineMutation[]> {
   const db = await openDB();
-  const { promise, resolve, reject } = Promise.withResolvers<OfflineMutation[]>();
+  const { promise, resolve, reject } = withResolvers<OfflineMutation[]>();
   const tx = db.transaction(STORE_NAME, 'readonly');
   const req = tx.objectStore(STORE_NAME).getAll();
   req.onsuccess = () => {

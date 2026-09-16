@@ -48,7 +48,7 @@ export function WalletScroller({ wallets, onAddWallet, onTransfer }: WalletScrol
             <div className="flex items-center justify-between mb-2">
               <CategoryIcon name={wallet.icon} color={wallet.color} size={17} className="w-8 h-8" />
               {wallet.is_default && (
-                <span className="text-[9px] font-bold bg-primary/10 text-primary px-1.5 py-0.5 rounded-full border border-primary/20">
+                <span className="text-[11px] font-bold bg-primary/10 text-primary px-1.5 py-0.5 rounded-full border border-primary/20">
                   Utama
                 </span>
               )}
@@ -59,7 +59,7 @@ export function WalletScroller({ wallets, onAddWallet, onTransfer }: WalletScrol
               <p className={`text-sm sm:text-base font-extrabold mt-0.5 whitespace-nowrap tabular-nums ${wallet.balance < 0 ? 'text-expense' : 'text-text'}`}>
                 {formatRupiah(wallet.balance)}
               </p>
-              <div className="flex items-center justify-between gap-1 text-[9px] text-text-muted mt-1 pt-1 border-t border-border/40">
+              <div className="flex items-center justify-between gap-1 text-[11px] text-text-muted mt-1 pt-1 border-t border-border/40">
                 <span className={`truncate ${reconcileAge !== 'fresh' ? 'font-semibold text-warning' : ''}`}>
                   {wallet.reconciled_at
                     ? `Rekom: ${new Date(wallet.reconciled_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })}`

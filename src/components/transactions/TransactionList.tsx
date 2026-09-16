@@ -22,6 +22,10 @@ interface TransactionListProps {
   onEditTransaction?: (transaction: Transaction) => void;
   onOpenAddModal: (type?: TransactionType) => void;
   isLoading?: boolean;
+  /** Mode dashboard: batasi jumlah baris yang dirender. */
+  limit?: number;
+  /** Mode dashboard: aksi tombol "Lihat semua" saat daftar dipotong. */
+  onViewAll?: () => void;
 }
 
 export function TransactionList({
@@ -33,6 +37,8 @@ export function TransactionList({
   onEditTransaction,
   onOpenAddModal,
   isLoading = false,
+  limit,
+  onViewAll,
 }: TransactionListProps) {
   const isServerMode = month !== undefined && year !== undefined;
 
@@ -119,6 +125,11 @@ export function TransactionList({
   const totalCount = isServerMode ? Math.max(serverTotal, shownCount) : shownCount;
   const hasMore = isServerMode && !fetchError && shownCount < totalCount;
 
+  // Mode dashboard: batasi baris agar kartu lain tetap terlihat tanpa banyak gulir.
+  const isTruncated = !isServerMode && limit !== undefined && displayItems.length > limit;
+  const visibleItems = isTruncated ? displayItems.slice(0, limit) : displayItems;
+  const hiddenCount = displayItems.length - visibleItems.length;
+
   return (
     <div className="space-y-4">
       {/* Header & Controls */}
@@ -128,11 +139,14 @@ export function TransactionList({
           <p className="text-xs text-text-muted">
             {fetchError
               ? 'Gagal memuat transaksi.'
-              : `Menampilkan ${shownCount} dari ${totalCount} transaksi periode ini.`}
+              : isServerMode
+              ? `Menampilkan ${shownCount} dari ${totalCount} transaksi periode ini.`
+              : `${totalCount} transaksi terbaru.`}
           </p>
         </div>
 
         {/* Filter Type Pills */}
+        {isServerMode && (
         <div className="flex items-center gap-1.5 p-1 bg-surface border border-border rounded-2xl overflow-x-auto no-scrollbar shrink-0">
           {(['all', 'expense', 'income', 'transfer'] as const).map((type) => (
             <button
@@ -154,9 +168,11 @@ export function TransactionList({
             </button>
           ))}
         </div>
+        )}
       </div>
 
       {/* Search Input Bar */}
+      {isServerMode && (
       <div className="relative flex items-center">
         <MagnifyingGlass size={18} className="absolute left-3.5 text-text-muted select-none" />
         <input
@@ -166,7 +182,7 @@ export function TransactionList({
           value={searchInput}
           onChange={(e) => setSearchInput(e.target.value)}
           placeholder="Cari transaksi berdasarkan catatan atau kategori..."
-          className="w-full h-11 pl-10 pr-4 bg-surface border border-border rounded-2xl text-xs md:text-sm font-medium focus:bg-background focus:ring-2 focus:ring-primary focus:outline-none placeholder:text-text-muted/40 transition-all"
+          className="w-full h-11 pl-10 pr-4 bg-surface border border-border rounded-2xl text-xs md:text-sm font-medium focus:bg-background focus:ring-2 focus:ring-primary focus:outline-none placeholder:text-text-muted transition-all"
         />
         {searchInput && (
           <button
@@ -178,6 +194,7 @@ export function TransactionList({
           </button>
         )}
       </div>
+      )}
 
       {/* Transactions List */}
       <div className="space-y-2.5">
@@ -200,7 +217,7 @@ export function TransactionList({
           />
         ) : displayItems.length > 0 ? (
           <>
-            {displayItems.map((trx) => (
+            {visibleItems.map((trx) => (
               <TransactionItem
                 key={trx.id}
                 transaction={trx}
@@ -209,6 +226,15 @@ export function TransactionList({
                 highlight={searchQuery || searchInput}
               />
             ))}
+            {isTruncated && onViewAll && (
+              <button
+                type="button"
+                onClick={onViewAll}
+                className="w-full min-h-[44px] mt-2 px-4 py-2.5 bg-surface hover:bg-surface-2 border border-border text-text text-xs font-bold rounded-2xl transition-colors flex items-center justify-center gap-1.5"
+              >
+                Lihat semua{hiddenCount > 0 ? ` (${hiddenCount} lainnya)` : ''}
+              </button>
+            )}
             {hasMore && (
               <button
                 onClick={handleLoadMore}

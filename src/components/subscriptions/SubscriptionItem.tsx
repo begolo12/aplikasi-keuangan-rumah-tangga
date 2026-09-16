@@ -54,7 +54,7 @@ export function SubscriptionItem({ subscription, onEdit, onDelete }: Subscriptio
       <div className="flex items-start gap-3">
         {/* Provider Icon */}
         <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-gradient-to-br from-primary to-primary-hover flex items-center justify-center shrink-0 shadow-xs">
-          <CalendarCheck size={cycleIcons[subscription.cycle]} weight="fill" className="text-white" />
+          <CalendarCheck size={cycleIcons[subscription.cycle]} weight="fill" className="text-primary-fg" />
         </div>
 
         {/* Content */}
@@ -63,11 +63,11 @@ export function SubscriptionItem({ subscription, onEdit, onDelete }: Subscriptio
             <div className="min-w-0">
               <h3 className="font-bold text-text truncate">{subscription.provider_name}</h3>
               <div className="flex items-center gap-2 mt-0.5">
-                <span className="text-[10px] sm:text-xs font-semibold px-2 py-0.5 rounded-lg bg-primary/10 text-primary border border-primary/20 whitespace-nowrap">
+                <span className="text-[11px] sm:text-xs font-semibold px-2 py-0.5 rounded-lg bg-primary/10 text-primary border border-primary/20 whitespace-nowrap">
                   {cycleLabels[subscription.cycle]}
                 </span>
                 {subscription.wallet_name && (
-                  <span className="text-[10px] sm:text-xs text-text-muted flex items-center gap-0.5">
+                  <span className="text-[11px] sm:text-xs text-text-muted flex items-center gap-0.5">
                     <Wallet size={10} weight="bold" />
                     {subscription.wallet_name}
                   </span>
@@ -80,8 +80,8 @@ export function SubscriptionItem({ subscription, onEdit, onDelete }: Subscriptio
               {onEdit && (
                 <button
                   onClick={() => onEdit(subscription)}
-                  className="p-1.5 hover:bg-surface-2 rounded-lg transition-colors text-text-muted hover:text-text"
-                  aria-label="Edit subscription"
+                  className="inline-flex items-center justify-center min-w-[44px] min-h-[44px] p-1.5 hover:bg-surface-2 rounded-lg transition-colors text-text-muted hover:text-text"
+                  aria-label="Ubah langganan"
                 >
                   <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
                     <path d="M14.7 2.3a2.3 2.3 0 0 0-3.3 0L9 3.7l-1 1-1.3-.7a2.3 2.3 0 0 0-2.7.4l-.7.7a2.3 2.3 0 0 0-.4 2.7l-.7 1.3v4a2.3 2.3 0 0 0 2.3 2.3h4l1.3-.7a2.3 2.3 0 0 0 .4-2.7l-.7-1.3 1-1 1.4-1.4a2.3 2.3 0 0 0 0-3.3l-1-1zM4 11v-2l1.5-1.5a1.3 1.3 0 0 1 1.8 0l.2.2L6 10v2H4zm8-5l1.5 1.5L11 8V6l1-1z"/>
@@ -91,8 +91,8 @@ export function SubscriptionItem({ subscription, onEdit, onDelete }: Subscriptio
               {onDelete && (
                 <button
                   onClick={() => onDelete(subscription.id)}
-                  className="p-1.5 hover:bg-expense/10 rounded-lg transition-colors text-text-muted hover:text-expense"
-                  aria-label="Delete subscription"
+                  className="inline-flex items-center justify-center min-w-[44px] min-h-[44px] p-1.5 hover:bg-expense/10 rounded-lg transition-colors text-text-muted hover:text-expense"
+                  aria-label="Hapus langganan"
                 >
                   <Trash size={14} weight="bold" />
                 </button>
@@ -106,7 +106,7 @@ export function SubscriptionItem({ subscription, onEdit, onDelete }: Subscriptio
               <p className="font-extrabold text-lg sm:text-xl text-expense tabular-nums">
                 {formatRupiah(subscription.amount)}
               </p>
-              <p className="text-[10px] sm:text-xs text-text-muted">per {cycleLabels[subscription.cycle].toLowerCase()}</p>
+              <p className="text-[11px] sm:text-xs text-text-muted">per {cycleLabels[subscription.cycle].toLowerCase()}</p>
             </div>
 
             <div className="flex items-center gap-2 min-w-0">
@@ -115,7 +115,7 @@ export function SubscriptionItem({ subscription, onEdit, onDelete }: Subscriptio
                 <p className={`text-xs font-bold ${isOverdue ? 'text-expense' : 'text-text'}`}>
                   {getNextChargeLabel(subscription.next_charge_date)}
                 </p>
-                <p className="text-[10px] text-text-muted">
+                <p className="text-[11px] text-text-muted">
                   {formatDateISO(subscription.next_charge_date)}
                 </p>
               </div>

@@ -16,7 +16,7 @@ import {
 import { INDONESIAN_MONTHS } from '@/lib/formatters';
 import { ThemeToggle } from '@/components/ui/ThemeToggle';
 
-import { NavTab } from './BottomNav';
+import { NavTab, navTabLabel } from '@/lib/nav';
 
 interface TopHeaderProps {
   activeTab?: NavTab;
@@ -43,6 +43,7 @@ export function TopHeader({
 }: TopHeaderProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  const menuTriggerRef = useRef<HTMLButtonElement>(null);
   const [isPrivacyMode, setIsPrivacyMode] = useState(false);
 
   // Init privacy mode from localStorage
@@ -83,6 +84,8 @@ export function TopHeader({
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         setIsMenuOpen(false);
+        // Kembalikan fokus ke tombol pemicu agar pengguna keyboard tidak tersesat.
+        menuTriggerRef.current?.focus();
       }
     };
 
@@ -126,27 +129,13 @@ export function TopHeader({
   };
 
   return (
-    <header className="isolate sticky top-0 z-30 bg-background/95 backdrop-blur-sm border-b border-border px-3 sm:px-4 md:px-8 py-2.5 sm:py-3 transition-colors">
+    <header className="isolate sticky top-0 z-30 bg-background border-b border-border px-3 sm:px-4 md:px-8 py-2.5 sm:py-3 transition-colors">
       <div className="flex items-center justify-between max-w-7xl mx-auto gap-2 sm:gap-4">
         {/* Context-aware Left Header: Period Selector on period-tabs, or Section Badge on non-period tabs */}
         {['assets', 'debts', 'wallets', 'goals', 'reports', 'household', 'subscriptions', 'settings'].includes(activeTab) ? (
           <div className="flex items-center gap-2 px-1">
-            <span className="text-xs sm:text-sm font-extrabold text-text capitalize">
-              {activeTab === 'assets'
-                ? 'Aset & Depresiasi'
-                : activeTab === 'debts'
-                ? 'Hutang & Piutang'
-                : activeTab === 'wallets'
-                ? 'Pos Kas & Rekening'
-                : activeTab === 'goals'
-                ? 'Target Tabungan'
-                : activeTab === 'reports'
-                ? 'Laporan & Ekspor'
-                : activeTab === 'household'
-                ? 'Kas Keluarga Bersama'
-                : activeTab === 'subscriptions'
-                ? 'Langganan'
-                : 'Pengaturan & Backup'}
+            <span className="text-xs sm:text-sm font-extrabold text-text">
+              {navTabLabel(activeTab)}
             </span>
           </div>
         ) : (
@@ -197,10 +186,13 @@ export function TopHeader({
           {/* User Profile Avatar & Dropdown Menu */}
           <div className="relative" ref={menuRef}>
           <button
+            ref={menuTriggerRef}
             type="button"
             onClick={() => setIsMenuOpen(!isMenuOpen)}
             aria-label="Buka menu profil dan pengaturan"
-            className="flex items-center gap-2 p-1 sm:p-1.5 hover:bg-surface rounded-2xl border border-transparent hover:border-border transition-all active:scale-95 min-h-[40px]"
+            aria-expanded={isMenuOpen}
+            aria-haspopup="menu"
+            className="flex items-center gap-2 p-1 sm:p-1.5 hover:bg-surface rounded-2xl border border-transparent hover:border-border transition-all active:scale-95 min-h-[44px]"
           >
             <div className="hidden md:flex flex-col items-end text-right">
               <span className="text-xs font-bold text-text leading-tight">{userName}</span>
@@ -224,16 +216,16 @@ export function TopHeader({
               {/* User Identity Header */}
               <div className="p-2.5 bg-surface-2 rounded-xl space-y-1">
                 <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-lg bg-primary text-white flex items-center justify-center font-bold text-xs">
+                  <div className="w-8 h-8 rounded-lg bg-primary text-primary-fg flex items-center justify-center font-bold text-xs">
                     {userName.charAt(0).toUpperCase()}
                   </div>
                   <div className="min-w-0 flex-1">
                     <p className="text-xs font-bold text-text truncate">{userName}</p>
-                    <p className="text-[10px] text-text-muted truncate">{familyName}</p>
+                    <p className="text-[11px] text-text-muted truncate">{familyName}</p>
                   </div>
                 </div>
                 {userEmail && (
-                  <p className="text-[10px] text-text-muted truncate pt-1 border-t border-border/50">
+                  <p className="text-[11px] text-text-muted truncate pt-1 border-t border-border/50">
                     {userEmail}
                   </p>
                 )}

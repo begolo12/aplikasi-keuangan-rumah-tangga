@@ -52,11 +52,21 @@ export async function verifySessionToken(token: string): Promise<SessionPayload 
   }
 }
 
+interface TokenVersionCacheEntry {
+  version: number;
+  expiresAt: number;
+}
+
+const tokenVersionCache = new Map<string, TokenVersionCacheEntry>();
+
+export function invalidateTokenVersionCache(userId: string): void {
+  tokenVersionCache.delete(userId);
+}
+
 /**
  * Get current authenticated user session from NextRequest or cookies().
- * Setelah verifikasi token, satu query DB membandingkan token_version DB dengan
- * klaim tv payload. Import db dinamis agar modul ini tetap aman dipakai skrip
- * test tanpa efek samping koneksi database saat module-load.
+ * Setelah verifikasi token, cache in-memory jangka pendek (30s) atau query DB
+ * membandingkan token_version DB dengan klaim tv payload.
  */
 export async function getAuthSession(req?: NextRequest): Promise<SessionPayload | null> {
   let token: string | undefined;
@@ -72,13 +82,24 @@ export async function getAuthSession(req?: NextRequest): Promise<SessionPayload 
   const payload = await verifySessionToken(token);
   if (!payload) return null;
 
-  const { query } = await import('./db');
-  const rows = await query<{ token_version: number }>(
-    'SELECT token_version FROM users WHERE id = $1',
-    [payload.userId]
-  );
-  if (rows.length === 0) return null;
-  if (rows[0].token_version !== (payload.tokenVersion ?? 0)) return null;
+  const now = Date.now();
+  const cached = tokenVersionCache.get(payload.userId);
+  let dbVersion: number;
+
+  if (cached && cached.expiresAt > now) {
+    dbVersion = cached.version;
+  } else {
+    const { query } = await import('./db');
+    const rows = await query<{ token_version: number }>(
+      'SELECT token_version FROM users WHERE id = $1',
+      [payload.userId]
+    );
+    if (rows.length === 0) return null;
+    dbVersion = rows[0].token_version;
+    tokenVersionCache.set(payload.userId, { version: dbVersion, expiresAt: now + 30_000 });
+  }
+
+  if (dbVersion !== (payload.tokenVersion ?? 0)) return null;
   return payload;
 }
 

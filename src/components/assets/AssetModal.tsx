@@ -190,7 +190,7 @@ function AssetForm({ onClose, onSubmit, initialData, wallets = [] }: AssetFormPr
           value={name}
           onChange={(e) => setName(e.target.value)}
           placeholder="Contoh: Honda Vario 160, MacBook Air M2, Tanah Kavling"
-          className="w-full h-11 px-3.5 bg-background border border-border rounded-xl text-sm font-medium focus:ring-2 focus:ring-primary focus:outline-none placeholder:text-text-muted/50"
+          className="w-full h-11 px-3.5 bg-background border border-border rounded-xl text-sm font-medium focus:ring-2 focus:ring-primary focus:outline-none placeholder:text-text-muted"
         />
       </div>
 
@@ -255,7 +255,7 @@ function AssetForm({ onClose, onSubmit, initialData, wallets = [] }: AssetFormPr
       <div className="space-y-1 p-3 bg-surface-2 rounded-2xl border border-primary/20">
         <div className="flex items-center justify-between">
           <label className="block text-xs font-bold text-text">Taksiran Harga Pasaran Saat Ini (Rp)</label>
-          <span className="text-[10px] font-semibold text-primary">Untuk Cek Plus / Minus</span>
+          <span className="text-[11px] font-semibold text-primary">Untuk Cek Plus / Minus</span>
         </div>
         <AmountInput
           id="assetCurrentValue"
@@ -264,7 +264,7 @@ function AssetForm({ onClose, onSubmit, initialData, wallets = [] }: AssetFormPr
           onChange={setCurrentValue}
           placeholder={purchasePrice ? String(purchasePrice) : 'Contoh: 18000000'}
         />
-        <p className="text-[10px] text-text-muted">Perkiraan harga jual/pasar barang saat ini di marketplace atau pasaran umum.</p>
+        <p className="text-[11px] text-text-muted">Perkiraan harga jual/pasar barang saat ini di marketplace atau pasaran umum.</p>
       </div>
 
       {/* Metode Penyusutan */}
@@ -317,7 +317,7 @@ function AssetForm({ onClose, onSubmit, initialData, wallets = [] }: AssetFormPr
             </div>
 
             <span
-              className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full border ${
+              className={`text-[11px] font-extrabold px-2 py-0.5 rounded-full border ${
                 isGain
                   ? 'bg-income/10 text-income border-income/20'
                   : 'bg-expense/10 text-expense border-expense/20'
@@ -331,28 +331,28 @@ function AssetForm({ onClose, onSubmit, initialData, wallets = [] }: AssetFormPr
 
           <div className="grid grid-cols-3 gap-2 text-xs">
             <div className="p-2 bg-surface rounded-xl border border-border/70">
-              <span className="text-text-muted text-[10px] block">Harga Beli Awal:</span>
+              <span className="text-text-muted text-[11px] block">Harga Beli Awal:</span>
               <span className="font-bold text-text whitespace-nowrap tabular-nums">
                 {formatRupiah(priceNum)}
               </span>
             </div>
 
             <div className="p-2 bg-surface rounded-xl border border-border/70">
-              <span className="text-text-muted text-[10px] block">Nilai Buku Susut:</span>
+              <span className="text-text-muted text-[11px] block">Nilai Buku Susut:</span>
               <span className="font-bold text-text whitespace-nowrap tabular-nums">
                 {formatRupiah(simBookValue)}
               </span>
             </div>
 
             <div className={`p-2 rounded-xl border ${isGain ? 'bg-income/5 border-income/20' : 'bg-expense/5 border-expense/20'}`}>
-              <span className="text-text-muted text-[10px] block">Taksiran Pasar:</span>
+              <span className="text-text-muted text-[11px] block">Taksiran Pasar:</span>
               <span className={`font-extrabold whitespace-nowrap tabular-nums ${isGain ? 'text-income' : 'text-expense'}`}>
                 {formatRupiah(marketNum)}
               </span>
             </div>
           </div>
 
-          <p className="text-[10px] text-text-muted">
+          <p className="text-[11px] text-text-muted">
             {isGain
               ? `Taksiran pasar saat ini bernilai lebih tinggi Rp ${new Intl.NumberFormat('id-ID').format(marketDiffPurchase)} (+${Math.round((marketDiffPurchase / priceNum) * 100)}%) dibandingkan harga beli awal.`
               : `Aset ini terdepresiasi sebesar Rp ${new Intl.NumberFormat('id-ID').format(Math.abs(marketDiffPurchase))} (${Math.round((Math.abs(marketDiffPurchase) / priceNum) * 100)}%) dari harga perolehan awal.`}
@@ -377,7 +377,7 @@ function AssetForm({ onClose, onSubmit, initialData, wallets = [] }: AssetFormPr
                 onChange={(e) => setRecordPurchase(e.target.checked)}
                 className="w-4 h-4 text-primary rounded border-border focus:ring-primary"
               />
-              <label htmlFor="recordPurchase" className="text-xs font-semibold text-text cursor-pointer">
+              <label htmlFor="recordPurchase" className="text-xs font-semibold text-text cursor-pointer py-3.5 -my-2">
                 Catat pengeluaran kas pembelian ({formatRupiah(priceNum)}) dari dompet
               </label>
             </div>
@@ -391,7 +391,7 @@ function AssetForm({ onClose, onSubmit, initialData, wallets = [] }: AssetFormPr
                 >
                   {wallets.map((w) => (
                     <option key={w.id} value={w.id}>
-                      {w.name} (Saldo: {formatRupiah(w.balance)})
+                      {w.name}
                     </option>
                   ))}
                 </select>
@@ -409,7 +409,7 @@ function AssetForm({ onClose, onSubmit, initialData, wallets = [] }: AssetFormPr
                 onChange={(e) => setScheduleTax(e.target.checked)}
                 className="w-4 h-4 text-primary rounded border-border focus:ring-primary"
               />
-              <label htmlFor="scheduleTax" className="text-xs font-semibold text-text cursor-pointer">
+              <label htmlFor="scheduleTax" className="text-xs font-semibold text-text cursor-pointer py-3.5 -my-2">
                 Jadwalkan Pajak Rutin (Pajak STNK / PBB)
               </label>
             </div>
@@ -437,7 +437,7 @@ function AssetForm({ onClose, onSubmit, initialData, wallets = [] }: AssetFormPr
                 onChange={(e) => setScheduleMaintenance(e.target.checked)}
                 className="w-4 h-4 text-primary rounded border-border focus:ring-primary"
               />
-              <label htmlFor="scheduleMaintenance" className="text-xs font-semibold text-text cursor-pointer">
+              <label htmlFor="scheduleMaintenance" className="text-xs font-semibold text-text cursor-pointer py-3.5 -my-2">
                 Jadwalkan Servis / Perawatan Rutin
               </label>
             </div>
@@ -465,7 +465,7 @@ function AssetForm({ onClose, onSubmit, initialData, wallets = [] }: AssetFormPr
           onChange={(e) => setNotes(e.target.value)}
           rows={2}
           placeholder="Contoh: BPKB di lemari, No Seri: XYZ123"
-          className="w-full p-3 bg-background border border-border rounded-xl text-xs font-medium focus:ring-2 focus:ring-primary focus:outline-none placeholder:text-text-muted/50 resize-none"
+          className="w-full p-3 bg-background border border-border rounded-xl text-xs font-medium focus:ring-2 focus:ring-primary focus:outline-none placeholder:text-text-muted resize-none"
         />
       </div>
 

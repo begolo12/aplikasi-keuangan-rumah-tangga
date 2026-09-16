@@ -27,21 +27,27 @@ const config: Config = {
           hover: "hsl(var(--color-primary-hover) / <alpha-value>)",
           deep: "hsl(var(--color-primary-deep) / <alpha-value>)",
           subtle: "hsl(var(--color-primary-subtle) / <alpha-value>)",
+          hero: "hsl(var(--color-primary-hero) / <alpha-value>)",
+          "hero-2": "hsl(var(--color-primary-hero-2) / <alpha-value>)",
         },
         income: {
           DEFAULT: "hsl(var(--color-income) / <alpha-value>)",
+          fg: "hsl(var(--color-income-fg) / <alpha-value>)",
           subtle: "hsl(var(--color-income-subtle) / <alpha-value>)",
         },
         expense: {
           DEFAULT: "hsl(var(--color-expense) / <alpha-value>)",
+          fg: "hsl(var(--color-expense-fg) / <alpha-value>)",
           subtle: "hsl(var(--color-expense-subtle) / <alpha-value>)",
         },
         transfer: {
           DEFAULT: "hsl(var(--color-transfer) / <alpha-value>)",
+          fg: "hsl(var(--color-transfer-fg) / <alpha-value>)",
           subtle: "hsl(var(--color-transfer-subtle) / <alpha-value>)",
         },
         warning: {
           DEFAULT: "hsl(var(--color-warning) / <alpha-value>)",
+          fg: "hsl(var(--color-warning-fg) / <alpha-value>)",
           subtle: "hsl(var(--color-warning-subtle) / <alpha-value>)",
         },
       },
@@ -55,6 +61,8 @@ const config: Config = {
         DEFAULT: "0 1px 3px 0 rgba(0, 0, 0, 0.08), 0 1px 2px -1px rgba(0, 0, 0, 0.08)",
         md: "0 4px 6px -1px rgba(0, 0, 0, 0.08), 0 2px 4px -2px rgba(0, 0, 0, 0.06)",
         lg: "0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -4px rgba(0, 0, 0, 0.04)",
+        xl: "0 20px 25px -5px rgba(0, 0, 0, 0.08), 0 8px 10px -6px rgba(0, 0, 0, 0.04)",
+        "2xl": "0 25px 50px -12px rgba(0, 0, 0, 0.12)",
       },
       backdropBlur: {
         xs: "2px",

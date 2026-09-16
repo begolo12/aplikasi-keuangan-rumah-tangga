@@ -11,7 +11,7 @@
     --color-surface-3: 40 16% 82%;   /* #D8D1C1 */
     --color-border: 40 15% 86%;      /* #E1DCD2 */
     --color-text: 25 22% 14%;        /* cokelat tua kalem #221C18 */
-    --color-text-muted: 25 11% 39%;  /* AA di atas semua permukaan ramp (terukur >= 4.5:1) */
+    --color-text-muted: 25 11% 39%;  /* AA di atas bg/surface/surface-2 (>= 4.5:1); di surface-3 hanya 3,99:1, pakai --color-text */
 
     /* Aksen utama: emerald tua (kepercayaan finansial). Digerakkan cukup gelap agar AA dengan teks putih. */
     --color-primary: 158 62% 25%;       /* #17925E */
@@ -19,15 +19,23 @@
     --color-primary-hover: 158 64% 20%; /* #10794E */
     --color-primary-deep: 158 66% 14%;  /* dasar gelap untuk gradient hero */
     --color-primary-subtle: 158 44% 92%;
+    /* Stop gradien hero BalanceHeader. Sengaja terpisah dari primary karena mode gelap
+       menaikkan lightness primary untuk dipakai sebagai aksen; hero tetap butuh latar gelap. */
+    --color-primary-hero: 158 62% 25%;
+    --color-primary-hero-2: 158 64% 20%;
 
-    /* Semantik keuangan keluarga (AA di atas ivory/porselen) */
+    /* Warna semantik keuangan keluarga (AA di atas ivory/porselen) */
     --color-income: 130 45% 30%;        /* hijau lumut tua #2A7A3C */
+    --color-income-fg: 0 0% 100%;
     --color-income-subtle: 130 34% 93%;
     --color-expense: 12 66% 44%;        /* terracotta merah bata #C24635 */
+    --color-expense-fg: 0 0% 100%;
     --color-expense-subtle: 12 55% 95%;
     --color-transfer: 205 42% 42%;      /* biru-abu laut #3F7494 */
+    --color-transfer-fg: 0 0% 100%;
     --color-transfer-subtle: 205 40% 94%;
     --color-warning: 26 82% 31%;        /* amber gelap hangat, tetap terbaca */
+    --color-warning-fg: 0 0% 100%;
     --color-warning-subtle: 34 90% 93%;
   }
 
@@ -46,14 +54,20 @@
     --color-primary-hover: 158 55% 53%;
     --color-primary-deep: 158 48% 24%;
     --color-primary-subtle: 158 38% 17%;
+    --color-primary-hero: 158 52% 28%;
+    --color-primary-hero-2: 158 54% 22%;
 
     --color-income: 130 40% 56%;
+    --color-income-fg: 225 20% 10%;
     --color-income-subtle: 130 32% 16%;
     --color-expense: 12 70% 58%;
+    --color-expense-fg: 225 20% 10%;
     --color-expense-subtle: 12 36% 17%;
     --color-transfer: 205 46% 58%;
+    --color-transfer-fg: 225 20% 10%;
     --color-transfer-subtle: 205 32% 17%;
     --color-warning: 33 86% 58%;
+    --color-warning-fg: 225 20% 10%;
     --color-warning-subtle: 33 40% 17%;
   }
 

@@ -86,21 +86,15 @@ export async function POST(req: NextRequest) {
 
     const startDate = validated.start_date || null;
     let dueDate = validated.due_date || null;
-    let paidAmount = validated.initial_paid_amount !== undefined && validated.initial_paid_amount !== null
-      ? validated.initial_paid_amount
-      : 0;
+    // paid_amount hanya boleh berasal dari pernyataan eksplisit user. Server tidak mengarang
+    // jumlah cicilan yang "seharusnya sudah dibayar": itu klaim uang keluar tanpa mutasi dompet
+    // dan tanpa baris transaksi, sehingga tidak bisa direkonsiliasi dengan saldo.
+    const paidAmount = validated.initial_paid_amount || 0;
 
-    // Kalkulasi otomatis cicilan yang sudah berjalan dari tanggal mulai (start_date)
     if (startDate && validated.monthly_installment && validated.monthly_installment > 0) {
       const startObj = new Date(startDate);
       const now = new Date();
       if (!isNaN(startObj.getTime())) {
-        const monthsElapsed = (now.getFullYear() - startObj.getFullYear()) * 12 + (now.getMonth() - startObj.getMonth());
-        if (monthsElapsed > 0 && (!validated.initial_paid_amount || validated.initial_paid_amount === 0)) {
-          const calculatedPaid = monthsElapsed * validated.monthly_installment;
-          paidAmount = Math.min(totalAmount, calculatedPaid);
-        }
-
         // Tentukan jatuh tempo cicilan berikutnya secara otomatis
         const dueDay = startObj.getDate();
         let targetYear = now.getFullYear();
@@ -220,7 +214,6 @@ export async function POST(req: NextRequest) {
 
       // Jika hutang (payable) memiliki cicilan bulanan, otomatis jadwalkan ke recurring_bills
       let billScheduled = false;
-      let billId: string | null = null;
       if (validated.type === 'payable' && validated.monthly_installment && validated.monthly_installment > 0) {
         try {
           let targetWalletId = validated.wallet_id || null;
@@ -235,11 +228,10 @@ export async function POST(req: NextRequest) {
             if (cat.rows.length === 0) budgetCategoryId = null;
           }
 
-          const insBill = await client.query<{ id: string }>(
+          await client.query(
             `INSERT INTO recurring_bills (
             user_id, type, title, amount, due_day, category_id, wallet_id, debt_id, auto_record, is_active
-          ) VALUES ($1, 'expense', $2, $3, $4, $5, $6, $7, TRUE, TRUE)
-          RETURNING id`,
+          ) VALUES ($1, 'expense', $2, $3, $4, $5, $6, $7, TRUE, TRUE)`,
             [
               user.userId,
               `Cicilan: ${validated.person_name}`,
@@ -251,69 +243,9 @@ export async function POST(req: NextRequest) {
             ]
           );
           billScheduled = true;
-          billId = insBill.rows[0]?.id || null;
         } catch (e) {
           console.warn('[debts:auto-schedule] gagal membuat jadwal cicilan', e);
           billScheduled = false;
-        }
-      }
-
-      // Catat log pembayaran historis (debt_payments & bill_payments) untuk bulan-bulan yang telah berlalu
-      if (startDate && validated.monthly_installment && validated.monthly_installment > 0 && paidAmount > 0) {
-        const startObj = new Date(startDate);
-        const now = new Date();
-        const dueDay = Math.min(28, startObj.getDate());
-        let curYear = startObj.getFullYear();
-        let curMonth = startObj.getMonth() + 1; // 1-indexed
-
-        const nowYear = now.getFullYear();
-        const nowMonth = now.getMonth() + 1;
-
-        let accumulatedPaid = 0;
-
-        while ((curYear < nowYear || (curYear === nowYear && curMonth < nowMonth)) && accumulatedPaid < paidAmount) {
-          const installmentAmount = Math.min(validated.monthly_installment, paidAmount - accumulatedPaid);
-          if (installmentAmount <= 0) break;
-
-          const paymentDateStr = `${curYear}-${String(curMonth).padStart(2, '0')}-${String(dueDay).padStart(2, '0')}`;
-
-          // Log ke debt_payments
-          await client.query(
-            `INSERT INTO debt_payments (debt_id, user_id, wallet_id, amount, payment_date, notes)
-             VALUES ($1, $2, $3, $4, $5, $6)`,
-            [
-              createdDebt.id,
-              user.userId,
-              validated.wallet_id || null,
-              installmentAmount,
-              paymentDateStr,
-              `Cicilan berjalan (${curMonth}/${curYear})`,
-            ]
-          );
-
-          // Log ke bill_payments jika tagihan rutin berhasil dibuat
-          if (billId) {
-            await client.query(
-              `INSERT INTO bill_payments (user_id, bill_id, paid_date, amount, month, year)
-               VALUES ($1, $2, $3, $4, $5, $6)
-               ON CONFLICT (user_id, bill_id, month, year) DO NOTHING`,
-              [
-                user.userId,
-                billId,
-                paymentDateStr,
-                installmentAmount,
-                curMonth,
-                curYear,
-              ]
-            );
-          }
-
-          accumulatedPaid += installmentAmount;
-          curMonth++;
-          if (curMonth > 12) {
-            curMonth = 1;
-            curYear++;
-          }
         }
       }
 

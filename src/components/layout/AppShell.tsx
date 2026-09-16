@@ -14,6 +14,7 @@ interface AppShellProps {
   onTabChange: (tab: NavTab) => void;
   onOpenAddModal: () => void;
   onOpenTypedModal?: (type: TransactionType) => void;
+  onOpenReceiptScan?: () => void;
   currentMonth: number;
   currentYear: number;
   onPeriodChange: (month: number, year: number) => void;
@@ -36,6 +37,7 @@ export function AppShell({
   onTabChange,
   onOpenAddModal,
   onOpenTypedModal,
+  onOpenReceiptScan,
   currentMonth,
   currentYear,
   onPeriodChange,
@@ -100,6 +102,7 @@ export function AppShell({
         onTabChange={onTabChange}
         onOpenAddModal={onOpenAddModal}
         onOpenTypedModal={onOpenTypedModal}
+        onOpenReceiptScan={onOpenReceiptScan}
         pendingBillsCount={pendingBillsCount}
         overbudgetCount={overbudgetCount}
         unpaidDebtsCount={unpaidDebtsCount}

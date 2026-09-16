@@ -223,6 +223,105 @@ async function main() {
     console.log('5. Adding auxiliary indexes...');
     await client.query(`CREATE INDEX IF NOT EXISTS idx_bills_user_active ON recurring_bills(user_id, is_active);`);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_bill_payments_user_month ON bill_payments(user_id, year, month);`);
+
+    // 6. Tabel rumah tangga (multi-user) + keanggotaan
+    console.log('6. Ensuring households and household_members tables...');
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS households (
+        id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        name          VARCHAR(100) NOT NULL,
+        owner_user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        invite_code   VARCHAR(8) NOT NULL,
+        created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        UNIQUE (owner_user_id),
+        UNIQUE (invite_code)
+      );
+
+      CREATE TABLE IF NOT EXISTS household_members (
+        id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        household_id UUID NOT NULL REFERENCES households(id) ON DELETE CASCADE,
+        user_id      UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        role         VARCHAR(20) NOT NULL DEFAULT 'member' CHECK (role IN ('owner','member')),
+        joined_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        UNIQUE (user_id),
+        UNIQUE (household_id, user_id)
+      );
+      CREATE INDEX IF NOT EXISTS idx_household_members_household ON household_members(household_id);
+    `);
+
+    // 6a. Dompet bersama rumah tangga & dompet tertaut target tabungan
+    console.log('6a. Adding household_id, is_shared, linked_goal_id to wallets...');
+    await client.query(`
+      ALTER TABLE wallets
+      ADD COLUMN IF NOT EXISTS household_id UUID REFERENCES households(id) ON DELETE SET NULL,
+      ADD COLUMN IF NOT EXISTS is_shared BOOLEAN NOT NULL DEFAULT FALSE,
+      ADD COLUMN IF NOT EXISTS linked_goal_id UUID REFERENCES savings_goals(id) ON DELETE SET NULL;
+      CREATE INDEX IF NOT EXISTS idx_wallets_household ON wallets(household_id);
+      CREATE INDEX IF NOT EXISTS idx_wallets_linked_goal ON wallets(linked_goal_id);
+    `);
+
+    // 6b. Pembelajaran merchant -> kategori
+    console.log('6b. Ensuring merchant_category_map table...');
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS merchant_category_map (
+        id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_id        UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        merchant_name  VARCHAR(150) NOT NULL,
+        category_id    UUID REFERENCES categories(id) ON DELETE CASCADE,
+        correct_count  INTEGER NOT NULL DEFAULT 0 CHECK (correct_count >= 0),
+        override_count INTEGER NOT NULL DEFAULT 0 CHECK (override_count >= 0),
+        created_at     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        UNIQUE (user_id, merchant_name)
+      );
+      CREATE INDEX IF NOT EXISTS idx_merchant_map_user ON merchant_category_map(user_id);
+    `);
+
+    // 6c. Log kirim Web Push anti-duplikat (sebelumnya dibuat lazy oleh cron)
+    console.log('6c. Ensuring push_send_log table...');
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS push_send_log (
+        id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_id    UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        kind       TEXT NOT NULL,
+        sent_date  DATE NOT NULL,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        UNIQUE (user_id, kind, sent_date)
+      );
+    `);
+
+    // 6d. Langganan: kolom yang dipakai aplikasi (provider_name, reminder_enabled).
+    console.log('6d. Adding provider_name and reminder_enabled to subscriptions...');
+    await client.query(`
+      ALTER TABLE subscriptions
+      ADD COLUMN IF NOT EXISTS provider_name VARCHAR(150),
+      ADD COLUMN IF NOT EXISTS reminder_enabled BOOLEAN NOT NULL DEFAULT TRUE,
+      ALTER COLUMN provider DROP NOT NULL;
+      UPDATE subscriptions SET provider_name = provider WHERE provider_name IS NULL AND provider IS NOT NULL;
+      CREATE INDEX IF NOT EXISTS idx_subscriptions_user ON subscriptions(user_id);
+      CREATE INDEX IF NOT EXISTS idx_subscriptions_cycle ON subscriptions(cycle);
+      CREATE INDEX IF NOT EXISTS idx_subscriptions_active_next ON subscriptions(is_active, next_charge_date);
+    `);
+
+    // 6e. Dompet tipe 'envelope' (amplop anggaran)
+    console.log('6e. Allowing envelope wallet type...');
+    await client.query(`
+      DO $$
+      BEGIN
+        IF NOT EXISTS (
+          SELECT 1 FROM pg_constraint
+          WHERE conname = 'wallets_type_check'
+            AND conrelid = 'wallets'::regclass
+            AND pg_get_constraintdef(oid) LIKE '%envelope%'
+        ) THEN
+          ALTER TABLE wallets DROP CONSTRAINT IF EXISTS wallets_type_check;
+          ALTER TABLE wallets ADD CONSTRAINT wallets_type_check
+            CHECK (type IN ('cash','bank','ewallet','savings','envelope'));
+        END IF;
+      END
+      $$;
+    `);
   });
 
   console.log('\nAll migrations executed successfully!');

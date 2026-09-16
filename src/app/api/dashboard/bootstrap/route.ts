@@ -4,6 +4,7 @@ import { query } from '@/lib/db';
 import { periodQuerySchema } from '@/lib/validations';
 import { handleRouteError } from '@/lib/apiHelpers';
 import { BUDGET_ROLLOVER_CTE, BUDGET_EFFECTIVE_LIMIT_SQL } from '@/lib/budgetSql';
+import { TRANSACTION_AMOUNT_WITH_FEE_SQL } from '@/lib/reportSql';
 
 export async function GET(req: NextRequest) {
   try {
@@ -23,188 +24,195 @@ export async function GET(req: NextRequest) {
 
     // Query transaksi harus index-aware: pakai rentang tanggal, bukan EXTRACT() per baris.
     // Gagal sub-query = gagal total (gagal keras): app keuangan TIDAK boleh menampilkan angka Rp0 palsu.
-    const [wRes, cRes, tRes, bRes, billRes, totBalRes, summaryRes, pendingRes, overRes, setRes, debtsRes] =
-      await Promise.all([
-        query(
-          `SELECT * FROM wallets
-           WHERE user_id = $1
-           OR (is_shared = TRUE AND household_id IN (SELECT household_id FROM household_members WHERE user_id = $1))
-           ORDER BY sort_order ASC, name ASC`,
-          [uid]
-        ),
-        query(`SELECT * FROM categories WHERE user_id = $1 ORDER BY sort_order ASC, name ASC`, [uid]),
-        query(
-          `SELECT
-             t.id, t.user_id, t.type, t.amount, t.admin_fee,
-             t.category_id, t.wallet_id, t.to_wallet_id,
-             t.description, t.date, t.created_at, t.updated_at, t.edited_at,
-             c.name as category_name, c.icon as category_icon, c.color as category_color,
-             w1.name as wallet_name, w1.icon as wallet_icon,
-             w2.name as to_wallet_name,
-             CASE WHEN t.user_id = $1 THEN NULL ELSE u.name END as recorder_name
-           FROM transactions t
-           LEFT JOIN categories c ON t.category_id = c.id AND c.user_id = t.user_id
-           LEFT JOIN wallets w1 ON t.wallet_id = w1.id AND (w1.user_id = $1 OR (w1.is_shared = TRUE AND w1.household_id IN (SELECT household_id FROM household_members WHERE user_id = $1)))
-           LEFT JOIN wallets w2 ON t.to_wallet_id = w2.id AND (w2.user_id = t.user_id OR (w2.is_shared = TRUE AND w2.household_id IN (SELECT household_id FROM household_members WHERE user_id = $1)))
-           LEFT JOIN users u ON t.user_id = u.id
-           WHERE (
-             t.user_id = $1
-             OR t.wallet_id IN (
-               SELECT id FROM wallets
-                WHERE is_shared = TRUE AND household_id IN (SELECT household_id FROM household_members WHERE user_id = $1)
-             )
+    // PERF-01: Dua batch (6+5, di bawah pool max 10) — latency 2 round-trip, bukan 3.
+    const [wRes, cRes, setRes, totBalRes, pendingRes, summaryRes] = await Promise.all([
+      query(
+        `SELECT * FROM wallets
+         WHERE user_id = $1
+         OR (is_shared = TRUE AND household_id IN (SELECT household_id FROM household_members WHERE user_id = $1))
+         ORDER BY sort_order ASC, name ASC`,
+        [uid]
+      ),
+      query(`SELECT * FROM categories WHERE user_id = $1 ORDER BY sort_order ASC, name ASC`, [uid]),
+      query(`SELECT * FROM app_settings WHERE user_id = $1`, [uid]),
+      query(`SELECT COALESCE(SUM(balance), 0) as total FROM wallets WHERE user_id = $1 OR (is_shared = TRUE AND household_id IN (SELECT household_id FROM household_members WHERE user_id = $1))`, [uid]),
+      query(
+        `SELECT
+           COUNT(*)::text as count,
+           COALESCE(SUM(b.amount), 0)::text as total_pending_amount
+          FROM recurring_bills b
+          LEFT JOIN bill_payments bp
+            ON bp.bill_id = b.id AND bp.month = $2 AND bp.year = $3 AND bp.user_id = b.user_id
+          WHERE b.user_id = $1 AND b.is_active = TRUE AND COALESCE(b.type, 'expense') = 'expense' AND bp.id IS NULL`,
+        [uid, month, year]
+      ),
+      query(
+        `SELECT
+           COALESCE(SUM(CASE WHEN type='income' THEN amount ELSE 0 END), 0) as income,
+           COALESCE(SUM(CASE WHEN type='expense' THEN amount ELSE 0 END), 0) as expense,
+           COALESCE(SUM(CASE WHEN type='transfer' THEN amount ELSE 0 END), 0) as transfer,
+           COALESCE(SUM(admin_fee), 0) as admin_total
+         FROM transactions
+         WHERE (
+           user_id = $1
+           OR wallet_id IN (
+             SELECT id FROM wallets
+              WHERE is_shared = TRUE AND household_id IN (SELECT household_id FROM household_members WHERE user_id = $1)
            )
-             AND t.date >= make_date($3::int, $2::int, 1)
-             AND t.date < make_date($3::int, $2::int, 1) + INTERVAL '1 month'
-           ORDER BY t.date DESC, t.created_at DESC`,
-          [uid, month, year]
-        ),
-        query(
-          `WITH latest_budgets AS (
+         )
+           AND date >= make_date($3::int, $2::int, 1)
+           AND date < make_date($3::int, $2::int, 1) + INTERVAL '1 month'`,
+        [uid, month, year]
+      ),
+    ]);
+
+    const [tRes, bRes, billRes, debtsRes, subRes] = await Promise.all([
+      query(
+        `SELECT
+           t.id, t.user_id, t.type, t.amount, t.admin_fee,
+           t.category_id, t.wallet_id, t.to_wallet_id,
+           t.description, t.date, t.created_at, t.updated_at, t.edited_at,
+           c.name as category_name, c.icon as category_icon, c.color as category_color,
+           w1.name as wallet_name, w1.icon as wallet_icon,
+           w2.name as to_wallet_name,
+           CASE WHEN t.user_id = $1 THEN NULL ELSE u.name END as recorder_name
+         FROM transactions t
+         LEFT JOIN categories c ON t.category_id = c.id AND c.user_id = t.user_id
+         LEFT JOIN wallets w1 ON t.wallet_id = w1.id AND (w1.user_id = $1 OR (w1.is_shared = TRUE AND w1.household_id IN (SELECT household_id FROM household_members WHERE user_id = $1)))
+         LEFT JOIN wallets w2 ON t.to_wallet_id = w2.id AND (w2.user_id = t.user_id OR (w2.is_shared = TRUE AND w2.household_id IN (SELECT household_id FROM household_members WHERE user_id = $1)))
+         LEFT JOIN users u ON t.user_id = u.id
+         WHERE (
+           t.user_id = $1
+           OR t.wallet_id IN (
+             SELECT id FROM wallets
+              WHERE is_shared = TRUE AND household_id IN (SELECT household_id FROM household_members WHERE user_id = $1)
+           )
+         )
+           AND t.date >= make_date($3::int, $2::int, 1)
+           AND t.date < make_date($3::int, $2::int, 1) + INTERVAL '1 month'
+         ORDER BY t.date DESC, t.created_at DESC`,
+        [uid, month, year]
+      ),
+      query(
+        `WITH latest_budgets AS (
+           SELECT DISTINCT ON (category_id)
+             id, user_id, category_id, monthly_limit, rollover_enabled, month, year, created_at
+           FROM budgets
+           WHERE user_id = $1
+             AND (year < $3 OR (year = $3 AND month <= $2))
+           ORDER BY category_id, year DESC, month DESC
+         ),
+         ${BUDGET_ROLLOVER_CTE}
+         SELECT
+           b.id, b.user_id, b.category_id, b.monthly_limit, $2::smallint as month, $3::smallint as year, b.created_at,
+           c.name as category_name, c.icon as category_icon, c.color as category_color,
+           (CASE WHEN COALESCE(b.rollover_enabled, FALSE) THEN COALESCE(pb.monthly_limit, 0) - COALESCE(ps.spent, 0) ELSE 0 END)::NUMERIC as rollover_amount,
+           ${BUDGET_EFFECTIVE_LIMIT_SQL}::NUMERIC as effective_limit,
+           ${TRANSACTION_AMOUNT_WITH_FEE_SQL}::NUMERIC as spent,
+           (${BUDGET_EFFECTIVE_LIMIT_SQL} - ${TRANSACTION_AMOUNT_WITH_FEE_SQL})::NUMERIC as remaining,
+           CASE
+             WHEN ${BUDGET_EFFECTIVE_LIMIT_SQL} > 0 THEN ROUND((${TRANSACTION_AMOUNT_WITH_FEE_SQL} / ${BUDGET_EFFECTIVE_LIMIT_SQL} * 100)::NUMERIC, 1)::FLOAT
+             ELSE 0
+           END as percentage
+         FROM latest_budgets b
+         JOIN categories c ON b.category_id = c.id AND c.user_id = b.user_id
+         LEFT JOIN prev_budgets pb ON pb.category_id = b.category_id
+         LEFT JOIN prev_spent ps ON ps.category_id = b.category_id
+         LEFT JOIN transactions t
+           ON t.category_id = b.category_id
+           AND t.type = 'expense'
+           AND t.user_id = b.user_id
+           AND t.date >= make_date($3::int, $2::int, 1)
+           AND t.date < make_date($3::int, $2::int, 1) + INTERVAL '1 month'
+         GROUP BY b.id, b.user_id, b.category_id, b.monthly_limit, b.rollover_enabled, b.created_at,
+                  c.name, c.icon, c.color, pb.monthly_limit, ps.spent
+         ORDER BY percentage DESC, b.monthly_limit DESC`,
+        [uid, month, year]
+      ),
+      query(
+        `SELECT
+           b.id, b.user_id, COALESCE(b.type, 'expense') as type, b.title, b.amount, b.due_day, b.category_id,
+           b.wallet_id, b.to_wallet_id, b.debt_id, COALESCE(b.auto_record, FALSE) as auto_record, b.is_active, b.created_at,
+           c.name as category_name,
+           w.name as wallet_name,
+           w2.name as to_wallet_name,
+           d.person_name as debt_person_name,
+           bp.id as payment_id, bp.paid_date,
+           CASE WHEN bp.id IS NOT NULL THEN TRUE ELSE FALSE END as is_paid
+         FROM recurring_bills b
+         LEFT JOIN categories c ON b.category_id = c.id AND c.user_id = b.user_id
+         LEFT JOIN wallets w ON b.wallet_id = w.id AND w.user_id = b.user_id
+         LEFT JOIN wallets w2 ON b.to_wallet_id = w2.id AND w2.user_id = b.user_id
+         LEFT JOIN debts d ON b.debt_id = d.id AND d.user_id = b.user_id
+         LEFT JOIN bill_payments bp
+           ON bp.bill_id = b.id AND bp.month = $2 AND bp.year = $3 AND bp.user_id = b.user_id
+         WHERE b.user_id = $1 AND b.is_active = TRUE
+         ORDER BY is_paid ASC, b.due_day ASC`,
+        [uid, month, year]
+      ),
+      query(
+        `SELECT
+           id, user_id, type, category, person_name,
+           total_amount::float AS total_amount,
+           paid_amount::float AS paid_amount,
+           (total_amount - paid_amount)::float AS remaining_amount,
+           principal_amount::float AS principal_amount,
+           interest_rate::float AS interest_rate,
+           interest_type,
+           tenor_months,
+           monthly_installment::float AS monthly_installment,
+          (SELECT COUNT(*) FROM recurring_bills rb WHERE rb.debt_id = debts.id AND rb.is_active = TRUE)::text AS active_bills_count,
+           total_interest::float AS total_interest,
+           start_date, due_date, notes, status,
+           CASE
+             WHEN due_date IS NOT NULL THEN (due_date - CURRENT_DATE)
+             ELSE NULL
+           END AS days_until_due,
+           CASE
+             WHEN due_date IS NOT NULL AND due_date < CURRENT_DATE AND status != 'paid' THEN TRUE
+             ELSE FALSE
+           END AS is_overdue,
+           CASE
+              WHEN status != 'paid' AND (due_date IS NULL OR (due_date >= make_date($3::int, $2::int, 1) AND due_date < make_date($3::int, $2::int, 1) + INTERVAL '1 month')) THEN TRUE
+             ELSE FALSE
+           END AS is_due_this_period,
+           created_at, updated_at
+         FROM debts
+         WHERE user_id = $1
+         ORDER BY status ASC, due_date ASC NULLS LAST, created_at DESC`,
+        [uid, month, year]
+      ),
+      query(`SELECT * FROM subscriptions WHERE user_id = $1 ORDER BY next_charge_date ASC`, [uid]),
+    ]);
+
+    const [overRes] = await Promise.all([
+      query(
+        `SELECT COUNT(*)::text as count
+         FROM (
+           WITH latest_budgets AS (
              SELECT DISTINCT ON (category_id)
-               id, user_id, category_id, monthly_limit, rollover_enabled, month, year, created_at
+               id, user_id, category_id, monthly_limit, rollover_enabled, month, year
              FROM budgets
              WHERE user_id = $1
                AND (year < $3 OR (year = $3 AND month <= $2))
              ORDER BY category_id, year DESC, month DESC
            ),
            ${BUDGET_ROLLOVER_CTE}
-           SELECT
-             b.id, b.user_id, b.category_id, b.monthly_limit, $2::smallint as month, $3::smallint as year, b.created_at,
-             c.name as category_name, c.icon as category_icon, c.color as category_color,
-             (CASE WHEN COALESCE(b.rollover_enabled, FALSE) THEN COALESCE(pb.monthly_limit, 0) - COALESCE(ps.spent, 0) ELSE 0 END)::NUMERIC as rollover_amount,
-             ${BUDGET_EFFECTIVE_LIMIT_SQL}::NUMERIC as effective_limit,
-             COALESCE(SUM(t.amount), 0)::NUMERIC as spent,
-             (${BUDGET_EFFECTIVE_LIMIT_SQL} - COALESCE(SUM(t.amount), 0))::NUMERIC as remaining,
-             CASE
-               WHEN ${BUDGET_EFFECTIVE_LIMIT_SQL} > 0 THEN ROUND((COALESCE(SUM(t.amount), 0) / ${BUDGET_EFFECTIVE_LIMIT_SQL} * 100)::NUMERIC, 1)::FLOAT
-               ELSE 0
-             END as percentage
+           SELECT b.id, ${BUDGET_EFFECTIVE_LIMIT_SQL} AS effective_limit, ${TRANSACTION_AMOUNT_WITH_FEE_SQL} AS spent
            FROM latest_budgets b
-           JOIN categories c ON b.category_id = c.id AND c.user_id = b.user_id
            LEFT JOIN prev_budgets pb ON pb.category_id = b.category_id
            LEFT JOIN prev_spent ps ON ps.category_id = b.category_id
            LEFT JOIN transactions t
-             ON t.category_id = b.category_id
-             AND t.type = 'expense'
+             ON t.category_id = b.category_id AND t.type = 'expense'
              AND t.user_id = b.user_id
              AND t.date >= make_date($3::int, $2::int, 1)
              AND t.date < make_date($3::int, $2::int, 1) + INTERVAL '1 month'
-           GROUP BY b.id, b.user_id, b.category_id, b.monthly_limit, b.rollover_enabled, b.created_at,
-                    c.name, c.icon, c.color, pb.monthly_limit, ps.spent
-           ORDER BY percentage DESC, b.monthly_limit DESC`,
-          [uid, month, year]
-        ),
-        query(
-          `SELECT
-             b.id, b.user_id, COALESCE(b.type, 'expense') as type, b.title, b.amount, b.due_day, b.category_id,
-             b.wallet_id, b.to_wallet_id, b.debt_id, COALESCE(b.auto_record, FALSE) as auto_record, b.is_active, b.created_at,
-             c.name as category_name,
-             w.name as wallet_name,
-             w2.name as to_wallet_name,
-             d.person_name as debt_person_name,
-             bp.id as payment_id, bp.paid_date,
-             CASE WHEN bp.id IS NOT NULL THEN TRUE ELSE FALSE END as is_paid
-           FROM recurring_bills b
-           LEFT JOIN categories c ON b.category_id = c.id AND c.user_id = b.user_id
-           LEFT JOIN wallets w ON b.wallet_id = w.id AND w.user_id = b.user_id
-           LEFT JOIN wallets w2 ON b.to_wallet_id = w2.id AND w2.user_id = b.user_id
-           LEFT JOIN debts d ON b.debt_id = d.id AND d.user_id = b.user_id
-           LEFT JOIN bill_payments bp
-             ON bp.bill_id = b.id AND bp.month = $2 AND bp.year = $3 AND bp.user_id = b.user_id
-           WHERE b.user_id = $1 AND b.is_active = TRUE
-           ORDER BY is_paid ASC, b.due_day ASC`,
-          [uid, month, year]
-        ),
-        query(`SELECT COALESCE(SUM(balance), 0) as total FROM wallets WHERE user_id = $1 OR (is_shared = TRUE AND household_id IN (SELECT household_id FROM household_members WHERE user_id = $1))`, [uid]),
-        query(
-          `SELECT
-             COALESCE(SUM(CASE WHEN type='income' THEN amount ELSE 0 END), 0) as income,
-             COALESCE(SUM(CASE WHEN type='expense' THEN amount ELSE 0 END), 0) as expense,
-             COALESCE(SUM(CASE WHEN type='transfer' THEN amount ELSE 0 END), 0) as transfer,
-             COALESCE(SUM(admin_fee), 0) as admin_total
-           FROM transactions
-           WHERE (
-             user_id = $1
-             OR wallet_id IN (
-               SELECT id FROM wallets
-                WHERE is_shared = TRUE AND household_id IN (SELECT household_id FROM household_members WHERE user_id = $1)
-             )
-           )
-             AND date >= make_date($3::int, $2::int, 1)
-             AND date < make_date($3::int, $2::int, 1) + INTERVAL '1 month'`,
-          [uid, month, year]
-        ),
-        query(
-          `SELECT 
-             COUNT(*)::text as count,
-             COALESCE(SUM(b.amount), 0)::text as total_pending_amount
-            FROM recurring_bills b
-            LEFT JOIN bill_payments bp
-              ON bp.bill_id = b.id AND bp.month = $2 AND bp.year = $3 AND bp.user_id = b.user_id
-            WHERE b.user_id = $1 AND b.is_active = TRUE AND COALESCE(b.type, 'expense') = 'expense' AND bp.id IS NULL`,
-          [uid, month, year]
-        ),
-        query(
-          `SELECT COUNT(*)::text as count
-           FROM (
-             WITH latest_budgets AS (
-               SELECT DISTINCT ON (category_id)
-                 id, user_id, category_id, monthly_limit, rollover_enabled, month, year
-               FROM budgets
-               WHERE user_id = $1
-                 AND (year < $3 OR (year = $3 AND month <= $2))
-               ORDER BY category_id, year DESC, month DESC
-             ),
-             ${BUDGET_ROLLOVER_CTE}
-             SELECT b.id, ${BUDGET_EFFECTIVE_LIMIT_SQL} AS effective_limit, COALESCE(SUM(t.amount), 0) AS spent
-             FROM latest_budgets b
-             LEFT JOIN prev_budgets pb ON pb.category_id = b.category_id
-             LEFT JOIN prev_spent ps ON ps.category_id = b.category_id
-             LEFT JOIN transactions t
-               ON t.category_id = b.category_id AND t.type = 'expense'
-               AND t.user_id = b.user_id
-               AND t.date >= make_date($3::int, $2::int, 1)
-               AND t.date < make_date($3::int, $2::int, 1) + INTERVAL '1 month'
-             GROUP BY b.id, b.monthly_limit, b.rollover_enabled, pb.monthly_limit, ps.spent
-           ) over_budgets
-           WHERE over_budgets.spent > over_budgets.effective_limit`,
-          [uid, month, year]
-        ),
-        query(`SELECT * FROM app_settings WHERE user_id = $1`, [uid]),
-        query(
-          `SELECT
-             id, user_id, type, category, person_name,
-             total_amount::float AS total_amount,
-             paid_amount::float AS paid_amount,
-             (total_amount - paid_amount)::float AS remaining_amount,
-             principal_amount::float AS principal_amount,
-             interest_rate::float AS interest_rate,
-             interest_type,
-             tenor_months,
-             monthly_installment::float AS monthly_installment,
-            (SELECT COUNT(*) FROM recurring_bills rb WHERE rb.debt_id = debts.id AND rb.is_active = TRUE)::text AS active_bills_count,
-             total_interest::float AS total_interest,
-             start_date, due_date, notes, status,
-             CASE
-               WHEN due_date IS NOT NULL THEN (due_date - CURRENT_DATE)
-               ELSE NULL
-             END AS days_until_due,
-             CASE
-               WHEN due_date IS NOT NULL AND due_date < CURRENT_DATE AND status != 'paid' THEN TRUE
-               ELSE FALSE
-             END AS is_overdue,
-             CASE
-                WHEN status != 'paid' AND (due_date IS NULL OR (due_date >= make_date($3::int, $2::int, 1) AND due_date < make_date($3::int, $2::int, 1) + INTERVAL '1 month')) THEN TRUE
-               ELSE FALSE
-             END AS is_due_this_period,
-             created_at, updated_at
-           FROM debts
-           WHERE user_id = $1
-           ORDER BY status ASC, due_date ASC NULLS LAST, created_at DESC`,
-          [uid, month, year]
-        ),
-      ]);
+           GROUP BY b.id, b.monthly_limit, b.rollover_enabled, pb.monthly_limit, ps.spent
+         ) over_budgets
+         WHERE over_budgets.spent > over_budgets.effective_limit`,
+        [uid, month, year]
+      ),
+    ]);
 
     const totalBalance = parseFloat((totBalRes[0]?.total as string) || '0');
     const totalIncome = parseFloat((summaryRes[0]?.income as string) || '0');
@@ -340,6 +348,15 @@ export async function GET(req: NextRequest) {
 
     const formattedDebts = debtsRes as unknown as DebtRow[];
 
+    // NUMERIC Postgres tiba sebagai string; Subscription.amount kontraknya number.
+    interface SubscriptionRow extends Record<string, unknown> {
+      amount: string;
+    }
+    const formattedSubscriptions = (subRes as unknown as SubscriptionRow[]).map((s) => ({
+      ...s,
+      amount: parseFloat(s.amount),
+    }));
+
     // Kewajiban/aset masuk "due" hanya bila jatuh tempo bulan ini, terlewat, atau tak terjadwal.
     // Hutang yang sudah memiliki tagihan rutin aktif TIDAK dihitung ganda di totalPayableDue.
     // Hutang cicilan tanpa tagihan rutin hanya menghitung cicilan bulanannya, bukan seluruh pokok puluhan tahun.
@@ -385,6 +402,7 @@ export async function GET(req: NextRequest) {
         budgets: formattedBudgets,
         bills: formattedBills,
         debts: formattedDebts,
+        subscriptions: formattedSubscriptions,
         summary: {
           month,
           year,

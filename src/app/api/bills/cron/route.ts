@@ -42,3 +42,8 @@ export async function POST(req: NextRequest) {
     return handleRouteError(error, 'bills:cron');
   }
 }
+
+// Vercel Cron memanggil endpoint dengan GET, bukan POST.
+export async function GET(req: NextRequest) {
+  return POST(req);
+}

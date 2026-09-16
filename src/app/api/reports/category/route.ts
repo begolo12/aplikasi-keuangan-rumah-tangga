@@ -4,6 +4,7 @@ import { getAuthSession } from '@/lib/auth';
 import { query } from '@/lib/db';
 import { periodQuerySchema } from '@/lib/validations';
 import { handleRouteError } from '@/lib/apiHelpers';
+import { TRANSACTION_AMOUNT_WITH_FEE_SQL } from '@/lib/reportSql';
 
 const categoryReportQuery = z.object({
   type: z.enum(['expense', 'income']).default('expense'),
@@ -38,7 +39,7 @@ export async function GET(req: NextRequest) {
         COALESCE(c.name, 'Lain-lain') as name,
         COALESCE(c.icon, 'dots-three') as icon,
         COALESCE(c.color, 'gray') as color,
-        SUM(t.amount)::text as total_amount,
+        ${TRANSACTION_AMOUNT_WITH_FEE_SQL}::text as total_amount,
         COUNT(t.id)::text as transaction_count
        FROM transactions t
        LEFT JOIN categories c ON t.category_id = c.id AND c.user_id = t.user_id
@@ -47,7 +48,7 @@ export async function GET(req: NextRequest) {
          AND EXTRACT(MONTH FROM t.date) = $3
          AND EXTRACT(YEAR FROM t.date) = $4
        GROUP BY c.id, c.name, c.icon, c.color
-       ORDER BY SUM(t.amount) DESC`,
+       ORDER BY ${TRANSACTION_AMOUNT_WITH_FEE_SQL} DESC`,
       [session.userId, parsedType.type, month, year]
     );
 

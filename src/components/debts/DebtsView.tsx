@@ -10,6 +10,9 @@ import { AmountInput } from '../ui/AmountInput';
 import { EmptyState } from '../ui/EmptyState';
 import { formatRupiah, getLocalDateString } from '@/lib/formatters';
 import { ApiError, apiFetch, endpoints } from '@/lib/apiFetch';
+import { useToast } from '../ui/Toast';
+import { Alert } from '../ui/Alert';
+import { StatCard, StatGrid } from '../ui/StatCard';
 import {
   Plus,
   HandCoins,
@@ -34,6 +37,7 @@ export function DebtsView({
   budgets = [],
   onRefresh,
 }: DebtsViewProps) {
+  const { notify } = useToast();
   const [activeType, setActiveType] = useState<DebtType>('payable');
   const [statusFilter, setStatusFilter] = useState<'all' | 'unpaid' | 'paid'>('all');
   const [searchQuery, setSearchQuery] = useState('');
@@ -55,8 +59,6 @@ export function DebtsView({
   const [createAsset, setCreateAsset] = useState(true);
   const [assetName, setAssetName] = useState('');
   const [assetPrice, setAssetPrice] = useState(0);
-  const [initialPaidAmount, setInitialPaidAmount] = useState(0);
-  const [autoCalculatePaid, setAutoCalculatePaid] = useState(true);
   const [totalAmount, setTotalAmount] = useState(0);
   const [dueDate, setDueDate] = useState('');
   const [notes, setNotes] = useState('');
@@ -85,8 +87,7 @@ export function DebtsView({
   const autoCalculatedPaid = isDetailLoan && computedMonthlyInstallment > 0 && elapsedMonths > 0
     ? Math.min(computedTotal, elapsedMonths * computedMonthlyInstallment)
     : 0;
-  const effectiveInitialPaid = autoCalculatePaid ? autoCalculatedPaid : initialPaidAmount;
-  const effectiveRemaining = Math.max(0, computedTotal - effectiveInitialPaid);
+  const effectiveRemaining = Math.max(0, computedTotal - autoCalculatedPaid);
 
   // Pay / Settle Modal State
   const [isPayOpen, setIsPayOpen] = useState(false);
@@ -130,8 +131,6 @@ export function DebtsView({
     setCreateAsset(type === 'payable');
     setAssetName('');
     setAssetPrice(0);
-    setInitialPaidAmount(0);
-    setAutoCalculatePaid(true);
     setTotalAmount(0);
     setDueDate('');
     setNotes('');
@@ -172,7 +171,6 @@ export function DebtsView({
           tenor_months: isDetailLoan ? tenorMonths : null,
           monthly_installment: isDetailLoan ? computedMonthlyInstallment : null,
           start_date: isDetailLoan && startDate ? startDate : null,
-          initial_paid_amount: isDetailLoan ? effectiveInitialPaid : 0,
           due_date: dueDate || null,
           notes: notes.trim() || null,
           auto_schedule_bill: addType === 'payable' && autoSchedule,
@@ -192,8 +190,14 @@ export function DebtsView({
 
       onRefresh();
       setIsAddOpen(false);
+      notify(
+        addType === 'payable' ? 'Hutang berhasil dicatat.' : 'Piutang berhasil dicatat.',
+        { tone: 'success' }
+      );
     } catch (err) {
-      setAddError(err instanceof ApiError ? err.message : 'Gagal menyimpan hutang/piutang.');
+      const msg = err instanceof ApiError ? err.message : 'Gagal menyimpan hutang/piutang.';
+      setAddError(msg);
+      notify(msg, { tone: 'error' });
     } finally {
       setIsAdding(false);
     }
@@ -242,8 +246,11 @@ export function DebtsView({
 
       onRefresh();
       setIsPayOpen(false);
+      notify('Pembayaran berhasil dicatat.', { tone: 'success' });
     } catch (err) {
-      setPayError(err instanceof ApiError ? err.message : 'Gagal memproses pembayaran.');
+      const msg = err instanceof ApiError ? err.message : 'Gagal memproses pembayaran.';
+      setPayError(msg);
+      notify(msg, { tone: 'error' });
     } finally {
       setIsPaying(false);
     }
@@ -254,8 +261,11 @@ export function DebtsView({
       await apiFetch(endpoints.debt(id), { method: 'DELETE' });
       setListError(null);
       onRefresh();
+      notify('Data hutang/piutang dihapus.', { tone: 'success' });
     } catch (err) {
-      setListError(err instanceof ApiError ? err.message : 'Gagal menghapus data.');
+      const msg = err instanceof ApiError ? err.message : 'Gagal menghapus data.';
+      setListError(msg);
+      notify(msg, { tone: 'error' });
     }
   };
 
@@ -299,7 +309,7 @@ export function DebtsView({
           onClick={() => setActiveType('payable')}
           className={`py-2.5 px-3 text-xs sm:text-sm font-bold rounded-xl flex items-center justify-center gap-1.5 transition-all ${
             activeType === 'payable'
-              ? 'bg-expense text-white shadow-xs'
+              ? 'bg-expense text-expense-fg shadow-xs'
               : 'text-text-muted hover:text-text'
           }`}
         >
@@ -312,7 +322,7 @@ export function DebtsView({
           onClick={() => setActiveType('receivable')}
           className={`py-2.5 px-3 text-xs sm:text-sm font-bold rounded-xl flex items-center justify-center gap-1.5 transition-all ${
             activeType === 'receivable'
-              ? 'bg-primary text-white shadow-xs'
+              ? 'bg-primary text-primary-fg shadow-xs'
               : 'text-text-muted hover:text-text'
           }`}
         >
@@ -322,32 +332,21 @@ export function DebtsView({
       </div>
 
       {/* Summary Strip (Compact 3-column responsive) */}
-      <div className="grid grid-cols-3 gap-2 sm:gap-3">
-        <div className="p-2.5 sm:p-4 bg-surface border border-border rounded-2xl shadow-xs space-y-0.5 sm:space-y-1 min-w-0">
-          <p className="text-[10px] sm:text-xs text-text-muted font-semibold truncate">
-            {activeType === 'payable' ? 'Sisa Hutang' : 'Sisa Piutang'}
-          </p>
-          <p className={`text-sm sm:text-lg md:text-xl font-extrabold whitespace-nowrap tabular-nums truncate ${activeType === 'payable' ? 'text-expense' : 'text-primary'}`}>
-            {formatRupiah(totalRemaining)}
-          </p>
-        </div>
-
-        <div className="p-2.5 sm:p-4 bg-surface border border-border rounded-2xl shadow-xs space-y-0.5 sm:space-y-1 min-w-0">
-          <p className="text-[10px] sm:text-xs text-text-muted font-semibold truncate">
-            {activeType === 'payable' ? 'Terbayar' : 'Diterima'}
-          </p>
-          <p className="text-sm sm:text-lg md:text-xl font-extrabold text-income whitespace-nowrap tabular-nums truncate">
-            {formatRupiah(totalPaid)}
-          </p>
-        </div>
-
-        <div className="p-2.5 sm:p-4 bg-surface border border-border rounded-2xl shadow-xs space-y-0.5 sm:space-y-1 min-w-0">
-          <p className="text-[10px] sm:text-xs text-text-muted font-semibold truncate">Pokok Awal</p>
-          <p className="text-sm sm:text-lg md:text-xl font-extrabold text-text whitespace-nowrap tabular-nums truncate">
-            {formatRupiah(totalPrincipal)}
-          </p>
-        </div>
-      </div>
+      <StatGrid layout="3" className="gap-2 sm:gap-3">
+        <StatCard
+          size="compact"
+          tone={activeType === 'payable' ? 'expense' : 'primary'}
+          label={activeType === 'payable' ? 'Sisa Hutang' : 'Sisa Piutang'}
+          value={formatRupiah(totalRemaining)}
+        />
+        <StatCard
+          size="compact"
+          tone="income"
+          label={activeType === 'payable' ? 'Terbayar' : 'Diterima'}
+          value={formatRupiah(totalPaid)}
+        />
+        <StatCard size="compact" label="Pokok Awal" value={formatRupiah(totalPrincipal)} />
+      </StatGrid>
 
       {/* Search & Filter Controls */}
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
@@ -358,7 +357,7 @@ export function DebtsView({
             placeholder={`Cari nama pihak atau catatan ${activeType === 'payable' ? 'hutang' : 'piutang'}...`}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full h-10 pl-9 pr-4 bg-surface border border-border rounded-xl text-xs sm:text-sm font-medium focus:ring-2 focus:ring-primary focus:outline-none placeholder:text-text-muted/50"
+            className="w-full h-10 pl-9 pr-4 bg-surface border border-border rounded-xl text-xs sm:text-sm font-medium focus:ring-2 focus:ring-primary focus:outline-none placeholder:text-text-muted"
           />
         </div>
 
@@ -400,9 +399,9 @@ export function DebtsView({
       </div>
 
       {listError && (
-        <div role="alert" className="p-3.5 bg-expense/10 border border-expense/20 rounded-2xl text-expense text-xs font-semibold">
+        <Alert tone="error" size="sm">
           {listError}
-        </div>
+        </Alert>
       )}
 
       {/* Debts List */}
@@ -440,9 +439,9 @@ export function DebtsView({
       >
         <form onSubmit={handleAddSubmit} className="space-y-4">
           {addError && (
-            <div role="alert" className="p-3.5 bg-expense/10 border border-expense/20 rounded-2xl text-expense text-xs font-semibold">
+            <Alert tone="error" size="sm">
               {addError}
-            </div>
+            </Alert>
           )}
 
           {/* Type Segmented */}
@@ -451,7 +450,7 @@ export function DebtsView({
               type="button"
               onClick={() => setAddType('payable')}
               className={`py-2 text-xs font-bold rounded-xl transition-all ${
-                addType === 'payable' ? 'bg-expense text-white shadow-xs' : 'text-text-muted hover:text-text'
+                addType === 'payable' ? 'bg-expense text-expense-fg shadow-xs' : 'text-text-muted hover:text-text'
               }`}
             >
               Hutang Saya (Kewajiban)
@@ -460,7 +459,7 @@ export function DebtsView({
               type="button"
               onClick={() => setAddType('receivable')}
               className={`py-2 text-xs font-bold rounded-xl transition-all ${
-                addType === 'receivable' ? 'bg-primary text-white shadow-xs' : 'text-text-muted hover:text-text'
+                addType === 'receivable' ? 'bg-primary text-primary-fg shadow-xs' : 'text-text-muted hover:text-text'
               }`}
             >
               Piutang Saya (Hak Tagih)
@@ -598,25 +597,26 @@ export function DebtsView({
                 </div>
               )}
 
-              {/* Deteksi Otomatis Cicilan Berjalan di Masa Lalu */}
+              {/* Perkiraan cicilan berjalan (tidak menggerakkan saldo) */}
               {elapsedMonths > 0 && (
                 <div className="p-3.5 bg-primary/10 border border-primary/20 rounded-2xl space-y-2 text-xs">
                   <div className="flex items-center justify-between font-bold text-primary">
-                    <span>Cicilan Berjalan ({elapsedMonths} Bulan Berjalan)</span>
-                    <span className="text-[10px] bg-primary/20 text-primary px-2 py-0.5 rounded-full font-extrabold">
-                      Otomatis Terbayar
+                    <span>Perkiraan Cicilan Berjalan ({elapsedMonths} Bulan)</span>
+                    <span className="text-[11px] bg-primary/20 text-primary px-2 py-0.5 rounded-full font-extrabold">
+                      Estimasi
                     </span>
                   </div>
                   <p className="text-[11px] text-text-muted leading-relaxed">
-                    Pinjaman dimulai sejak {startDate}. Sistem otomatis mengakumulasi cicilan yang telah berlalu sehingga sisa hutang langsung berkurang dan tidak ditandai menunggak.
+                    Dihitung dari {elapsedMonths} bulan sejak {startDate}. Angka ini hanya perkiraan — tidak ada uang
+                    yang dipindahkan. Saldo dompet baru berubah saat cicilan dibayar lewat menu Tagihan.
                   </p>
                   <div className="grid grid-cols-2 gap-2 pt-1 border-t border-primary/15 text-[11px]">
                     <div>
-                      <span className="text-text-muted block">Sudah Terbayar ({elapsedMonths} bln):</span>
+                      <span className="text-text-muted block">Perkiraan Terbayar ({elapsedMonths} bln):</span>
                       <span className="font-extrabold text-income tabular-nums">{formatRupiah(autoCalculatedPaid)}</span>
                     </div>
                     <div>
-                      <span className="text-text-muted block">Sisa Hutang Riil:</span>
+                      <span className="text-text-muted block">Perkiraan Sisa:</span>
                       <span className="font-extrabold text-expense tabular-nums">{formatRupiah(effectiveRemaining)}</span>
                     </div>
                   </div>
@@ -639,7 +639,9 @@ export function DebtsView({
                         Daftarkan sebagai Aset {debtCategory === 'kpr_rumah' ? 'Properti (Rumah)' : 'Kendaraan'} di Inventaris Aset
                       </label>
                       <p className="text-[11px] text-text-muted leading-relaxed">
-                        Nilai aset properti ({formatRupiah(principalAmount || computedTotal)}) otomatis masuk ke neraca. Cicilan yang sudah terbayar ({formatRupiah(effectiveInitialPaid)}) akan otomatis menambah <strong>Kekayaan Bersih (Net Worth)</strong> Anda.
+                        Nilai aset properti ({formatRupiah(principalAmount || computedTotal)}) masuk ke neraca. Angka
+                        cicilan berjalan ({formatRupiah(autoCalculatedPaid)}) hanya estimasi tampilan sampai cicilan
+                        benar-benar dibayar lewat menu Tagihan.
                       </p>
                     </div>
                   </div>
@@ -671,7 +673,7 @@ export function DebtsView({
                     onChange={(e) => setAutoSchedule(e.target.checked)}
                     className="w-4 h-4 text-primary rounded border-border focus:ring-primary"
                   />
-                  <label htmlFor="autoSchedule" className="text-xs font-semibold text-text cursor-pointer">
+                  <label htmlFor="autoSchedule" className="text-xs font-semibold text-text cursor-pointer py-3.5 -my-2">
                     Otomatis jadwalkan cicilan {formatRupiah(computedMonthlyInstallment)}/bln ke daftar Pengeluaran Pasti
                   </label>
                 </div>
@@ -685,7 +687,7 @@ export function DebtsView({
                     >
                       {wallets.map((w) => (
                         <option key={w.id} value={w.id}>
-                          {w.name} (Saldo: {formatRupiah(w.balance)})
+                          {w.name}
                         </option>
                       ))}
                     </select>
@@ -702,7 +704,7 @@ export function DebtsView({
                         <option value="">Tanpa anggaran khusus</option>
                         {budgets.map((b) => (
                           <option key={b.category_id} value={b.category_id}>
-                            {b.category_name || 'Anggaran'} ({formatRupiah(b.effective_limit ?? b.monthly_limit)}/bln)
+                            {b.category_name || 'Anggaran'}
                           </option>
                         ))}
                       </select>
@@ -768,9 +770,9 @@ export function DebtsView({
         >
           <form onSubmit={handlePaySubmit} className="space-y-4">
             {payError && (
-              <div role="alert" className="p-3.5 bg-expense/10 border border-expense/20 rounded-2xl text-expense text-xs font-semibold">
+              <Alert tone="error" size="sm">
                 {payError}
-              </div>
+              </Alert>
             )}
 
             {/* Debt Target Info Card */}
@@ -795,7 +797,7 @@ export function DebtsView({
               >
                 {wallets.map((w) => (
                   <option key={w.id} value={w.id}>
-                    {w.name} (Rp {new Intl.NumberFormat('id-ID').format(w.balance)})
+                    {w.name}
                   </option>
                 ))}
               </select>

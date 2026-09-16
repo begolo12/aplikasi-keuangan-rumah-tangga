@@ -12,10 +12,6 @@ type Client = Parameters<Parameters<typeof withTransaction>[0]>[0];
  * Setelah produksi berjalan, endpoint terkunci tanpa secret.
  */
 async function assertInitAllowed(client: Client): Promise<void> {
-  const secret = process.env.INIT_SECRET;
-  if (secret) {
-    return; // verifikasi header dilakukan sebelum transaksi
-  }
   const tables = await client.query(
     `SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'users') AS has_users`
   );
@@ -313,6 +309,121 @@ async function initializeSchema(req: NextRequest): Promise<NextResponse> {
       CREATE INDEX IF NOT EXISTS idx_goal_contributions_user ON goal_contributions(user_id);
     `);
 
+    // ---- Tabel yang sebelumnya hanya dibuat lewat migrasi manual ----
+
+    // Rumah tangga (multi-user) + keanggotaannya
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS households (
+        id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        name          VARCHAR(100) NOT NULL,
+        owner_user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        invite_code   VARCHAR(8) NOT NULL,
+        created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        UNIQUE (owner_user_id),
+        UNIQUE (invite_code)
+      );
+
+      CREATE TABLE IF NOT EXISTS household_members (
+        id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        household_id UUID NOT NULL REFERENCES households(id) ON DELETE CASCADE,
+        user_id      UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        role         VARCHAR(20) NOT NULL DEFAULT 'member' CHECK (role IN ('owner','member')),
+        joined_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        UNIQUE (user_id),
+        UNIQUE (household_id, user_id)
+      );
+      CREATE INDEX IF NOT EXISTS idx_household_members_household ON household_members(household_id);
+    `);
+
+    // Pembelajaran merchant -> kategori dari koreksi pengguna
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS merchant_category_map (
+        id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_id        UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        merchant_name  VARCHAR(150) NOT NULL,
+        category_id    UUID REFERENCES categories(id) ON DELETE CASCADE,
+        correct_count  INTEGER NOT NULL DEFAULT 0 CHECK (correct_count >= 0),
+        override_count INTEGER NOT NULL DEFAULT 0 CHECK (override_count >= 0),
+        created_at     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        UNIQUE (user_id, merchant_name)
+      );
+      CREATE INDEX IF NOT EXISTS idx_merchant_map_user ON merchant_category_map(user_id);
+    `);
+
+    // Web Push: langganan per perangkat + log anti-kirim-ganda
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS push_subscriptions (
+        id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_id    UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        endpoint   TEXT NOT NULL,
+        p256dh     TEXT NOT NULL,
+        auth       TEXT NOT NULL,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        UNIQUE (endpoint)
+      );
+      CREATE INDEX IF NOT EXISTS idx_push_subscriptions_user ON push_subscriptions(user_id);
+
+      CREATE TABLE IF NOT EXISTS push_send_log (
+        id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_id    UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        kind       TEXT NOT NULL,
+        sent_date  DATE NOT NULL,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        UNIQUE (user_id, kind, sent_date)
+      );
+    `);
+
+    // ---- Kolom yang hilang ----
+
+    // Pencabutan sesi JWT (logout paksa). Token lama tanpa kolom ini tetap valid (tv 0).
+    await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS token_version INTEGER NOT NULL DEFAULT 0;`);
+
+    // Dompet bersama rumah tangga & dompet yang tertaut ke target tabungan.
+    await client.query(`
+      ALTER TABLE wallets
+      ADD COLUMN IF NOT EXISTS household_id UUID REFERENCES households(id) ON DELETE SET NULL,
+      ADD COLUMN IF NOT EXISTS is_shared BOOLEAN NOT NULL DEFAULT FALSE,
+      ADD COLUMN IF NOT EXISTS linked_goal_id UUID REFERENCES savings_goals(id) ON DELETE SET NULL;
+      CREATE INDEX IF NOT EXISTS idx_wallets_household ON wallets(household_id);
+      CREATE INDEX IF NOT EXISTS idx_wallets_linked_goal ON wallets(linked_goal_id);
+    `);
+
+    // Rollover anggaran per kategori (sisa bulan lalu dibawa ke bulan berikutnya).
+    await client.query(`ALTER TABLE budgets ADD COLUMN IF NOT EXISTS rollover_enabled BOOLEAN NOT NULL DEFAULT FALSE;`);
+
+    // Tanggal mulai hutang, dipakai untuk menghitung cicilan berjalan.
+    await client.query(`ALTER TABLE debts ADD COLUMN IF NOT EXISTS start_date DATE;`);
+
+    // Tagihan rutin yang berasal dari hutang, dan dompet tujuan untuk tipe transfer.
+    await client.query(`
+      ALTER TABLE recurring_bills
+      ADD COLUMN IF NOT EXISTS debt_id UUID REFERENCES debts(id) ON DELETE SET NULL,
+      ADD COLUMN IF NOT EXISTS to_wallet_id UUID REFERENCES wallets(id) ON DELETE SET NULL;
+      CREATE INDEX IF NOT EXISTS idx_recurring_bills_debt ON recurring_bills(debt_id);
+    `);
+
+    // Dompet tipe 'envelope' (amplop anggaran) dipakai modul target tabungan & tagihan.
+    // Hanya dijalankan bila constraint belum mengenal 'envelope', supaya tidak
+    // membuang-ulang constraint (yang berarti lock + validasi ulang seluruh tabel) tiap init.
+    await client.query(`
+      DO $$
+      BEGIN
+        IF NOT EXISTS (
+          SELECT 1 FROM pg_constraint
+          WHERE conname = 'wallets_type_check'
+            AND conrelid = 'wallets'::regclass
+            AND pg_get_constraintdef(oid) LIKE '%envelope%'
+        ) THEN
+          ALTER TABLE wallets DROP CONSTRAINT IF EXISTS wallets_type_check;
+          ALTER TABLE wallets ADD CONSTRAINT wallets_type_check
+            CHECK (type IN ('cash','bank','ewallet','savings','envelope'));
+        END IF;
+      END
+      $$;
+    `);
+
     // Subscription tracking untuk langganan berulang (Netflix, Spotify, dll)
   await client.query(`
       CREATE TABLE IF NOT EXISTS subscriptions (
@@ -332,6 +443,17 @@ async function initializeSchema(req: NextRequest): Promise<NextResponse> {
       CREATE INDEX IF NOT EXISTS idx_subscriptions_user ON subscriptions(user_id);
       CREATE INDEX IF NOT EXISTS idx_subscriptions_cycle ON subscriptions(cycle);
       CREATE INDEX IF NOT EXISTS idx_subscriptions_active_next ON subscriptions(is_active, next_charge_date);
+    `);
+
+    // Kolom yang dipakai aplikasi & UI: `provider_name` + `reminder_enabled`.
+    // Tabel warisan hanya punya `provider`, jadi tambahkan kolom baru lalu salin isinya.
+    // `provider` tetap ada (longgarkan NOT NULL-nya) supaya INSERT dari aplikasi tidak gagal.
+    await client.query(`
+      ALTER TABLE subscriptions
+      ADD COLUMN IF NOT EXISTS provider_name VARCHAR(150),
+      ADD COLUMN IF NOT EXISTS reminder_enabled BOOLEAN NOT NULL DEFAULT TRUE,
+      ALTER COLUMN provider DROP NOT NULL;
+      UPDATE subscriptions SET provider_name = provider WHERE provider_name IS NULL AND provider IS NOT NULL;
     `);
 
     // Budget templates: pre-defined templates per user untuk quick-start budgeting.
@@ -402,7 +524,7 @@ async function initializeSchema(req: NextRequest): Promise<NextResponse> {
 
   return NextResponse.json({
     success: true,
-    message: 'Skema database siap. Migrasi (saldo minus, recurring type/auto_record, idempotency key, indeks) diterapkan.',
+    message: 'Skema database siap. Migrasi (saldo minus, recurring type/auto_record, idempotency key, rumah tangga, web push, langganan, indeks) diterapkan.',
   });
 }
 

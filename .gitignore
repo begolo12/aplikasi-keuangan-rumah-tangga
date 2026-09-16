@@ -45,3 +45,6 @@ dep.json
 .zcode/
 .codegraph/
 .commandcode/
+
+# laporan audit internal (memuat peta kerentanan; repo publik)
+AUDIT_REPORT.md

@@ -11,6 +11,10 @@ import { EmptyState } from '../ui/EmptyState';
 import { Button } from '../ui/Button';
 import { apiFetch, endpoints } from '@/lib/apiFetch';
 import { ApiError } from '@/lib/apiFetch';
+import { ConfirmModal } from '../ui/ConfirmModal';
+import { useToast } from '../ui/Toast';
+import { StatCard, StatGrid } from '../ui/StatCard';
+import { Alert } from '../ui/Alert';
 
 interface SubscriptionsViewProps {
   subscriptions: Subscription[];
@@ -27,9 +31,12 @@ export function SubscriptionsView({
   monthlyTotal = 0,
   onRefresh,
 }: SubscriptionsViewProps) {
+  const { notify } = useToast();
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Form state
   const [providerName, setProviderName] = useState('');
@@ -81,20 +88,29 @@ export function SubscriptionsView({
       setReminderEnabled(true);
       setLoading(false);
       onRefresh?.();
+      notify('Langganan berhasil ditambahkan.', { tone: 'success' });
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Gagal menambahkan subscription.');
+      const msg = err instanceof ApiError ? err.message : 'Gagal menambahkan langganan.';
+      setError(msg);
+      notify(msg, { tone: 'error' });
       setLoading(false);
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('Hapus subscription ini?')) return;
-
+  const handleDeleteConfirm = async () => {
+    if (!confirmDeleteId) return;
+    setIsDeleting(true);
     try {
-      await apiFetch(endpoints.subscription(id), { method: 'DELETE' });
+      await apiFetch(endpoints.subscription(confirmDeleteId), { method: 'DELETE' });
       onRefresh?.();
+      notify('Langganan dihapus.', { tone: 'success' });
+      setConfirmDeleteId(null);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Gagal menghapus subscription.');
+      const msg = err instanceof ApiError ? err.message : 'Gagal menghapus langganan.';
+      setError(msg);
+      notify(msg, { tone: 'error' });
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -120,55 +136,35 @@ export function SubscriptionsView({
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 sm:gap-3">
-        <div className="p-3 sm:p-4 bg-surface border border-border rounded-2xl shadow-xs space-y-1">
-          <div className="flex items-center gap-1.5 text-text-muted text-xs font-semibold">
-            <CalendarCheck size={16} className="text-primary shrink-0" weight="bold" />
-            <span className="truncate">Beban Bulanan</span>
-          </div>
-          <p className="text-sm sm:text-lg font-extrabold text-text whitespace-nowrap tabular-nums">
-            {formatRupiah(totalMonthly)}
-          </p>
-          <span className="text-[10px] text-text-muted block">{activeSubs.length} aktif</span>
-        </div>
-
-        <div className="p-3 sm:p-4 bg-primary/10 border border-primary/20 rounded-2xl shadow-xs space-y-1">
-          <div className="flex items-center gap-1.5 text-primary text-xs font-bold">
-            <CircleDashed size={16} weight="fill" />
-            <span className="truncate">Prosentasi Anggaran</span>
-          </div>
-          <p className="text-sm sm:text-base font-extrabold text-primary">
-            {monthlyTotal > 0 ? `${Math.min(100, Math.round((totalMonthly / monthlyTotal) * 100))}%` : '-'}
-          </p>
-          <span className="text-[10px] text-text-muted block">dari anggaran bulanan</span>
-        </div>
-
-        <div className="p-3 sm:p-4 bg-surface border border-border rounded-2xl shadow-xs space-y-1 flex flex-col justify-between">
-          <div className="flex items-center gap-1.5 text-text-muted text-xs font-bold">
-            <CheckCircle size={16} weight="bold" className="text-income" />
-            <span className="truncate">Status</span>
-          </div>
-          <div className="flex items-center gap-2">
-            {activeSubs.length > 0 ? (
-              <>
-                <CheckCircle size={16} weight="fill" className="text-income" />
-                <span className="text-sm font-bold text-income">{activeSubs.length} Aktif</span>
-              </>
-            ) : (
-              <>
-                <XCircle size={16} weight="fill" className="text-text-muted" />
-                <span className="text-sm font-bold text-text-muted">Tidak Ada</span>
-              </>
-            )}
-          </div>
-        </div>
-      </div>
+      <StatGrid layout="1-2-3">
+        <StatCard
+          label="Beban Bulanan"
+          icon={<CalendarCheck size={16} weight="bold" />}
+          iconClassName="text-primary"
+          value={formatRupiah(totalMonthly)}
+          hint={`${activeSubs.length} aktif`}
+        />
+        <StatCard
+          accent
+          label="Persentase Anggaran"
+          icon={<CircleDashed size={16} weight="fill" />}
+          value={monthlyTotal > 0 ? `${Math.min(100, Math.round((totalMonthly / monthlyTotal) * 100))}%` : '-'}
+          hint="dari anggaran bulanan"
+        />
+        <StatCard
+          label="Status"
+          tone={activeSubs.length > 0 ? 'income' : 'muted'}
+          icon={activeSubs.length > 0 ? <CheckCircle size={16} weight="fill" /> : <XCircle size={16} weight="fill" />}
+          iconClassName={activeSubs.length > 0 ? 'text-income' : 'text-text-muted'}
+          value={activeSubs.length > 0 ? `${activeSubs.length} Aktif` : 'Tidak Ada'}
+        />
+      </StatGrid>
 
       {/* Error Display */}
       {error && (
-        <div role="alert" className="rounded-xl border border-expense/30 bg-expense/10 px-4 py-3 text-sm font-semibold text-expense">
+        <Alert tone="error" size="sm">
           {error}
-        </div>
+        </Alert>
       )}
 
       {/* Active Subscriptions */}
@@ -179,7 +175,7 @@ export function SubscriptionsView({
             <SubscriptionItem
               key={sub.id}
               subscription={sub}
-              onDelete={handleDelete}
+              onDelete={(id) => setConfirmDeleteId(id)}
             />
           ))}
         </div>
@@ -196,7 +192,7 @@ export function SubscriptionsView({
         <div className="space-y-3 opacity-60">
           <h3 className="text-sm font-bold text-text-muted">Tidak Aktif ({inactiveSubs.length})</h3>
           {inactiveSubs.map((sub) => (
-            <SubscriptionItem key={sub.id} subscription={sub} onDelete={handleDelete} />
+            <SubscriptionItem key={sub.id} subscription={sub} onDelete={(id) => setConfirmDeleteId(id)} />
           ))}
         </div>
       )}
@@ -302,6 +298,16 @@ export function SubscriptionsView({
           </div>
         </form>
       </Modal>
+
+      <ConfirmModal
+        isOpen={confirmDeleteId !== null}
+        onClose={() => setConfirmDeleteId(null)}
+        onConfirm={handleDeleteConfirm}
+        title="Hapus Langganan"
+        message="Langganan ini akan dihapus permanen dari daftar Anda. Riwayat transaksi yang sudah tercatat tidak terpengaruh."
+        confirmLabel="Ya, Hapus"
+        isLoading={isDeleting}
+      />
     </div>
   );
 }

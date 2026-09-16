@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthSession } from '@/lib/auth';
 import { query, withTransaction } from '@/lib/db';
-import { handleRouteError, BusinessError, readJsonBody } from '@/lib/apiHelpers';
+import { handleRouteError, readJsonBody, BusinessError } from '@/lib/apiHelpers';
 import { Subscription } from '@/lib/types';
 import { z } from 'zod';
 
@@ -69,8 +69,24 @@ export async function POST(req: NextRequest) {
     if (!session) return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
 
     const validated = subscriptionSchema.parse(await readJsonBody(req));
-    
+
     const result = await withTransaction(async (client) => {
+      // Isolasi data: kategori & dompet yang ditautkan wajib milik user ini.
+      if (validated.category_id) {
+        const owned = await client.query('SELECT id FROM categories WHERE id = $1 AND user_id = $2', [
+          validated.category_id,
+          session.userId,
+        ]);
+        if (owned.rows.length === 0) throw new BusinessError('Kategori tidak ditemukan pada akun Anda.');
+      }
+      if (validated.wallet_id) {
+        const owned = await client.query('SELECT id FROM wallets WHERE id = $1 AND user_id = $2', [
+          validated.wallet_id,
+          session.userId,
+        ]);
+        if (owned.rows.length === 0) throw new BusinessError('Dompet tidak ditemukan pada akun Anda.');
+      }
+
       const res = await client.query(
         `INSERT INTO subscriptions (
           user_id, provider_name, amount, cycle, next_charge_date,

@@ -1,5 +1,22 @@
 /** @type {import('next').NextConfig} */
+const cspHeader = `
+  default-src 'self';
+  script-src 'self' 'unsafe-eval' 'unsafe-inline';
+  style-src 'self' 'unsafe-inline';
+  img-src 'self' data: blob:;
+  font-src 'self' data:;
+  object-src 'none';
+  base-uri 'self';
+  form-action 'self';
+  frame-ancestors 'none';
+  connect-src 'self';
+`.replace(/\s{2,}/g, ' ').trim();
+
 const securityHeaders = [
+  {
+    key: 'Content-Security-Policy',
+    value: cspHeader,
+  },
   {
     key: 'X-DNS-Prefetch-Control',
     value: 'on',

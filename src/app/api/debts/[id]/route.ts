@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth';
-import { query } from '@/lib/db';
+import { query, withTransaction } from '@/lib/db';
 import { debtSchema, uuidIdParam } from '@/lib/validations';
 import { handleRouteError, readJsonBody, BusinessError } from '@/lib/apiHelpers';
 
@@ -244,13 +244,18 @@ export async function DELETE(req: NextRequest, context: RouteContext) {
     const { id } = await context.params;
     const debtId = uuidIdParam.parse(id);
 
-    // Hapus tagihan rutin terkait jika ada
-    await query(`DELETE FROM recurring_bills WHERE debt_id = $1 AND user_id = $2`, [debtId, user.userId]);
-
-    const rows = await query(
-      `DELETE FROM debts WHERE id = $1 AND user_id = $2 RETURNING id`,
-      [debtId, user.userId]
-    );
+    // Hapus tagihan rutin terkait + hutang dalam satu transaksi atomik:
+    // gagal salah satu = tidak ada data yatim.
+    const rows = await withTransaction(async (client) => {
+      await client.query(`DELETE FROM recurring_bills WHERE debt_id = $1 AND user_id = $2`, [
+        debtId,
+        user.userId,
+      ]);
+      return client.query(`DELETE FROM debts WHERE id = $1 AND user_id = $2 RETURNING id`, [
+        debtId,
+        user.userId,
+      ]);
+    });
 
     if (rows.length === 0) {
       throw new BusinessError('Data hutang/piutang tidak ditemukan.', 404);

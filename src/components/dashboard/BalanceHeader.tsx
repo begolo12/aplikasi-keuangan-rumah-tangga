@@ -10,6 +10,7 @@ interface BalanceHeaderProps {
   safeToSpend?: number;
   pendingBillsAmount?: number;
   payableDueAmount?: number;
+  receivableDueAmount?: number;
   monthlyRecurringTotal?: number;
   onManageWallets?: () => void;
   onNavigateToDebts?: () => void;
@@ -21,12 +22,18 @@ export function BalanceHeader({
   safeToSpend,
   pendingBillsAmount = 0,
   payableDueAmount = 0,
+  receivableDueAmount = 0,
   monthlyRecurringTotal = 0,
   onManageWallets,
   onNavigateToDebts,
 }: BalanceHeaderProps) {
   const [showBalance, setShowBalance] = useState(true);
-  const effectiveSafeToSpend = safeToSpend !== undefined ? safeToSpend : totalBalance - (pendingBillsAmount + payableDueAmount);
+  // Rumus harus sama dengan API (dashboard/bootstrap & reports/monthly):
+  // saldo kas - (tagihan pending + hutang jatuh tempo) + piutang yang akan masuk.
+  const effectiveSafeToSpend =
+    safeToSpend !== undefined
+      ? safeToSpend
+      : totalBalance - (pendingBillsAmount + payableDueAmount) + receivableDueAmount;
   const isHealthy = effectiveSafeToSpend >= 0;
 
   // Hitung sisa hari bulan ini untuk kuota belanja harian
@@ -41,7 +48,7 @@ export function BalanceHeader({
     };
   }, [effectiveSafeToSpend]);
   return (
-    <div className="relative overflow-hidden rounded-2xl sm:rounded-3xl bg-gradient-to-br from-primary via-primary-hover to-primary-deep p-4 sm:p-5 md:p-6 text-white shadow-sm shadow-primary/10 transition-all">
+    <div className="relative overflow-hidden rounded-2xl sm:rounded-3xl bg-gradient-to-br from-primary-hero via-primary-hero-2 to-primary-deep p-4 sm:p-5 md:p-6 text-white shadow-sm shadow-primary/10 transition-all">
       {/* Subtle decorative glow */}
       <div className="absolute -right-10 -bottom-10 w-40 h-40 bg-white/10 rounded-full blur-3xl pointer-events-none" />
 
@@ -49,15 +56,15 @@ export function BalanceHeader({
         {/* Main Balance Header Row */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 sm:gap-4">
           <div className="space-y-1 min-w-0">
-            <div className="flex items-center gap-1.5 text-white/80 text-[10px] sm:text-xs font-bold tracking-wider uppercase">
-              <ShieldCheck size={15} weight="fill" className="text-white shrink-0" />
+            <h1 className="flex items-center gap-1.5 text-white/80 text-[11px] sm:text-xs font-bold tracking-wider uppercase">
+              <ShieldCheck size={15} weight="fill" className="text-white shrink-0" aria-hidden="true" />
               <span className="truncate">Total Saldo Kas & Likuiditas</span>
-            </div>
+            </h1>
 
             <div className="flex items-center gap-2.5 sm:gap-3 flex-wrap">
-              <h1 className="font-display-num text-3xl sm:text-4xl md:text-[2.75rem] leading-tight whitespace-nowrap tabular-nums text-white">
+              <p className="font-display-num text-3xl sm:text-4xl md:text-[2.75rem] leading-tight whitespace-nowrap tabular-nums text-white">
                 {showBalance ? formatRupiah(totalBalance) : '••••••••••••'}
-              </h1>
+              </p>
               <button
                 type="button"
                 onClick={() => setShowBalance(!showBalance)}
@@ -99,13 +106,13 @@ export function BalanceHeader({
 
         {/* Safe-to-Spend Liquidity Sub-card & Daily Quota */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-          <div className="p-2.5 sm:p-3 bg-black/20 backdrop-blur-md rounded-2xl border border-white/15 flex items-center justify-between gap-2">
+          <div className="p-2.5 sm:p-3 bg-black/25 rounded-2xl border border-white/15 flex items-center justify-between gap-2">
             <div className="flex items-center gap-2 min-w-0">
               <div className="w-6 h-6 rounded-xl bg-white/15 flex items-center justify-center shrink-0">
                 <Coins size={13} weight="fill" className="text-warning" />
               </div>
               <div className="min-w-0">
-                <p className="text-[10px] text-white/75 font-semibold leading-tight">
+                <p className="text-[11px] text-white/85 font-semibold leading-tight">
                   Dana Bebas & Uang Dingin:
                 </p>
                 <p className="font-display-num text-base sm:text-lg text-white truncate tabular-nums">
@@ -115,7 +122,7 @@ export function BalanceHeader({
             </div>
 
             <span
-              className={`text-[10px] font-bold px-2 py-0.5 rounded-xl border shrink-0 ${
+              className={`text-[11px] font-bold px-2 py-0.5 rounded-xl border shrink-0 ${
                 isHealthy
                   ? 'bg-white/15 text-white border-white/25'
                   : 'bg-warning/25 text-white border-warning/40'
@@ -126,13 +133,13 @@ export function BalanceHeader({
           </div>
 
           {/* Kuota Belanja Harian (Daily Safe-to-Spend) */}
-          <div className="p-2.5 sm:p-3 bg-black/20 backdrop-blur-md rounded-2xl border border-white/15 flex items-center justify-between gap-2">
+          <div className="p-2.5 sm:p-3 bg-black/25 rounded-2xl border border-white/15 flex items-center justify-between gap-2">
             <div className="flex items-center gap-2 min-w-0">
               <div className="w-6 h-6 rounded-xl bg-white/15 flex items-center justify-center shrink-0">
                 <CalendarCheck size={13} weight="fill" className="text-white" />
               </div>
               <div className="min-w-0">
-                <p className="text-[10px] text-white/75 font-semibold leading-tight">
+                <p className="text-[11px] text-white/85 font-semibold leading-tight">
                   Batas Belanja Harian ({dailyQuota.daysRemaining} hari sisa):
                 </p>
                 <p className="font-display-num text-base sm:text-lg text-white truncate tabular-nums">
@@ -141,20 +148,20 @@ export function BalanceHeader({
               </div>
             </div>
 
-            <span className="text-[10px] font-bold px-2 py-0.5 rounded-xl border border-white/20 bg-white/10 text-white/90 shrink-0">
+            <span className="text-[11px] font-bold px-2 py-0.5 rounded-xl border border-white/20 bg-white/10 text-white/90 shrink-0">
               Maksimal
             </span>
           </div>
         </div>
 
         {monthlyRecurringTotal > 0 && (
-          <div className="p-2 sm:p-2.5 bg-black/20 backdrop-blur-md rounded-2xl border border-white/15 flex items-center justify-between gap-2">
+          <div className="p-2 sm:p-2.5 bg-black/25 rounded-2xl border border-white/15 flex items-center justify-between gap-2">
             <div className="flex items-center gap-2 min-w-0">
               <div className="w-6 h-6 rounded-xl bg-white/15 flex items-center justify-center shrink-0">
                 <CalendarCheck size={13} weight="fill" className="text-warning" />
               </div>
               <div className="min-w-0">
-                <p className="text-[10px] text-white/75 font-semibold leading-tight">
+                <p className="text-[11px] text-white/85 font-semibold leading-tight">
                   Total Langganan Rutin:
                 </p>
                 <p className="font-display-num text-xs sm:text-sm font-bold text-white tabular-nums truncate">
@@ -162,7 +169,7 @@ export function BalanceHeader({
                 </p>
               </div>
             </div>
-            <span className="text-[9px] sm:text-[10px] font-bold px-2 py-0.5 rounded-xl bg-warning/20 text-warning border border-warning/30 whitespace-nowrap">
+            <span className="text-[11px] font-bold px-2 py-0.5 rounded-xl bg-warning text-warning-fg whitespace-nowrap">
               Fixed Cost
             </span>
           </div>

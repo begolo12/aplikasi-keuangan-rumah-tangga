@@ -420,17 +420,27 @@ assert('debtSchema kategori anggaran non-uuid ditolak', !dtBudgetBad.success);
 assert('debt payable KPR detail dengan bunga dan tenor valid diterima', dt1.success && dt1.data.category === 'kpr_rumah' && dt1.data.monthly_installment === 3750000);
 assert('debt payable KPR dengan start_date & opsi create_asset valid diterima', dt1.success && dt1.data.start_date === '2026-01-20' && dt1.data.create_asset === true && dt1.data.initial_paid_amount === 10000000);
 
-// Test kalkulasi otomatis cicilan berlalu (misal Jan 2026 ke Sep 2026)
-const startTestObj = new Date('2026-01-20');
-const currentTestObj = new Date('2026-09-02');
-const testElapsedMonths = (currentTestObj.getFullYear() - startTestObj.getFullYear()) * 12 + (currentTestObj.getMonth() - startTestObj.getMonth());
-const testMonthlyInstallment = 1250000;
-const testTotalKpr = 150000000;
-const testPaidAmount = testElapsedMonths * testMonthlyInstallment;
-const testRemainingKpr = testTotalKpr - testPaidAmount;
-assert('kalkulasi cicilan KPR berlalu (Jan ke Sep = 8 bulan) menghasilkan 8 bulan', testElapsedMonths === 8);
-assert('kalkulasi total terbayar KPR berlalu terhitung tepat Rp 10.000.000', testPaidAmount === 10000000);
-assert('kalkulasi sisa hutang KPR berkurang menjadi Rp 140.000.000', testRemainingKpr === 140000000);
+// Kontrak anti-fiktif: POST /api/debts tidak boleh mengarang paid_amount maupun menulis
+// riwayat pembayaran untuk bulan yang belum pernah dibayar (K-04), dan tidak boleh lagi
+// meneruskan wallet_id NULL ke debt_payments.wallet_id NOT NULL (K-03).
+const debtsSrc = readFileSync(join(process.cwd(), 'src', 'app', 'api', 'debts', 'route.ts'), 'utf8');
+assert('route hutang tidak lagi menulis debt_payments fiktif', !debtsSrc.includes('INSERT INTO debt_payments'));
+assert('route hutang tidak lagi memakai monthsElapsed untuk mengisi paid_amount', !debtsSrc.includes('monthsElapsed'));
+assert(
+  'paid_amount hanya berasal dari initial_paid_amount',
+  debtsSrc.includes('const paidAmount = validated.initial_paid_amount || 0;')
+);
+const debtNoPaid = debtSchema.safeParse({
+  type: 'payable',
+  person_name: 'KPR BTN',
+  total_amount: 150000000,
+  monthly_installment: 1250000,
+  start_date: '2026-01-20',
+});
+assert(
+  'hutang tanpa initial_paid_amount tidak menyatakan sudah terbayar',
+  debtNoPaid.success && (debtNoPaid.data.initial_paid_amount ?? 0) === 0
+);
 
 // Test logika isolasi safe-to-spend untuk hutang dengan tagihan aktif vs tanpa tagihan
 const mockTotalBalance = 20000000;
@@ -694,8 +704,28 @@ assert('savings ratio terhitung 40%', ratioRes.savings_ratio === 40);
 assert('OER ratio terhitung 60%', ratioRes.oer_ratio === 60);
 // Liquidity = 20jt / 5jt = 4.0 bulan
 assert('liquidity months terhitung 4 bulan', ratioRes.liquidity_months === 4);
-assert('health score berada di zona baik (>= 70)', ratioRes.health_score >= 70);
+assert('health score bukan null saat ada data', ratioRes.health_score !== null);
+assert('health score berada di zona baik (>= 70)', (ratioRes.health_score ?? 0) >= 70);
 assert('verdict summary ter-generate otomatis', ratioRes.verdict_summary.length > 30);
+
+// Akun tanpa data sama sekali tidak boleh mendapat skor apa pun.
+const emptyRatioSummary = {
+  ...dummyRatioSummary,
+  total_balance: 0,
+  total_income: 0,
+  total_expense: 0,
+  net_cash_flow: 0,
+  total_bills_pending_amount: 0,
+  total_payable_due: 0,
+  safe_to_spend: 0,
+};
+const emptyRatioRes = calculateFinancialRatios(emptyRatioSummary, [], [], [], []);
+assert('akun kosong: health score null', emptyRatioRes.health_score === null);
+assert('akun kosong: DER null, bukan sentinel', emptyRatioRes.der_ratio === null);
+assert('akun kosong: OER null, bukan 100', emptyRatioRes.oer_ratio === null);
+assert('akun kosong: likuiditas null, bukan dibagi angka karangan', emptyRatioRes.liquidity_months === null);
+assert('akun kosong: kondisi unknown', emptyRatioRes.condition_status === 'unknown');
+assert('akun kosong: tanpa rekomendasi palsu', emptyRatioRes.action_recommendations.length === 0);
 
 // ── Validasi calculateCollapseForecast (Forecasting Colapse) ─
 console.log('\n[10g] calculateCollapseForecast (Simulasi Colapse)');

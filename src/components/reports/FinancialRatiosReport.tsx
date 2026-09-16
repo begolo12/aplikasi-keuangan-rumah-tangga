@@ -8,6 +8,7 @@ import {
   FileCsv,
 } from '@phosphor-icons/react';
 import { formatRupiah } from '@/lib/formatters';
+import { totalLiquidCash } from '@/lib/money';
 import { Wallet, Debt, Asset, Budget, MonthlySummary as MonthlySummaryType, FinancialRatiosResult } from '@/lib/types';
 
 interface FinancialRatiosReportProps {
@@ -28,7 +29,7 @@ export function calculateFinancialRatios(
   assets: Asset[],
   budgets: Budget[]
 ): FinancialRatiosResult {
-  const totalCash = wallets.reduce((sum, w) => sum + Math.max(0, w.balance || 0), 0);
+  const totalCash = totalLiquidCash(wallets);
   const monthlyIncome = summary?.total_income || 0;
   const monthlyExpense = summary?.total_expense || 0;
   const netCashFlow = summary?.net_cash_flow || 0;
@@ -50,7 +51,7 @@ export function calculateFinancialRatios(
 
   const pendingBills = summary?.total_bills_pending_amount || 0;
   
-  // Hitung cicilan bulanan untuk DSR (bukan total pokok hutang)
+  // Hitung cicilan bulanan untuk rasio beban cicilan (bukan total pokok hutang)
   const totalMonthlyInstallments = debts
     .filter((d) => d.type === 'payable' && d.status !== 'paid')
     .reduce((sum, d) => sum + (d.monthly_installment || 0), 0);
@@ -61,152 +62,148 @@ export function calculateFinancialRatios(
   const totalAssets = totalCash + totalReceivables + totalAssetValue;
   const netWorth = totalAssets - totalLiabilities;
 
-  // Baseline Anggaran Bulanan
+  // Baseline biaya hidup bulanan. Anggaran lebih dulu, lalu realisasi nyata.
+  // Tanpa keduanya, tidak ada dasar sama sekali — dan rasio tidak dihitung,
+  // bukan dikira-kira dari angka tetap yang tidak diketahui pengguna.
   const totalBudgetLimits = budgets.reduce((sum, b) => sum + (b.monthly_limit || 0), 0);
-  const baselineExpense = totalBudgetLimits > 0 ? totalBudgetLimits : monthlyExpense > 0 ? monthlyExpense : 1000000;
+  const baselineExpense = totalBudgetLimits > 0 ? totalBudgetLimits : monthlyExpense > 0 ? monthlyExpense : 0;
 
-  // 1. DER (Debt to Equity Ratio %) = (Total Hutang / Kekayaan Bersih) * 100%
-  const der_ratio = netWorth > 0 ? Math.round((totalLiabilities / netWorth) * 100) : totalLiabilities > 0 ? 999 : 0;
+  // 1. Hutang vs harta bersih (%) = (Total Hutang / Kekayaan Bersih) * 100%
+  // null bila kekayaan bersih belum positif: pembagian itu tidak bermakna.
+  const der_ratio = netWorth > 0 ? Math.round((totalLiabilities / netWorth) * 100) : null;
 
-  // 2. DAR (Debt to Asset Ratio %) = (Total Hutang / Total Aset) * 100%
-  const dar_ratio = totalAssets > 0 ? Math.round((totalLiabilities / totalAssets) * 100) : 0;
+  // 2. Porsi harta dari hutang (%) = (Total Hutang / Total Aset) * 100%
+  const dar_ratio = totalAssets > 0 ? Math.round((totalLiabilities / totalAssets) * 100) : null;
 
-  // 3. DSR / DTI (Debt Service Ratio %) = (Beban Cicilan Bulanan / Pemasukan Bulanan) * 100%
-  const dsr_ratio = monthlyIncome > 0 ? Math.round(((totalMonthlyInstallments + pendingBills) / monthlyIncome) * 100) : 0;
+  // 3. Beban cicilan (%) = (Cicilan Bulanan / Pemasukan Bulanan) * 100%
+  const dsr_ratio = monthlyIncome > 0
+    ? Math.round(((totalMonthlyInstallments + pendingBills) / monthlyIncome) * 100)
+    : null;
 
-  // 4. Liquidity Ratio (Ketahanan Kas dalam Bulan) = Kas Likuid / Anggaran Bulanan
-  const liquidity_months = Math.round((totalCash / baselineExpense) * 10) / 10;
+  // 4. Ketahanan kas (bulan) = Kas Likuid / Biaya Hidup Bulanan
+  const liquidity_months = baselineExpense > 0
+    ? Math.round((totalCash / baselineExpense) * 10) / 10
+    : null;
 
-  // 5. Savings Ratio % = (Arus Kas Bersih / Pemasukan) * 100%
-  const savings_ratio = monthlyIncome > 0 ? Math.max(0, Math.round((netCashFlow / monthlyIncome) * 100)) : 0;
+  // 5. Rasio tabungan (%) = (Arus Kas Bersih / Pemasukan) * 100%
+  const savings_ratio = monthlyIncome > 0
+    ? Math.max(0, Math.round((netCashFlow / monthlyIncome) * 100))
+    : null;
 
-  // 6. Operating Expense Ratio % = (Pengeluaran / Pemasukan) * 100%
-  const oer_ratio = monthlyIncome > 0 ? Math.round((monthlyExpense / monthlyIncome) * 100) : 100;
+  // 6. Porsi belanja rutin (%) = (Pengeluaran / Pemasukan) * 100%
+  const oer_ratio = monthlyIncome > 0 ? Math.round((monthlyExpense / monthlyIncome) * 100) : null;
 
-  // Scoring Calculation (0 - 100)
-  let score = 50;
+  // Scoring: hanya komponen yang bisa dihitung yang masuk hitungan.
+  // Rasio `null` tidak dihitung sama sekali — bukan dianggap nol, karena nol berarti
+  // "sempurna" di sebagian rasio dan "buruk" di rasio lain.
+  const points: number[] = [];
 
-  // DER Scoring (Bobot 20)
-  if (der_ratio === 0) score += 20;
-  else if (der_ratio <= 35) score += 15;
-  else if (der_ratio <= 70) score += 5;
-  else score -= 20;
+  if (der_ratio !== null) points.push(der_ratio <= 35 ? 20 : der_ratio <= 70 ? 5 : -20);
+  if (dar_ratio !== null) points.push(dar_ratio <= 20 ? 15 : dar_ratio <= 40 ? 8 : -15);
+  if (liquidity_months !== null) {
+    points.push(liquidity_months >= 4.4 ? 20 : liquidity_months >= 2 ? 10 : liquidity_months >= 1 ? 5 : -20);
+  }
+  if (savings_ratio !== null) {
+    points.push(
+      savings_ratio >= 25 ? 20 : savings_ratio >= 15 ? 12 : savings_ratio >= 5 ? 5 : netCashFlow < 0 ? -20 : 0
+    );
+  }
+  if (dsr_ratio !== null) points.push(dsr_ratio <= 20 ? 15 : dsr_ratio <= 35 ? 4 : -15);
+  if (oer_ratio !== null) points.push(oer_ratio <= 70 ? 10 : oer_ratio <= 85 ? 5 : -10);
 
-  // DAR Scoring (Bobot 15)
-  if (dar_ratio <= 20) score += 15;
-  else if (dar_ratio <= 40) score += 8;
-  else score -= 15;
-
-  // Liquidity (Cadangan 4.4x Anggaran, Bobot 20)
-  if (liquidity_months >= 4.4) score += 20;
-  else if (liquidity_months >= 2) score += 10;
-  else if (liquidity_months >= 1) score += 5;
-  else score -= 20;
-
-  // Savings Ratio (Bobot 20)
-  if (savings_ratio >= 25) score += 20;
-  else if (savings_ratio >= 15) score += 12;
-  else if (savings_ratio >= 5) score += 5;
-  else if (netCashFlow < 0) score -= 20;
-
-  // DSR / DTI (Bobot 15)
-  if (dsr_ratio === 0) score += 15;
-  else if (dsr_ratio <= 20) score += 10;
-  else if (dsr_ratio <= 35) score += 4;
-  else score -= 15;
-
-  // OER Efficiency (Bobot 10)
-  if (oer_ratio <= 70) score += 10;
-  else if (oer_ratio <= 85) score += 5;
-  else score -= 10;
-
-  const health_score = Math.max(10, Math.min(100, score));
+  // Belum ada satu pun rasio yang bisa dinilai = belum ada yang bisa disimpulkan.
+  const health_score = points.length === 0
+    ? null
+    : Math.round(Math.max(0, Math.min(100, 50 + points.reduce((sum, p) => sum + p, 0))));
 
   // Status Kondisi & Narasi Kesimpulan
-  let condition_status: FinancialRatiosResult['condition_status'] = 'good';
-  let condition_title = 'Kondisi Keuangan Cukup Sehat (Stabil)';
-  let verdict_summary = '';
+  let condition_status: FinancialRatiosResult['condition_status'] = 'unknown';
+  let condition_title = 'Belum Cukup Data untuk Dinilai';
+  let verdict_summary =
+    'Belum ada pemasukan, pengeluaran, anggaran, atau aset yang tercatat pada periode ini. Catat data keuangan terlebih dahulu agar rasio dan skor bisa dihitung.';
 
-  if (health_score >= 80) {
-    condition_status = 'excellent';
-    condition_title = 'Kondisi Keuangan Sangat Sehat (Optimal)';
-    verdict_summary = `Kondisi keuangan keluarga Anda berada di zona sangat prima (Skor ${health_score}/100). Rasio DER sangat rendah (${der_ratio}%), beban hutang minim (${dsr_ratio}%), dan ketahanan dana cadangan telah mencukupi kebutuhan ${liquidity_months} bulan. Keuangan Anda siap untuk ekspansi aset atau investasi jangka panjang.`;
-  } else if (health_score >= 60) {
-    condition_status = 'good';
-    condition_title = 'Kondisi Keuangan Cukup Sehat (Stabil)';
-    verdict_summary = `Struktur keuangan keluarga cukup stabil (Skor ${health_score}/100). Arus kas terkontrol dan rasio hutang masih dalam batas aman, namun tingkat cadangan dana likuid (${liquidity_months} bulan) masih perlu ditingkatkan menuju target ideal 4.4 bulan biaya hidup.`;
-  } else if (health_score >= 40) {
-    condition_status = 'warning';
-    condition_title = 'Kondisi Keuangan Perlu Waspada';
-    verdict_summary = `Terdapat beberapa pos keuangan yang memerlukan perhatian (Skor ${health_score}/100). Beban hutang (DER ${der_ratio}%) atau porsi pengeluaran (${oer_ratio}%) mulai menekan ruang tabungan. Disarankan membatasi penambahan hutang baru dan memangkas belanja non-primer.`;
-  } else {
-    condition_status = 'critical';
-    condition_title = 'Kondisi Keuangan Kritis (Defisit / Risiko Tinggi)';
-    verdict_summary = `Keuangan keluarga berada dalam situasi rentan (Skor ${health_score}/100). Rasio hutang melampaui batas aman atau arus kas mengalami defisit. Prioritaskan pelunasan hutang berbunga tinggi dan tunda segala pengeluaran tambahan.`;
+  if (health_score !== null) {
+    if (health_score >= 80) {
+      condition_status = 'excellent';
+      condition_title = 'Kondisi Keuangan Sangat Sehat (Optimal)';
+      verdict_summary = `Kondisi keuangan keluarga Anda berada di zona sangat prima (Skor ${health_score}/100). Rasio hutang vs harta ${formatRatio(der_ratio)}, beban cicilan ${formatRatio(dsr_ratio)}, dan ketahanan dana cadangan ${formatMonths(liquidity_months)}. Keuangan Anda siap untuk ekspansi aset atau investasi jangka panjang.`;
+    } else if (health_score >= 60) {
+      condition_status = 'good';
+      condition_title = 'Kondisi Keuangan Cukup Sehat (Stabil)';
+      verdict_summary = `Struktur keuangan keluarga cukup stabil (Skor ${health_score}/100). Arus kas terkontrol dan rasio hutang masih dalam batas aman, namun tingkat cadangan dana likuid ${formatMonths(liquidity_months)} masih perlu ditingkatkan menuju target ideal 4.4 bulan biaya hidup.`;
+    } else if (health_score >= 40) {
+      condition_status = 'warning';
+      condition_title = 'Kondisi Keuangan Perlu Waspada';
+      verdict_summary = `Terdapat beberapa pos keuangan yang memerlukan perhatian (Skor ${health_score}/100). Beban hutang (${formatRatio(der_ratio)}) atau porsi pengeluaran (${formatRatio(oer_ratio)}) mulai menekan ruang tabungan. Disarankan membatasi penambahan hutang baru dan memangkas belanja non-primer.`;
+    } else {
+      condition_status = 'critical';
+      condition_title = 'Kondisi Keuangan Kritis (Defisit / Risiko Tinggi)';
+      verdict_summary = `Keuangan keluarga berada dalam situasi rentan (Skor ${health_score}/100). Rasio hutang melampaui batas aman atau arus kas mengalami defisit. Prioritaskan pelunasan hutang berbunga tinggi dan tunda segala pengeluaran tambahan.`;
+    }
   }
 
   // Ratio Details List
-  const ratio_details = [
+  const ratio_details: FinancialRatiosResult['ratio_details'] = [
     {
-      name: 'DER (Debt to Equity Ratio)',
-      value: `${der_ratio}%`,
+      name: 'Hutang vs Harta Bersih',
+      value: formatRatio(der_ratio),
       ideal: '<= 35% (Maks 50%)',
-      status: der_ratio <= 35 ? ('safe' as const) : der_ratio <= 75 ? ('warning' as const) : ('danger' as const),
+      status: der_ratio === null ? 'unknown' : der_ratio <= 35 ? 'safe' : der_ratio <= 75 ? 'warning' : 'danger',
       description: 'Perbandingan total hutang terhadap kekayaan bersih sendiri. Semakin kecil semakin mandiri.',
     },
     {
-      name: 'DAR (Debt to Asset Ratio)',
-      value: `${dar_ratio}%`,
+      name: 'Porsi Harta dari Hutang',
+      value: formatRatio(dar_ratio),
       ideal: '<= 30%',
-      status: dar_ratio <= 30 ? ('safe' as const) : dar_ratio <= 50 ? ('warning' as const) : ('danger' as const),
+      status: dar_ratio === null ? 'unknown' : dar_ratio <= 30 ? 'safe' : dar_ratio <= 50 ? 'warning' : 'danger',
       description: 'Porsi aset yang dibiayai oleh hutang. Rasio rendah menjamin keamanan harta keluarga.',
     },
     {
-      name: 'DSR / DTI (Debt Service Ratio)',
-      value: `${dsr_ratio}%`,
+      name: 'Cicilan vs Pemasukan',
+      value: formatRatio(dsr_ratio),
       ideal: '<= 20% (Maks 30%)',
-      status: dsr_ratio <= 20 ? ('safe' as const) : dsr_ratio <= 35 ? ('warning' as const) : ('danger' as const),
+      status: dsr_ratio === null ? 'unknown' : dsr_ratio <= 20 ? 'safe' : dsr_ratio <= 35 ? 'warning' : 'danger',
       description: 'Persentase pemasukan bulanan yang terserap untuk cicilan hutang.',
     },
     {
-      name: 'Liquidity Ratio (Ketahanan Kas)',
-      value: `${liquidity_months} Bulan`,
+      name: 'Ketahanan Kas',
+      value: formatMonths(liquidity_months),
       ideal: '>= 4.4 Bulan Biaya',
-      status: liquidity_months >= 4.4 ? ('safe' as const) : liquidity_months >= 2 ? ('warning' as const) : ('danger' as const),
+      status: liquidity_months === null ? 'unknown' : liquidity_months >= 4.4 ? 'safe' : liquidity_months >= 2 ? 'warning' : 'danger',
       description: 'Kemampuan kas likuid menopang hidup jika pemasukan terhenti total.',
     },
     {
-      name: 'Savings Ratio (Rasio Tabungan)',
-      value: `${savings_ratio}%`,
+      name: 'Rasio Tabungan',
+      value: formatRatio(savings_ratio),
       ideal: '>= 20% dari Pemasukan',
-      status: savings_ratio >= 20 ? ('safe' as const) : savings_ratio >= 10 ? ('warning' as const) : ('danger' as const),
+      status: savings_ratio === null ? 'unknown' : savings_ratio >= 20 ? 'safe' : savings_ratio >= 10 ? 'warning' : 'danger',
       description: 'Persentase uang masuk yang berhasil disisihkan dan menjadi surplus kekayaan.',
     },
     {
-      name: 'OER (Operating Expense Ratio)',
-      value: `${oer_ratio}%`,
+      name: 'Porsi Belanja Rutin',
+      value: formatRatio(oer_ratio),
       ideal: '<= 70% dari Pemasukan',
-      status: oer_ratio <= 70 ? ('safe' as const) : oer_ratio <= 85 ? ('warning' as const) : ('danger' as const),
+      status: oer_ratio === null ? 'unknown' : oer_ratio <= 70 ? 'safe' : oer_ratio <= 85 ? 'warning' : 'danger',
       description: 'Efisiensi belanja operasional hidup sehari-hari terhadap pendapatan.',
     },
   ];
 
   // Action Recommendations
   const action_recommendations: string[] = [];
-  if (der_ratio > 50) {
-    action_recommendations.push(`Fokus percepatan pelunasan pokok hutang (${formatRupiah(totalLiabilities)}) agar rasio DER kembali di bawah 35%.`);
+  if (der_ratio !== null && der_ratio > 50) {
+    action_recommendations.push(`Fokus percepatan pelunasan pokok hutang (${formatRupiah(totalLiabilities)}) agar rasio hutang kembali di bawah 35%.`);
   }
-  if (liquidity_months < 4.4) {
+  if (liquidity_months !== null && liquidity_months < 4.4) {
     const gap = (baselineExpense * 4.4) - totalCash;
     action_recommendations.push(`Tingkatkan cadangan dana likuid sebesar ${formatRupiah(Math.max(0, gap))} untuk mencapai target 4.4 bulan biaya hidup.`);
   }
-  if (savings_ratio < 20 && netCashFlow > 0) {
+  if (savings_ratio !== null && savings_ratio < 20 && netCashFlow > 0) {
     action_recommendations.push('Tingkatkan rasio tabungan hingga minimal 20% dengan menghemat pos belanja fleksibel.');
   }
   if (netCashFlow < 0) {
     action_recommendations.push(`Arus kas bulan ini defisit ${formatRupiah(Math.abs(netCashFlow))}. Segera lakukan pengetatan anggaran belanja non-primer.`);
   }
-  if (action_recommendations.length === 0) {
+  if (action_recommendations.length === 0 && health_score !== null) {
     action_recommendations.push('Seluruh rasio keuangan berada dalam kondisi prima. Pertahankan disiplin anggaran dan lanjutkan investasi produktif.');
   }
 
@@ -226,6 +223,15 @@ export function calculateFinancialRatios(
   };
 }
 
+/** Rasio `null` ditampilkan apa adanya, tidak diganti angka. */
+function formatRatio(value: number | null): string {
+  return value === null ? 'n/a' : `${value}%`;
+}
+
+function formatMonths(value: number | null): string {
+  return value === null ? 'n/a' : `${value} Bulan`;
+}
+
 export function FinancialRatiosReport({
   summary,
   wallets,
@@ -238,14 +244,16 @@ export function FinancialRatiosReport({
 }: FinancialRatiosReportProps) {
   const result = calculateFinancialRatios(summary, wallets, debts, assets, budgets);
 
-  const getStatusBadge = (st: 'safe' | 'warning' | 'danger') => {
+  const getStatusBadge = (st: 'safe' | 'warning' | 'danger' | 'unknown') => {
     switch (st) {
       case 'safe':
-        return <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-income/10 text-income border border-income/20">Aman</span>;
+        return <span className="px-2 py-0.5 rounded-full text-[11px] font-extrabold bg-income/10 text-income border border-income/20">Aman</span>;
       case 'warning':
-        return <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-warning/10 text-warning border border-warning/25">Waspada</span>;
+        return <span className="px-2 py-0.5 rounded-full text-[11px] font-extrabold bg-warning/10 text-warning border border-warning/25">Waspada</span>;
       case 'danger':
-        return <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-expense/10 text-expense border border-expense/20 animate-pulse">Berisiko</span>;
+        return <span className="px-2 py-0.5 rounded-full text-[11px] font-extrabold bg-expense/10 text-expense border border-expense/20">Berisiko</span>;
+      case 'unknown':
+        return <span className="px-2 py-0.5 rounded-full text-[11px] font-extrabold bg-surface-2 text-text-muted border border-border">Belum Dinilai</span>;
     }
   };
 
@@ -259,8 +267,10 @@ export function FinancialRatiosReport({
               Skor Kesehatan Keuangan Holistik
             </span>
             <div className="flex items-baseline gap-3 pt-0.5">
-              <span className="text-3xl sm:text-4xl font-extrabold text-text tabular-nums">{result.health_score}</span>
-              <span className="text-xs font-semibold text-text-muted">/ 100</span>
+              <span className="text-3xl sm:text-4xl font-extrabold text-text tabular-nums">
+                {result.health_score === null ? '—' : result.health_score}
+              </span>
+              {result.health_score !== null && <span className="text-xs font-semibold text-text-muted">/ 100</span>}
               <span
                 className={`text-xs font-bold px-2.5 py-1 rounded-xl border ${
                   result.condition_status === 'excellent'
@@ -269,7 +279,9 @@ export function FinancialRatiosReport({
                     ? 'bg-income/10 text-income border-income/20'
                     : result.condition_status === 'warning'
                     ? 'bg-warning/10 text-warning border-warning/25'
-                    : 'bg-expense/10 text-expense border-expense/20 animate-pulse'
+                    : result.condition_status === 'critical'
+                    ? 'bg-expense/10 text-expense border-expense/20'
+                    : 'bg-surface-2 text-text-muted border-border'
                 }`}
               >
                 {result.condition_title}
@@ -281,7 +293,7 @@ export function FinancialRatiosReport({
             <button
               type="button"
               onClick={onExportCsv}
-              className="self-start sm:self-center text-xs font-bold text-primary hover:underline flex items-center gap-1 min-h-[32px]"
+              className="self-start sm:self-center text-xs font-bold text-primary hover:underline flex items-center gap-1 min-h-[44px]"
             >
               <FileCsv size={15} weight="bold" />
               <span>Ekspor Laporan</span>
@@ -317,12 +329,12 @@ export function FinancialRatiosReport({
               <p className="text-base sm:text-xl font-extrabold text-text tabular-nums">
                 {ratio.value}
               </p>
-              <span className="text-[10px] text-text-muted block mt-0.5">
+              <span className="text-[11px] text-text-muted block mt-0.5">
                 Target Ideal: <span className="font-semibold text-text">{ratio.ideal}</span>
               </span>
             </div>
 
-            <p className="text-[10px] text-text-muted line-clamp-2 pt-1 border-t border-border/40">
+            <p className="text-[11px] text-text-muted line-clamp-2 pt-1 border-t border-border/40">
               {ratio.description}
             </p>
           </div>
@@ -330,6 +342,7 @@ export function FinancialRatiosReport({
       </div>
 
       {/* Actionable Recommendations Plan */}
+      {result.action_recommendations.length > 0 && (
       <div className="p-4 sm:p-5 bg-surface border border-border rounded-3xl space-y-3 shadow-2xs">
         <div className="flex items-center gap-2 font-bold text-text text-xs sm:text-sm">
           <Lightbulb size={18} weight="duotone" className="text-warning" />
@@ -348,6 +361,7 @@ export function FinancialRatiosReport({
           ))}
         </div>
       </div>
+      )}
     </div>
   );
 }

@@ -39,6 +39,16 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
       const amount = parseFloat(trx.amount);
       const adminFee = parseFloat(trx.admin_fee || 0);
 
+      // 1b. Kunci dompet terlibat dengan urutan UUID kanonik (konsisten dengan PUT,
+      // cegah deadlock DELETE vs PUT pada transfer dua dompet).
+      const lockIds = Array.from(
+        new Set([trx.wallet_id, ...(trx.to_wallet_id ? [trx.to_wallet_id] : [])])
+      ).sort();
+      await client.query(
+        'SELECT id FROM wallets WHERE id = ANY($1::uuid[]) ORDER BY id FOR UPDATE',
+        [lockIds]
+      );
+
       // 2. Balik saldo dompet; akses wallet via household_id atau user_id.
       const walletIdParam = trx.wallet_id;
       const toWalletIdParam = trx.to_wallet_id;
@@ -149,15 +159,10 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
           throw new BusinessError('Tipe kategori tidak cocok dengan tipe transaksi.');
         }
       }
-      // Biaya admin era baru dibukukan sebagai transaksi pendamping terpisah:
-      // tolak fee yang baru dimunculkan via edit (kas akan terdebit tanpa jejak).
+      // Biaya admin hanya berlaku untuk pengeluaran dan transfer.
       const newFee = validated.admin_fee || 0;
-      const oldFee = parseFloat(oldTrx.admin_fee || 0);
       if (validated.type === 'income' && newFee > 0) {
         throw new BusinessError('Biaya admin hanya berlaku untuk pengeluaran dan transfer.', 400);
-      }
-      if (newFee > 0 && oldFee === 0 && validated.type !== 'income') {
-        throw new BusinessError('Biaya admin baru dicatat sebagai transaksi terpisah. Hapus lalu catat ulang bila perlu menambah biaya.', 400);
       }
 
       // Kunci semua dompet yang terlibat (lama + baru) dengan urutan UUID kanonik untuk hindari deadlock

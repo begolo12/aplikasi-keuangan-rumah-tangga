@@ -50,7 +50,7 @@ export function DecisionCard({ month, year, decision }: DecisionCardProps) {
           <Compass size={18} className="text-primary" weight="duotone" />
           <span>Putusan Bulan Ini</span>
         </h3>
-        <span className="text-[10px] font-bold text-text-muted bg-surface-2 px-2 py-1 rounded-lg">
+        <span className="text-[11px] font-bold text-text-muted bg-surface-2 px-2 py-1 rounded-lg">
           {INDONESIAN_MONTHS[month - 1]} {year}
         </span>
       </div>

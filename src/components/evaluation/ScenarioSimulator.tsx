@@ -296,14 +296,14 @@ export function ScenarioSimulator({
             <button
               type="button"
               onClick={() => setGroup('save')}
-              className={`min-h-[38px] text-xs font-bold rounded-xl transition-all ${group === 'save' ? 'bg-income text-white shadow-xs' : 'text-text-muted hover:text-text'}`}
+              className={`min-h-[44px] text-xs font-bold rounded-xl transition-all ${group === 'save' ? 'bg-income text-income-fg shadow-xs' : 'text-text-muted hover:text-text'}`}
             >
               Skenario Hemat
             </button>
             <button
               type="button"
               onClick={() => setGroup('spend')}
-              className={`min-h-[38px] text-xs font-bold rounded-xl transition-all ${group === 'spend' ? 'bg-expense text-white shadow-xs' : 'text-text-muted hover:text-text'}`}
+              className={`min-h-[44px] text-xs font-bold rounded-xl transition-all ${group === 'spend' ? 'bg-expense text-expense-fg shadow-xs' : 'text-text-muted hover:text-text'}`}
             >
               Tambah Beban Baru
             </button>
@@ -315,14 +315,14 @@ export function ScenarioSimulator({
                 <button
                   type="button"
                   onClick={() => setSaveMode('kill_bill')}
-                  className={`min-h-[38px] text-xs font-bold rounded-xl transition-all ${saveMode === 'kill_bill' ? 'bg-primary text-white shadow-xs' : 'text-text-muted hover:text-text'}`}
+                  className={`min-h-[44px] text-xs font-bold rounded-xl transition-all ${saveMode === 'kill_bill' ? 'bg-primary text-primary-fg shadow-xs' : 'text-text-muted hover:text-text'}`}
                 >
                   Matikan Langganan
                 </button>
                 <button
                   type="button"
                   onClick={() => setSaveMode('trim_category')}
-                  className={`min-h-[38px] text-xs font-bold rounded-xl transition-all ${saveMode === 'trim_category' ? 'bg-primary text-white shadow-xs' : 'text-text-muted hover:text-text'}`}
+                  className={`min-h-[44px] text-xs font-bold rounded-xl transition-all ${saveMode === 'trim_category' ? 'bg-primary text-primary-fg shadow-xs' : 'text-text-muted hover:text-text'}`}
                 >
                   Kurangi Kategori
                 </button>
@@ -339,7 +339,7 @@ export function ScenarioSimulator({
                     <option value="">Pilih tagihan rutin...</option>
                     {bills.map((b) => (
                       <option key={b.id} value={b.id}>
-                        {b.title} ({formatRupiah(b.amount)}/bln)
+                        {b.title}
                       </option>
                     ))}
                   </select>
@@ -369,7 +369,7 @@ export function ScenarioSimulator({
                 type="button"
                 onClick={addSaveScenario}
                 disabled={!canAddSave}
-                className="min-h-[40px] w-full rounded-xl bg-primary/10 text-primary border border-primary/20 text-xs font-bold flex items-center justify-center gap-1.5 hover:bg-primary/20 active:scale-[0.98] disabled:opacity-40 disabled:pointer-events-none transition-all"
+                className="min-h-[44px] w-full rounded-xl bg-primary/10 text-primary border border-primary/20 text-xs font-bold flex items-center justify-center gap-1.5 hover:bg-primary/20 active:scale-[0.98] disabled:opacity-40 disabled:pointer-events-none transition-all"
               >
                 <Plus size={14} weight="bold" /> Tambahkan ke Simulasi
               </button>
@@ -386,7 +386,7 @@ export function ScenarioSimulator({
                     key={m.id}
                     type="button"
                     onClick={() => setSpendMode(m.id)}
-                    className={`min-h-[38px] text-xs font-bold rounded-xl transition-all ${spendMode === m.id ? 'bg-primary text-white shadow-xs' : 'text-text-muted hover:text-text'}`}
+                    className={`min-h-[44px] text-xs font-bold rounded-xl transition-all ${spendMode === m.id ? 'bg-primary text-primary-fg shadow-xs' : 'text-text-muted hover:text-text'}`}
                   >
                     {m.label}
                   </button>
@@ -399,7 +399,7 @@ export function ScenarioSimulator({
                 onChange={(e) => setSpendName(e.target.value)}
                 placeholder="Nama (mis. Motor NMax, Netflix)"
                 maxLength={60}
-                className="w-full min-h-[44px] px-3.5 rounded-xl bg-surface-2 border border-border text-sm font-semibold text-text placeholder:text-text-muted/60 focus:outline-none focus:ring-2 focus:ring-primary/30"
+                className="w-full min-h-[44px] px-3.5 rounded-xl bg-surface-2 border border-border text-sm font-semibold text-text placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-primary/30"
               />
 
               {spendMode === 'subscription' && (
@@ -433,7 +433,7 @@ export function ScenarioSimulator({
                 type="button"
                 onClick={addSpendScenario}
                 disabled={!canAddSpend}
-                className="min-h-[40px] w-full rounded-xl bg-expense/10 text-expense border border-expense/20 text-xs font-bold flex items-center justify-center gap-1.5 hover:bg-expense/20 active:scale-[0.98] disabled:opacity-40 disabled:pointer-events-none transition-all"
+                className="min-h-[44px] w-full rounded-xl bg-expense/10 text-expense border border-expense/20 text-xs font-bold flex items-center justify-center gap-1.5 hover:bg-expense/20 active:scale-[0.98] disabled:opacity-40 disabled:pointer-events-none transition-all"
               >
                 <Plus size={14} weight="bold" /> Tambahkan ke Simulasi
               </button>
@@ -448,14 +448,14 @@ export function ScenarioSimulator({
                     <Minus size={13} weight="bold" className="text-income shrink-0" />
                     <div className="min-w-0">
                       <p className="text-xs font-bold text-text truncate">{s.label}</p>
-                      <p className="text-[10px] text-text-muted">Hemat {formatRupiah(s.monthlySaving)}/bulan</p>
+                      <p className="text-[11px] text-text-muted">Hemat {formatRupiah(s.monthlySaving)}/bulan</p>
                     </div>
                   </div>
                   <button
                     type="button"
                     onClick={() => setSaveScenarios((prev) => prev.filter((x) => x.id !== s.id))}
                     aria-label="Hapus skenario"
-                    className="p-1.5 text-text-muted hover:text-expense hover:bg-expense/10 rounded-lg transition-colors shrink-0"
+                    className="inline-flex items-center justify-center min-w-[44px] min-h-[44px] p-1.5 text-text-muted hover:text-expense hover:bg-expense/10 rounded-lg transition-colors shrink-0"
                   >
                     <X size={14} weight="bold" />
                   </button>
@@ -467,7 +467,7 @@ export function ScenarioSimulator({
                     <TrendUp size={13} weight="bold" className="text-expense shrink-0" />
                     <div className="min-w-0">
                       <p className="text-xs font-bold text-text truncate">{s.label}</p>
-                      <p className="text-[10px] text-text-muted">
+                      <p className="text-[11px] text-text-muted">
                         {s.monthlyCost > 0 && `+${formatRupiah(s.monthlyCost)}/bulan`}
                         {s.monthlyCost > 0 && s.oneTimeCost > 0 && ' · '}
                         {s.oneTimeCost > 0 && `${formatRupiah(s.oneTimeCost)} sekali bayar`}
@@ -478,7 +478,7 @@ export function ScenarioSimulator({
                     type="button"
                     onClick={() => setSpendScenarios((prev) => prev.filter((x) => x.id !== s.id))}
                     aria-label="Hapus skenario"
-                    className="p-1.5 text-text-muted hover:text-expense hover:bg-expense/10 rounded-lg transition-colors shrink-0"
+                    className="inline-flex items-center justify-center min-w-[44px] min-h-[44px] p-1.5 text-text-muted hover:text-expense hover:bg-expense/10 rounded-lg transition-colors shrink-0"
                   >
                     <X size={14} weight="bold" />
                   </button>
@@ -491,20 +491,20 @@ export function ScenarioSimulator({
             <div className="space-y-2.5 pt-1 border-t border-border/60">
               <div className="grid grid-cols-2 gap-2">
                 <div className="p-3 bg-surface-2 rounded-2xl border border-border/40 space-y-1">
-                  <p className="text-[10px] font-semibold text-text-muted flex items-center gap-1">
+                  <p className="text-[11px] font-semibold text-text-muted flex items-center gap-1">
                     <ChartLineUp size={12} className="text-primary" /> Arus Kas Bulanan
                   </p>
                   <p className="text-xs font-bold text-text tabular-nums">
                     {formatRupiah(result.cashflowBefore)} →{' '}
                     <span className={result.cashflowAfter < 0 ? 'text-expense' : 'text-income'}>{formatRupiah(result.cashflowAfter)}</span>
                   </p>
-                  <p className={`text-[10px] font-bold tabular-nums ${result.netMonthly >= 0 ? 'text-income' : 'text-expense'}`}>
+                  <p className={`text-[11px] font-bold tabular-nums ${result.netMonthly >= 0 ? 'text-income' : 'text-expense'}`}>
                     {result.netMonthly >= 0 ? '+' : ''}
                     {formatRupiah(result.netMonthly)} /bulan
                   </p>
                 </div>
                 <div className="p-3 bg-surface-2 rounded-2xl border border-border/40 space-y-1">
-                  <p className="text-[10px] font-semibold text-text-muted flex items-center gap-1">
+                  <p className="text-[11px] font-semibold text-text-muted flex items-center gap-1">
                     <PiggyBank size={12} className="text-primary" /> Kas Setelah Pembelian
                   </p>
                   <p className="text-xs font-bold text-text tabular-nums">
@@ -512,7 +512,7 @@ export function ScenarioSimulator({
                     <span className={result.cashAfter < 0 ? 'text-expense' : 'text-income'}>{formatRupiah(result.cashAfter)}</span>
                   </p>
                   {result.oneTimeCost > 0 && (
-                    <p className="text-[10px] font-bold text-expense tabular-nums">-{formatRupiah(result.oneTimeCost)} sekali bayar</p>
+                    <p className="text-[11px] font-bold text-expense tabular-nums">-{formatRupiah(result.oneTimeCost)} sekali bayar</p>
                   )}
                 </div>
               </div>
@@ -541,7 +541,7 @@ export function ScenarioSimulator({
                 <div className="grid grid-cols-2 gap-2">
                   {[6, 12].map((months) => (
                     <div key={months} className="p-2.5 bg-surface-2 rounded-xl border border-border/40 text-center">
-                      <p className="text-[10px] font-semibold text-text-muted">Dampak {months} Bulan</p>
+                      <p className="text-[11px] font-semibold text-text-muted">Dampak {months} Bulan</p>
                       <p className={`text-xs font-extrabold tabular-nums ${result.netMonthly >= 0 ? 'text-income' : 'text-expense'}`}>
                         {result.netMonthly >= 0 ? '+' : ''}
                         {formatRupiah(result.netMonthly * months)}
@@ -557,7 +557,7 @@ export function ScenarioSimulator({
                     <p className="text-xs font-extrabold text-text flex items-center gap-1.5">
                       <CalendarBlank size={14} className="text-primary" weight="duotone" /> Proyeksi 12 Bulan ke Depan
                     </p>
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">
+                    <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">
                       Kas awal {formatCompactRupiah(totalCash)} → {formatCompactRupiah(result.cashAfter)}
                     </span>
                   </div>
@@ -624,11 +624,11 @@ export function ScenarioSimulator({
                             <td className={`py-1.5 px-2 text-right font-bold tabular-nums ${r.delta >= 0 ? 'text-income' : 'text-expense'}`}>{r.delta >= 0 ? '+' : ''}{formatCompactRupiah(r.delta)}</td>
                             <td className="py-1.5 px-2 text-center">
                               {r.status === 'negative' ? (
-                                <span className="px-1.5 py-0.5 rounded-full bg-expense/10 text-expense border border-expense/20 text-[10px] font-bold">Minus</span>
+                                <span className="px-1.5 py-0.5 rounded-full bg-expense/10 text-expense border border-expense/20 text-[11px] font-bold">Minus</span>
                               ) : r.status === 'below_reserve' ? (
-                                <span className="px-1.5 py-0.5 rounded-full bg-warning/10 text-warning border border-warning/20 text-[10px] font-bold">Di bawah cadangan</span>
+                                <span className="px-1.5 py-0.5 rounded-full bg-warning/10 text-warning border border-warning/20 text-[11px] font-bold">Di bawah cadangan</span>
                               ) : (
-                                <span className="px-1.5 py-0.5 rounded-full bg-income/10 text-income border border-income/20 text-[10px] font-bold">Aman</span>
+                                <span className="px-1.5 py-0.5 rounded-full bg-income/10 text-income border border-income/20 text-[11px] font-bold">Aman</span>
                               )}
                             </td>
                           </tr>
@@ -636,7 +636,7 @@ export function ScenarioSimulator({
                       </tbody>
                     </table>
                   </div>
-                  <p className="text-[10px] leading-relaxed text-text-muted">
+                  <p className="text-[11px] leading-relaxed text-text-muted">
                     Asumsi: pemasukan {formatRupiah(monthlyIncome)}/bln dan pengeluaran {formatRupiah(monthlyExpense)}/bln konstan selama 12 bulan. Cicilan hanya membebani selama tenor (setelah lunas, arus kas kembali membaik). Sekali bayar (DP/tunai) hanya potong kas di awal.
                   </p>
                 </div>

@@ -10,6 +10,9 @@ import {
 } from '@phosphor-icons/react';
 import { formatRupiah } from '@/lib/formatters';
 import { Budget, Wallet, FinancialSafetyPlan, RecurringBill, Debt } from '@/lib/types';
+import { totalLiquidCash } from '@/lib/money';
+import { ProgressBar } from '../ui/ProgressBar';
+import { StatCard, StatGrid } from '../ui/StatCard';
 
 interface FinancialSafetyPlanCardProps {
   budgets: Budget[];
@@ -51,7 +54,7 @@ export function calculateFinancialSafetyPlan(
 
   // Saldo Kas/Tabungan Riil Saat Ini: seluruh kas likuid dari semua tipe dompet
   // (konsisten dengan calculateColdMoney & kartu Dana Bebas di dashboard).
-  const current_cash = wallets.reduce((s, w) => s + Math.max(0, w.balance || 0), 0);
+  const current_cash = totalLiquidCash(wallets);
 
   const gap_needed = Math.max(0, total_min_required - current_cash);
   const progress_pct = total_min_required > 0 ? Math.min(100, Math.round((current_cash / total_min_required) * 100)) : 0;
@@ -99,10 +102,10 @@ export function FinancialSafetyPlanCard({
           <div
             className={`w-10 h-10 rounded-2xl flex items-center justify-center shrink-0 ${
               showNeutral
-                ? 'bg-surface-3 text-text-muted'
+                ? 'bg-surface-3 text-text'
                 : plan.can_expand_expense
-                ? 'bg-primary text-white'
-                : 'bg-expense text-white'
+                ? 'bg-primary text-primary-fg'
+                : 'bg-expense text-expense-fg'
             }`}
           >
             {showNeutral ? (
@@ -119,12 +122,12 @@ export function FinancialSafetyPlanCard({
                 Resume Rencana Keamanan & Cadangan Risiko
               </h3>
               <span
-                className={`text-[10px] font-extrabold px-2.5 py-0.5 rounded-full border ${
+                className={`text-[11px] font-extrabold px-2.5 py-0.5 rounded-full border ${
                   showNeutral
                     ? 'bg-surface-2 text-text-muted border-border'
                     : plan.can_expand_expense
                     ? 'bg-primary/10 text-primary border-primary/30'
-                    : 'bg-expense/10 text-expense border-expense/30 animate-pulse'
+                    : 'bg-expense/10 text-expense border-expense/30'
                 }`}
               >
                 {showNeutral
@@ -153,57 +156,42 @@ export function FinancialSafetyPlanCard({
       </div>
 
       {/* Grid Rincian 4 Kolom */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 py-3.5">
-        <div className="p-3 bg-surface rounded-2xl border border-border/60 space-y-1">
-          <span className="text-[10px] sm:text-[11px] font-semibold text-text-muted block">
-            1. Cadangan 4 Bulan
-          </span>
-          <p className="text-xs sm:text-sm md:text-base font-extrabold text-text whitespace-nowrap tabular-nums">
-            {formatRupiah(plan.reserve_4_months)}
-          </p>
-          <span className="text-[10px] text-text-muted block">4x Anggaran Belanja</span>
-        </div>
+      <StatGrid layout="2-4" className="py-3.5">
+        <StatCard
+          size="compact"
+          label="1. Cadangan 4 Bulan"
+          value={formatRupiah(plan.reserve_4_months)}
+          hint="4x Anggaran Belanja"
+        />
 
-        <div className="p-3 bg-surface rounded-2xl border border-border/60 space-y-1">
-          <span className="text-[10px] sm:text-[11px] font-semibold text-text-muted block">
-            2. Cadangan Risiko (10%)
-          </span>
-          <p className="text-xs sm:text-sm md:text-base font-extrabold text-text whitespace-nowrap tabular-nums">
-            {formatRupiah(plan.risk_buffer_10_pct)}
-          </p>
-          <span className="text-[10px] text-text-muted block">Buffer Ketidakpastian</span>
-        </div>
+        <StatCard
+          size="compact"
+          label="2. Cadangan Risiko (10%)"
+          value={formatRupiah(plan.risk_buffer_10_pct)}
+          hint="Buffer Ketidakpastian"
+        />
 
-        <div className="p-3 bg-surface rounded-2xl border border-border/60 space-y-1">
-          <span className="text-[10px] sm:text-[11px] font-semibold text-text-muted block">
-            Total Syarat Minimal
-          </span>
-          <p className="text-xs sm:text-sm md:text-base font-extrabold text-text whitespace-nowrap tabular-nums">
-            {formatRupiah(plan.total_min_required)}
-          </p>
-          <span className="text-[10px] text-text-muted block">Wajib Dimiliki Dulu</span>
-        </div>
+        <StatCard
+          size="compact"
+          label="Total Syarat Minimal"
+          value={formatRupiah(plan.total_min_required)}
+          hint="Wajib Dimiliki Dulu"
+        />
 
-        <div className="p-3 bg-surface rounded-2xl border border-border/60 space-y-1">
-          <span className="text-[10px] sm:text-[11px] font-semibold text-text-muted block">
-            Uang Cadangan Saat Ini
-          </span>
-          <p
-            className={`text-xs sm:text-sm md:text-base font-extrabold whitespace-nowrap tabular-nums ${
-              showNeutral ? 'text-text-muted' : plan.can_expand_expense ? 'text-primary' : 'text-expense'
-            }`}
-          >
-            {formatRupiah(plan.current_cash)}
-          </p>
-          <span className="text-[10px] text-text-muted block">
-            {showNeutral
+        <StatCard
+          size="compact"
+          label="Uang Cadangan Saat Ini"
+          value={formatRupiah(plan.current_cash)}
+          tone={showNeutral ? 'muted' : plan.can_expand_expense ? 'primary' : 'expense'}
+          hint={
+            showNeutral
               ? 'Menunggu Anggaran'
               : plan.can_expand_expense
               ? 'Target Tercapai'
-              : `Kurang ${formatRupiah(plan.gap_needed)}`}
-          </span>
-        </div>
-      </div>
+              : `Kurang ${formatRupiah(plan.gap_needed)}`
+          }
+        />
+      </StatGrid>
 
       {/* Progress Bar & Status */}
       <div className="space-y-1.5 pt-1">
@@ -222,20 +210,20 @@ export function FinancialSafetyPlanCard({
           </span>
         </div>
 
-        <div className="w-full h-3 bg-surface-2 rounded-full overflow-hidden border border-border/50">
-          <div
-            className={`h-full rounded-full transition-all duration-700 ${
-              showNeutral
-                ? 'bg-surface-3'
-                : plan.can_expand_expense
-                ? 'bg-primary'
-                : plan.progress_pct > 60
-                ? 'bg-warning'
-                : 'bg-expense'
-            }`}
-            style={{ width: `${Math.min(100, Math.max(3, plan.progress_pct))}%` }}
-          />
-        </div>
+        <ProgressBar
+          value={Math.min(100, Math.max(3, plan.progress_pct))}
+          size="lg"
+          barClassName={
+            showNeutral
+              ? 'bg-surface-3'
+              : plan.can_expand_expense
+              ? 'bg-primary'
+              : plan.progress_pct > 60
+              ? 'bg-warning'
+              : 'bg-expense'
+          }
+          ariaLabel={`Progres dana cadangan ${plan.progress_pct} persen`}
+        />
       </div>
 
       {/* KPI Policy Guidance Box */}

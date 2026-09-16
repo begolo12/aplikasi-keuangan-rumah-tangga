@@ -16,35 +16,39 @@ export interface RateLimitResult {
 
 export function checkRateLimit(key: string, limit: number, windowMs: number): RateLimitResult {
   const now = Date.now();
-  
-  // Global cleanup when Map exceeds 5000 entries to prevent memory leak
+
+  // Prune entries when Map exceeds 5000 entries instead of global clear
   if (windows.size > 5000) {
-    windows.clear();
-  }
-  
-  let arr = windows.get(key);
-  if (!arr) {
-    arr = [];
-  } else {
-    // Prune old timestamps within window
-    arr = arr.filter((t) => now - t < windowMs);
-    
-    // Delete empty keys after pruning
-    if (arr.length === 0) {
-      windows.delete(key);
-      return { ok: true, retryAfterSec: 0 };
+    for (const [k, v] of windows.entries()) {
+      const active = v.filter((t) => now - t < windowMs);
+      if (active.length === 0) {
+        windows.delete(k);
+      } else {
+        windows.set(k, active);
+      }
+    }
+    if (windows.size > 5000) {
+      const iter = windows.keys();
+      for (let i = 0; i < 1000; i++) {
+        const next = iter.next();
+        if (next.done) break;
+        windows.delete(next.value);
+      }
     }
   }
-  
+
+  const raw = windows.get(key) ?? [];
+  let arr = raw.filter((t) => now - t < windowMs);
+
   arr.push(now);
-  
+
   // Bound array size to limit+1 to prevent unbounded growth
   if (arr.length > limit + 1) {
     arr = arr.slice(-limit);
   }
-  
+
   windows.set(key, arr);
-  
+
   if (arr.length > limit) {
     const oldest = arr[0];
     const retryAfterSec = Math.max(1, Math.ceil((windowMs - (now - oldest)) / 1000));

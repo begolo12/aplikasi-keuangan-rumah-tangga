@@ -137,6 +137,23 @@ const backupGoalContribution = z.object({
   date: dateStr.optional().nullable(),
 });
 
+const backupSubscription = z.object({
+  provider_name: z.string().min(1).max(150),
+  amount: z.number().finite().positive(),
+  cycle: z.enum(['daily', 'weekly', 'monthly', 'yearly']),
+  next_charge_date: dateStr,
+  is_active: z.boolean().default(true),
+  reminder_enabled: z.boolean().default(true),
+});
+
+const backupFinancialEvent = z.object({
+  title: z.string().min(1).max(150),
+  type: z.string().min(1).max(50),
+  date: dateStr,
+  amount: z.number().finite().positive().optional().nullable(),
+  description: z.string().max(500).optional().nullable(),
+});
+
 const backupSchema = z.object({
   data: z.object({
     wallets: z.array(backupWallet).max(200).default([]),
@@ -150,6 +167,8 @@ const backupSchema = z.object({
     debt_payments: z.array(backupDebtPayment).max(20000).default([]),
     savings_goals: z.array(backupGoal).max(500).default([]),
     goal_contributions: z.array(backupGoalContribution).max(20000).default([]),
+    subscriptions: z.array(backupSubscription).max(500).default([]),
+    financial_events: z.array(backupFinancialEvent).max(2000).default([]),
     settings: z
       .object({
         family_name: z.string().min(1).max(100),
@@ -193,6 +212,8 @@ export async function POST(req: NextRequest) {
       await client.query('DELETE FROM recurring_bills WHERE user_id = $1', [uid]);
       await client.query('DELETE FROM budgets WHERE user_id = $1', [uid]);
       await client.query('DELETE FROM transactions WHERE user_id = $1', [uid]);
+      await client.query('DELETE FROM subscriptions WHERE user_id = $1', [uid]);
+      await client.query('DELETE FROM financial_events WHERE user_id = $1', [uid]);
       await client.query('DELETE FROM assets WHERE user_id = $1', [uid]);
       await client.query('DELETE FROM categories WHERE user_id = $1', [uid]);
       await client.query('DELETE FROM app_settings WHERE user_id = $1', [uid]);
@@ -398,6 +419,26 @@ export async function POST(req: NextRequest) {
         );
       }
 
+      // Subscriptions & financial events (schema 1.2; kosong pada backup lama).
+      for (const s of d.subscriptions) {
+        const categoryId = null;
+        const walletId = null;
+        void categoryId;
+        void walletId;
+        await client.query(
+          `INSERT INTO subscriptions (user_id, provider_name, amount, cycle, next_charge_date, is_active, reminder_enabled)
+           VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+          [uid, s.provider_name, s.amount.toFixed(2), s.cycle, s.next_charge_date, s.is_active, s.reminder_enabled]
+        );
+      }
+      for (const ev of d.financial_events) {
+        await client.query(
+          `INSERT INTO financial_events (user_id, title, type, date, amount, description)
+           VALUES ($1, $2, $3, $4, $5, $6)`,
+          [uid, ev.title, ev.type, ev.date, ev.amount != null ? ev.amount.toFixed(2) : null, ev.description ?? null]
+        );
+      }
+
       return {
         wallets: walletMap.size,
         categories: categoryMap.size,
@@ -409,6 +450,8 @@ export async function POST(req: NextRequest) {
         debt_payments: restoredDebtPayments,
         savings_goals: goalMap.size,
         goal_contributions: restoredContribs,
+        subscriptions: d.subscriptions.length,
+        financial_events: d.financial_events.length,
       };
     });
 

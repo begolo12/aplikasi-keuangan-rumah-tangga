@@ -10,6 +10,9 @@ import { AssetScheduleModal } from './AssetScheduleModal';
 import { SellAssetModal } from './SellAssetModal';
 import { ConfirmModal } from '../ui/ConfirmModal';
 import { DashboardSkeleton } from '../ui/LoadingSkeleton';
+import { useToast } from '../ui/Toast';
+import { ProgressBar } from '../ui/ProgressBar';
+import { StatCard, StatGrid } from '../ui/StatCard';
 import {
   Package,
   Car,
@@ -55,6 +58,7 @@ const CATEGORY_MAP: Record<AssetCategory, { label: string; icon: React.ElementTy
 };
 
 export function AssetsView({ onRefreshParent }: AssetsViewProps) {
+  const { notify } = useToast();
   const [assets, setAssets] = useState<Asset[]>([]);
   const [wallets, setWallets] = useState<Wallet[]>([]);
   const [debts, setDebts] = useState<Debt[]>([]);
@@ -174,8 +178,11 @@ export function AssetsView({ onRefreshParent }: AssetsViewProps) {
       setReloadKey((k) => k + 1);
       onRefreshParent?.();
       setConfirmDeleteId(null);
+      notify('Aset dihapus.', { tone: 'success' });
     } catch (err) {
-      console.error('Gagal menghapus aset:', err);
+      const msg = err instanceof Error ? err.message : 'Gagal menghapus aset.';
+      setError(msg);
+      notify(msg, { tone: 'error' });
     } finally {
       setDeletingId(null);
     }
@@ -196,7 +203,7 @@ export function AssetsView({ onRefreshParent }: AssetsViewProps) {
       {/* Top Header & Add Button */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
         <div>
-          <h2 className="text-base sm:text-xl font-bold text-text">Manajemen Aset & Depresiasi</h2>
+          <h2 className="text-xl sm:text-2xl font-bold text-text">Manajemen Aset & Depresiasi</h2>
           <p className="text-[11px] sm:text-xs text-text-muted">
             Pantau nilai buku harta berharga, umur ekonomis, dan estimasi beban penyusutan.
           </p>
@@ -213,51 +220,36 @@ export function AssetsView({ onRefreshParent }: AssetsViewProps) {
       </div>
 
       {/* 4 Compact Summary Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
-        {/* Card 1: Total Nilai Perolehan Awal */}
-        <div className="p-2.5 sm:p-3 bg-surface border border-border rounded-2xl flex flex-col justify-between gap-1 shadow-2xs">
-          <div className="flex items-center gap-1.5 text-text-muted text-[10px] sm:text-xs font-semibold">
-            <Coins size={15} className="text-transfer shrink-0" weight="duotone" />
-            <span className="truncate">Nilai Perolehan Awal</span>
-          </div>
-          <p className="text-xs sm:text-sm md:text-base font-extrabold text-text whitespace-nowrap tabular-nums tracking-tight">
-            {formatRupiah(summary.total_purchase_value)}
-          </p>
-        </div>
-
-        {/* Card 2: Total Nilai Buku Saat Ini */}
-        <div className="p-2.5 sm:p-3 bg-primary/10 border border-primary/20 rounded-2xl flex flex-col justify-between gap-1 shadow-2xs">
-          <div className="flex items-center gap-1.5 text-primary text-[10px] sm:text-xs font-bold">
-            <ShieldCheck size={15} weight="fill" className="shrink-0" />
-            <span className="truncate">Nilai Buku Sekarang</span>
-          </div>
-          <p className="text-xs sm:text-sm md:text-base font-extrabold text-primary whitespace-nowrap tabular-nums tracking-tight">
-            {formatRupiah(summary.total_book_value)}
-          </p>
-        </div>
-
-        {/* Card 3: Akumulasi Penyusutan */}
-        <div className="p-2.5 sm:p-3 bg-surface border border-border rounded-2xl flex flex-col justify-between gap-1 shadow-2xs">
-          <div className="flex items-center gap-1.5 text-text-muted text-[10px] sm:text-xs font-semibold">
-            <TrendDown size={15} className="text-expense shrink-0" weight="bold" />
-            <span className="truncate">Akumulasi Penyusutan</span>
-          </div>
-          <p className="text-xs sm:text-sm md:text-base font-extrabold text-expense whitespace-nowrap tabular-nums tracking-tight">
-            -{formatRupiah(summary.total_accumulated_depreciation)}
-          </p>
-        </div>
-
-        {/* Card 4: Beban Depresiasi Bulan Ini */}
-        <div className="p-2.5 sm:p-3 bg-surface border border-border rounded-2xl flex flex-col justify-between gap-1 shadow-2xs">
-          <div className="flex items-center gap-1.5 text-text-muted text-[10px] sm:text-xs font-semibold">
-            <CalendarCheck size={15} className="text-transfer shrink-0" weight="duotone" />
-            <span className="truncate">Beban Susut / Bulan</span>
-          </div>
-          <p className="text-xs sm:text-sm md:text-base font-extrabold text-transfer whitespace-nowrap tabular-nums tracking-tight">
-            {formatRupiah(summary.total_monthly_depreciation)}
-          </p>
-        </div>
-      </div>
+      <StatGrid layout="2-4-lg" className="gap-2">
+        <StatCard
+          size="compact"
+          label="Nilai Perolehan Awal"
+          icon={<Coins size={15} weight="duotone" />}
+          iconClassName="text-transfer"
+          value={formatRupiah(summary.total_purchase_value)}
+        />
+        <StatCard
+          size="compact"
+          accent
+          label="Nilai Buku Sekarang"
+          icon={<ShieldCheck size={15} weight="fill" />}
+          value={formatRupiah(summary.total_book_value)}
+        />
+        <StatCard
+          size="compact"
+          tone="expense"
+          label="Akumulasi Penyusutan"
+          icon={<TrendDown size={15} weight="bold" />}
+          value={`-${formatRupiah(summary.total_accumulated_depreciation)}`}
+        />
+        <StatCard
+          size="compact"
+          tone="transfer"
+          label="Beban Susut / Bulan"
+          icon={<CalendarCheck size={15} weight="duotone" />}
+          value={formatRupiah(summary.total_monthly_depreciation)}
+        />
+      </StatGrid>
 
       {/* Filter Status (Aset Aktif vs Terjual) & Category Filter Pills & Search */}
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2">
@@ -268,7 +260,7 @@ export function AssetsView({ onRefreshParent }: AssetsViewProps) {
               type="button"
               onClick={() => setStatusFilter('active')}
               className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all ${
-                statusFilter === 'active' ? 'bg-primary text-white shadow-2xs' : 'text-text-muted hover:text-text'
+                statusFilter === 'active' ? 'bg-primary text-primary-fg shadow-2xs' : 'text-text-muted hover:text-text'
               }`}
             >
               Aset Aktif
@@ -277,7 +269,7 @@ export function AssetsView({ onRefreshParent }: AssetsViewProps) {
               type="button"
               onClick={() => setStatusFilter('sold')}
               className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all ${
-                statusFilter === 'sold' ? 'bg-primary text-white shadow-2xs' : 'text-text-muted hover:text-text'
+                statusFilter === 'sold' ? 'bg-primary text-primary-fg shadow-2xs' : 'text-text-muted hover:text-text'
               }`}
             >
               Sudah Terjual
@@ -286,7 +278,7 @@ export function AssetsView({ onRefreshParent }: AssetsViewProps) {
               type="button"
               onClick={() => setStatusFilter('all')}
               className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all ${
-                statusFilter === 'all' ? 'bg-primary text-white shadow-2xs' : 'text-text-muted hover:text-text'
+                statusFilter === 'all' ? 'bg-primary text-primary-fg shadow-2xs' : 'text-text-muted hover:text-text'
               }`}
             >
               Semua
@@ -331,7 +323,7 @@ export function AssetsView({ onRefreshParent }: AssetsViewProps) {
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Cari aset atau catatan..."
-            className="w-full h-9 pl-9 pr-3 bg-surface border border-border rounded-xl text-xs focus:ring-2 focus:ring-primary focus:outline-none placeholder:text-text-muted/50"
+            className="w-full h-9 pl-9 pr-3 bg-surface border border-border rounded-xl text-xs focus:ring-2 focus:ring-primary focus:outline-none placeholder:text-text-muted"
           />
         </div>
       </div>
@@ -405,7 +397,7 @@ export function AssetsView({ onRefreshParent }: AssetsViewProps) {
                           {asset.name}
                         </h4>
                         <span
-                          className={`text-[9px] font-extrabold px-1.5 py-0.5 rounded-md border ${
+                          className={`text-[11px] font-extrabold px-1.5 py-0.5 rounded-md border ${
                             isGain
                               ? 'bg-income/10 text-income border-income/20'
                               : 'bg-expense/10 text-expense border-expense/20'
@@ -416,7 +408,7 @@ export function AssetsView({ onRefreshParent }: AssetsViewProps) {
                             : `Minus (${formatRupiah(marketDiffPurchase)})`}
                         </span>
                       </div>
-                      <p className="text-[10px] text-text-muted mt-0.5">
+                      <p className="text-[11px] text-text-muted mt-0.5">
                         Dibeli {formatDate(asset.purchase_date, 'short')} • Umur: <span className="font-semibold text-text">{ageText}</span>
                       </p>
                     </div>
@@ -431,7 +423,7 @@ export function AssetsView({ onRefreshParent }: AssetsViewProps) {
                             setIsSellOpen(true);
                           }}
                           title="Jual Aset (Terima Kas & Matikan Jadwal)"
-                          className="px-2 py-1 bg-primary/10 hover:bg-primary/20 border border-primary/30 rounded-lg text-[10px] font-bold text-primary flex items-center gap-1 transition-colors"
+                          className="px-2 py-1 bg-primary/10 hover:bg-primary/20 border border-primary/30 rounded-lg text-[11px] font-bold text-primary flex items-center gap-1 transition-colors"
                         >
                           <CurrencyDollar size={13} weight="bold" />
                           <span>Jual Aset</span>
@@ -442,7 +434,7 @@ export function AssetsView({ onRefreshParent }: AssetsViewProps) {
                             setIsScheduleOpen(true);
                           }}
                           title="Jadwalkan Pajak, Servis & Biaya Insidental"
-                          className="px-2 py-1 bg-surface-2 hover:bg-surface-3 border border-border/70 rounded-lg text-[10px] font-bold text-text-muted hover:text-primary flex items-center gap-1 transition-colors"
+                          className="px-2 py-1 bg-surface-2 hover:bg-surface-3 border border-border/70 rounded-lg text-[11px] font-bold text-text-muted hover:text-primary flex items-center gap-1 transition-colors"
                         >
                           <CalendarPlus size={13} weight="bold" />
                           <span>Jadwal / Biaya</span>
@@ -452,7 +444,7 @@ export function AssetsView({ onRefreshParent }: AssetsViewProps) {
                     <button
                       onClick={() => openEdit(asset)}
                       title="Ubah Data Aset"
-                      className="p-1.5 text-text-muted hover:text-text hover:bg-surface-2 rounded-lg transition-colors"
+                      className="inline-flex items-center justify-center min-w-[44px] min-h-[44px] p-1.5 text-text-muted hover:text-text hover:bg-surface-2 rounded-lg transition-colors"
                     >
                       <PencilSimple size={15} />
                     </button>
@@ -460,7 +452,7 @@ export function AssetsView({ onRefreshParent }: AssetsViewProps) {
                       onClick={() => setConfirmDeleteId(asset.id)}
                       disabled={deletingId === asset.id}
                       title="Hapus Aset"
-                      className="p-1.5 text-text-muted hover:text-expense hover:bg-expense/10 rounded-lg transition-colors"
+                      className="inline-flex items-center justify-center min-w-[44px] min-h-[44px] p-1.5 text-text-muted hover:text-expense hover:bg-expense/10 rounded-lg transition-colors"
                     >
                       <Trash size={15} />
                     </button>
@@ -471,21 +463,21 @@ export function AssetsView({ onRefreshParent }: AssetsViewProps) {
                 <div className="p-2.5 bg-surface-2 rounded-xl space-y-2 border border-border/50">
                   <div className="grid grid-cols-3 gap-1.5 text-xs">
                     <div>
-                      <span className="text-[9px] sm:text-[10px] text-text-muted block">Harga Beli:</span>
+                      <span className="text-[11px] text-text-muted block">Harga Beli:</span>
                       <span className="font-bold text-text whitespace-nowrap tabular-nums text-[11px] sm:text-xs">
                         {formatRupiah(purchasePrice)}
                       </span>
                     </div>
 
                     <div>
-                      <span className="text-[9px] sm:text-[10px] text-text-muted block">Nilai Buku:</span>
+                      <span className="text-[11px] text-text-muted block">Nilai Buku:</span>
                       <span className="font-bold text-text-muted whitespace-nowrap tabular-nums text-[11px] sm:text-xs">
                         {formatRupiah(bookValue)}
                       </span>
                     </div>
 
                     <div>
-                      <span className="text-[9px] sm:text-[10px] text-text-muted block">Taksiran Pasar:</span>
+                      <span className="text-[11px] text-text-muted block">Taksiran Pasar:</span>
                       <span className={`font-extrabold whitespace-nowrap tabular-nums text-[11px] sm:text-xs ${isGain ? 'text-income' : 'text-expense'}`}>
                         {formatRupiah(marketValue)}
                       </span>
@@ -493,17 +485,18 @@ export function AssetsView({ onRefreshParent }: AssetsViewProps) {
                   </div>
 
                   {asset.depreciation_method !== 'none' && (
-                    <div className="space-y-1 pt-1 border-t border-border/40 text-[10px]">
+                    <div className="space-y-1 pt-1 border-t border-border/40 text-[11px]">
                       <div className="flex items-center justify-between text-text-muted">
                         <span>Penyusutan Buku: <span className="font-semibold text-expense">-{formatRupiah(accumDepr)}</span></span>
                         <span>{deprPercent}% Terdepresiasi</span>
                       </div>
-                      <div className="w-full h-1.5 bg-background rounded-full overflow-hidden">
-                        <div
-                          className="h-full bg-expense rounded-full transition-all duration-500"
-                          style={{ width: `${deprPercent}%` }}
-                        />
-                      </div>
+                      <ProgressBar
+                        value={deprPercent}
+                        tone="expense"
+                        size="sm"
+                        className="bg-background"
+                        ariaLabel={`Penyusutan ${deprPercent} persen`}
+                      />
                       <div className="flex items-center justify-between text-text-muted pt-0.5">
                         <span>Beban susut bulanan:</span>
                         <span className="font-semibold text-transfer whitespace-nowrap tabular-nums">
@@ -515,7 +508,7 @@ export function AssetsView({ onRefreshParent }: AssetsViewProps) {
                 </div>
 
                 {asset.notes && (
-                  <p className="text-[10px] text-text-muted truncate px-0.5">
+                  <p className="text-[11px] text-text-muted truncate px-0.5">
                     Catatan: {asset.notes}
                   </p>
                 )}

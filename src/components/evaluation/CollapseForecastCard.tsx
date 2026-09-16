@@ -4,6 +4,8 @@ import React from 'react';
 import { Warning, ShieldCheck, TrendDown, Clock, Lightning } from '@phosphor-icons/react';
 import { formatRupiah, formatDate } from '@/lib/formatters';
 import { calculateCollapseForecast, CollapseLevel } from '@/lib/collapseForecast';
+import { ProgressBar } from '../ui/ProgressBar';
+import { StatCard, StatGrid } from '../ui/StatCard';
 
 interface CollapseForecastCardProps {
   totalCash: number;
@@ -57,39 +59,51 @@ export function CollapseForecastCard({ totalCash, monthlyBurn }: CollapseForecas
             <p className="text-[11px] text-text-muted">Forecasting ketahanan kas tanpa pemasukan sama sekali</p>
           </div>
         </div>
-        <span className={`text-[10px] font-extrabold px-2.5 py-1 rounded-full border ${meta.bg} ${meta.color} ${meta.border}`}>{meta.label}</span>
+        <span className={`text-[11px] font-extrabold px-2.5 py-1 rounded-full border ${meta.bg} ${meta.color} ${meta.border}`}>{meta.label}</span>
       </div>
 
-      <div className="grid grid-cols-3 gap-2.5">
-        <div className="p-3 bg-surface rounded-2xl border border-border/60 space-y-1">
-          <span className="text-[10px] font-semibold text-text-muted block">Kas Saat Ini</span>
-          <p className="text-sm font-extrabold text-text tabular-nums">{formatRupiah(totalCash)}</p>
-          <span className="text-[10px] text-text-muted block">Total likuid</span>
-        </div>
-        <div className="p-3 bg-surface rounded-2xl border border-border/60 space-y-1">
-          <span className="text-[10px] font-semibold text-text-muted block">Burn Rate / Bulan</span>
-          <p className="text-sm font-extrabold text-expense tabular-nums">{formatRupiah(forecast.burnRate)}</p>
-          <span className="text-[10px] text-text-muted block">Pengeluaran + tagihan</span>
-        </div>
-        <div className={`p-3 rounded-2xl border space-y-1 ${forecast.level === 'aman' ? 'bg-primary/5 border-primary/20' : 'bg-surface border-border/60'}`}>
-          <span className="text-[10px] font-bold text-text-muted block">Jangka Waktu Colapse</span>
-          <p className={`text-sm font-extrabold tabular-nums ${meta.color}`}>
-            {monthsDisplay} bulan {Number.isFinite(forecast.monthsUntilCollapse) && `(${forecast.daysUntilCollapse.toFixed(0)} hari)`}
-          </p>
-          <span className="text-[10px] text-text-muted block">
-            {forecast.collapseDate ? `Perkiraan ${formatDate(forecast.collapseDate, 'long')}` : 'Tidak terbatas'}
-          </span>
-        </div>
-      </div>
+      <StatGrid layout="3">
+        <StatCard
+          size="compact"
+          label="Kas Saat Ini"
+          value={formatRupiah(totalCash)}
+          hint="Total likuid"
+        />
+        <StatCard
+          size="compact"
+          tone="expense"
+          label="Burn Rate / Bulan"
+          value={formatRupiah(forecast.burnRate)}
+          hint="Pengeluaran + tagihan"
+        />
+        <StatCard
+          size="compact"
+          label="Jangka Waktu Colapse"
+          value={
+            <>
+              {monthsDisplay} bulan{' '}
+              {Number.isFinite(forecast.monthsUntilCollapse) && `(${forecast.daysUntilCollapse.toFixed(0)} hari)`}
+            </>
+          }
+          tone={forecast.level === 'aman' ? 'primary' : 'muted'}
+          className={
+            forecast.level === 'aman'
+              ? 'bg-primary/5 border border-primary/20 shadow-none'
+              : 'bg-surface border border-border/60 shadow-none'
+          }
+          hint={forecast.collapseDate ? `Perkiraan ${formatDate(forecast.collapseDate, 'long')}` : 'Tidak terbatas'}
+        />
+      </StatGrid>
 
       <div className="space-y-1.5">
-        <div className="w-full h-2.5 bg-surface-2 rounded-full overflow-hidden border border-border/40">
-          <div
-            className={`h-full rounded-full transition-all duration-700 ${forecast.level === 'aman' ? 'bg-primary' : forecast.level === 'waspada' ? 'bg-warning' : 'bg-expense'}`}
-            style={{ width: `${progressPct}%` }}
-          />
-        </div>
-        <div className="flex justify-between text-[10px] text-text-muted">
+        <ProgressBar
+          value={progressPct}
+          size="md"
+          className="border border-border/40"
+          barClassName={forecast.level === 'aman' ? 'bg-primary' : forecast.level === 'waspada' ? 'bg-warning' : 'bg-expense'}
+          ariaLabel={`Proyeksi ketahanan kas ${progressPct} persen`}
+        />
+        <div className="flex justify-between text-[11px] text-text-muted">
           <span>0 bln (colapse)</span>
           <span>6 bln</span>
           <span>12 bln (aman)</span>

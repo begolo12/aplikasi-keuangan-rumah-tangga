@@ -13,6 +13,7 @@ import { FinancialRatiosReport } from './FinancialRatiosReport';
 import { ColdMoneyCard } from './ColdMoneyCard';
 import { YearlyReport } from './YearlyReport';
 import { Button } from '../ui/Button';
+import { StatCard, StatGrid } from '../ui/StatCard';
 import { formatRupiah, INDONESIAN_MONTHS } from '@/lib/formatters';
 import { Budget } from '@/lib/types';
 import {
@@ -209,7 +210,7 @@ export function ReportsView({
           <button
             type="button"
             onClick={retry}
-            className="min-h-[44px] px-5 py-2.5 rounded-xl bg-primary text-white text-sm font-bold hover:opacity-90 active:opacity-80 transition-opacity"
+            className="min-h-[44px] px-5 py-2.5 rounded-xl bg-primary text-primary-fg text-sm font-bold hover:opacity-90 active:opacity-80 transition-opacity"
           >
             Coba lagi
           </button>
@@ -225,14 +226,17 @@ export function ReportsView({
   const totalBal = reportSummary?.total_balance || 0;
   const pendingBills = reportSummary?.total_bills_pending_amount || 0;
   const payableDue = reportSummary?.total_payable_due || 0;
-  const safeSpend = reportSummary?.safe_to_spend ?? (totalBal - (pendingBills + payableDue));
+  const receivableDue = reportSummary?.total_receivable_due || 0;
+  // Harus sama dengan rumus API reports/monthly: saldo - (tagihan + hutang) + piutang masuk.
+  const safeSpend =
+    reportSummary?.safe_to_spend ?? (totalBal - (pendingBills + payableDue) + receivableDue);
 
   return (
     <div className="space-y-4 sm:space-y-5">
       {/* Header, Month Selector & Export Button */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-surface p-3.5 sm:p-4 rounded-3xl border border-border shadow-xs">
         <div>
-          <h2 className="text-base sm:text-lg font-extrabold text-text flex items-center gap-2">
+          <h2 className="text-xl sm:text-2xl font-bold text-text flex items-center gap-2">
             <Calendar size={20} className="text-primary" weight="duotone" />
             <span>Laporan Keuangan & Arus Kas</span>
           </h2>
@@ -249,7 +253,7 @@ export function ReportsView({
               onClick={handlePrevMonth}
               title="Bulan Sebelumnya"
               aria-label="Bulan Sebelumnya"
-              className="w-8 h-8 flex items-center justify-center rounded-xl hover:bg-surface-3 text-text transition-colors"
+              className="w-11 h-11 flex items-center justify-center rounded-xl hover:bg-surface-3 text-text transition-colors"
             >
               <CaretLeft size={16} weight="bold" />
             </button>
@@ -261,7 +265,7 @@ export function ReportsView({
               onClick={handleNextMonth}
               title="Bulan Berikutnya"
               aria-label="Bulan Berikutnya"
-              className="w-8 h-8 flex items-center justify-center rounded-xl hover:bg-surface-3 text-text transition-colors"
+              className="w-11 h-11 flex items-center justify-center rounded-xl hover:bg-surface-3 text-text transition-colors"
             >
               <CaretRight size={16} weight="bold" />
             </button>
@@ -301,7 +305,7 @@ export function ReportsView({
           onClick={() => setSelectedTab('overview')}
           className={`py-2 px-2 text-xs font-bold rounded-xl flex items-center justify-center gap-1.5 transition-all truncate ${
             selectedTab === 'overview'
-              ? 'bg-primary text-white shadow-xs'
+              ? 'bg-primary text-primary-fg shadow-xs'
               : 'text-text-muted hover:text-text'
           }`}
         >
@@ -314,7 +318,7 @@ export function ReportsView({
           onClick={() => setSelectedTab('yearly')}
           className={`py-2 px-2 text-xs font-bold rounded-xl flex items-center justify-center gap-1.5 transition-all truncate ${
             selectedTab === 'yearly'
-              ? 'bg-primary text-white shadow-xs'
+              ? 'bg-primary text-primary-fg shadow-xs'
               : 'text-text-muted hover:text-text'
           }`}
         >
@@ -327,7 +331,7 @@ export function ReportsView({
           onClick={() => setSelectedTab('cashflow')}
           className={`py-2 px-2 text-xs font-bold rounded-xl flex items-center justify-center gap-1.5 transition-all truncate ${
             selectedTab === 'cashflow'
-              ? 'bg-primary text-white shadow-xs'
+              ? 'bg-primary text-primary-fg shadow-xs'
               : 'text-text-muted hover:text-text'
           }`}
         >
@@ -340,12 +344,12 @@ export function ReportsView({
           onClick={() => setSelectedTab('balancesheet')}
           className={`py-2 px-2 text-xs font-bold rounded-xl flex items-center justify-center gap-1.5 transition-all truncate ${
             selectedTab === 'balancesheet'
-              ? 'bg-primary text-white shadow-xs'
+              ? 'bg-primary text-primary-fg shadow-xs'
               : 'text-text-muted hover:text-text'
           }`}
         >
           <Coins size={15} weight="bold" />
-          <span className="truncate">Neraca (Harta/Hutang)</span>
+          <span className="truncate">Harta &amp; Hutang</span>
         </button>
 
         <button
@@ -353,7 +357,7 @@ export function ReportsView({
           onClick={() => setSelectedTab('incomestatement')}
           className={`py-2 px-2 text-xs font-bold rounded-xl flex items-center justify-center gap-1.5 transition-all truncate ${
             selectedTab === 'incomestatement'
-              ? 'bg-primary text-white shadow-xs'
+              ? 'bg-primary text-primary-fg shadow-xs'
               : 'text-text-muted hover:text-text'
           }`}
         >
@@ -366,12 +370,12 @@ export function ReportsView({
           onClick={() => setSelectedTab('ratios')}
           className={`col-span-2 sm:col-span-1 py-2 px-2 text-xs font-bold rounded-xl flex items-center justify-center gap-1.5 transition-all truncate ${
             selectedTab === 'ratios'
-              ? 'bg-primary text-white shadow-xs'
+              ? 'bg-primary text-primary-fg shadow-xs'
               : 'text-text-muted hover:text-text'
           }`}
         >
           <ChartDonut size={15} weight="bold" />
-          <span className="truncate">Rasio (DER dll)</span>
+          <span className="truncate">Rasio Keuangan</span>
         </button>
       </div>
 
@@ -437,14 +441,14 @@ export function ReportsView({
                   <h3 className="text-xs sm:text-sm font-bold text-text truncate">
                     Ringkasan Likuiditas {INDONESIAN_MONTHS[selectedMonth - 1]} {selectedYear}
                   </h3>
-                  <p className="text-[10px] text-text-muted hidden sm:block">
+                  <p className="text-[11px] text-text-muted hidden sm:block">
                     Perhitungan uang riil keluarga setelah memperhitungkan seluruh kewajiban rutin.
                   </p>
                 </div>
               </div>
 
               <span
-                className={`text-[10px] font-bold px-2 py-0.5 rounded-full border shrink-0 ${
+                className={`text-[11px] font-bold px-2 py-0.5 rounded-full border shrink-0 ${
                   safeSpend >= 0
                     ? 'bg-income/10 text-income border-income/20'
                     : 'bg-expense/10 text-expense border-expense/20'
@@ -454,51 +458,44 @@ export function ReportsView({
               </span>
             </div>
 
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
-              <div className="p-2.5 bg-surface-2 rounded-xl flex flex-col justify-between gap-1 border border-border/40">
-                <div className="flex items-center gap-1 text-text-muted text-[10px] sm:text-[11px] font-semibold">
-                  <ShieldCheck size={14} className="text-primary shrink-0" weight="duotone" />
-                  <span className="truncate">Kas Riil</span>
-                </div>
-                <p className={`text-xs sm:text-sm md:text-base font-extrabold whitespace-nowrap tabular-nums tracking-tight ${totalBal < 0 ? 'text-expense' : 'text-text'}`}>
-                  {formatRupiah(totalBal)}
-                </p>
-              </div>
+            <StatGrid layout="2-4" className="gap-2">
+              <StatCard
+                size="compact"
+                label="Kas Riil"
+                icon={<ShieldCheck size={14} weight="duotone" />}
+                value={formatRupiah(totalBal)}
+                tone={totalBal < 0 ? 'expense' : 'default'}
+              />
 
-              <div className="p-2.5 bg-surface-2 rounded-xl flex flex-col justify-between gap-1 border border-border/40">
-                <div className="flex items-center gap-1 text-text-muted text-[10px] sm:text-[11px] font-semibold">
-                  <Receipt size={14} className="text-primary shrink-0" weight="duotone" />
-                  <span className="truncate">Sisa Tagihan</span>
-                </div>
-                <p className="text-xs sm:text-sm md:text-base font-extrabold text-primary whitespace-nowrap tabular-nums tracking-tight">
-                  {formatRupiah(pendingBills)}
-                </p>
-              </div>
+              <StatCard
+                size="compact"
+                label="Sisa Tagihan"
+                icon={<Receipt size={14} weight="duotone" />}
+                value={formatRupiah(pendingBills)}
+                tone="primary"
+              />
 
-              <div className="p-2.5 bg-surface-2 rounded-xl flex flex-col justify-between gap-1 border border-border/40">
-                <div className="flex items-center gap-1 text-text-muted text-[10px] sm:text-[11px] font-semibold">
-                  <HandCoins size={14} className="text-expense shrink-0" weight="duotone" />
-                  <span className="truncate">Sisa Hutang</span>
-                </div>
-                <p className="text-xs sm:text-sm md:text-base font-extrabold text-expense whitespace-nowrap tabular-nums tracking-tight">
-                  {formatRupiah(payableDue)}
-                </p>
-              </div>
+              <StatCard
+                size="compact"
+                label="Sisa Hutang"
+                icon={<HandCoins size={14} weight="duotone" />}
+                value={formatRupiah(payableDue)}
+                tone="expense"
+              />
 
-              <div className="p-2.5 bg-primary/10 border border-primary/20 rounded-xl flex flex-col justify-between gap-1">
-                <div className="flex items-center gap-1 text-primary text-[10px] sm:text-[11px] font-bold">
-                  <Coins size={14} weight="fill" className="shrink-0" />
-                  <span className="truncate">Dana Bebas</span>
-                </div>
-                <p className={`text-xs sm:text-sm md:text-base font-extrabold whitespace-nowrap tabular-nums tracking-tight ${safeSpend < 0 ? 'text-expense' : 'text-primary'}`}>
-                  {formatRupiah(safeSpend)}
-                </p>
-              </div>
-            </div>
+              <StatCard
+                size="compact"
+                accent
+                label="Dana Bebas"
+                icon={<Coins size={14} weight="fill" />}
+                value={formatRupiah(safeSpend)}
+                className={safeSpend < 0 ? 'bg-expense/10 border-expense/20' : undefined}
+              />
+            </StatGrid>
 
             <div className="grid grid-cols-2 gap-2 pt-0.5">
               <div className="flex items-center justify-between gap-1.5 p-2 sm:p-2.5 bg-background rounded-xl border border-border">
-                <span className="text-[10px] sm:text-xs font-medium text-text-muted flex items-center gap-1 shrink-0">
+                <span className="text-[11px] sm:text-xs font-medium text-text-muted flex items-center gap-1 shrink-0">
                   <TrendUp size={14} className="text-income shrink-0" weight="bold" /> Pemasukan
                 </span>
                 <span className="text-xs sm:text-sm font-bold text-income whitespace-nowrap tabular-nums text-right">
@@ -506,7 +503,7 @@ export function ReportsView({
                 </span>
               </div>
               <div className="flex items-center justify-between gap-1.5 p-2 sm:p-2.5 bg-background rounded-xl border border-border">
-                <span className="text-[10px] sm:text-xs font-medium text-text-muted flex items-center gap-1 shrink-0">
+                <span className="text-[11px] sm:text-xs font-medium text-text-muted flex items-center gap-1 shrink-0">
                   <TrendDown size={14} className="text-expense shrink-0" weight="bold" /> Pengeluaran Realisasi
                 </span>
                 <span className="text-xs sm:text-sm font-bold text-expense whitespace-nowrap tabular-nums text-right">
@@ -515,7 +512,7 @@ export function ReportsView({
               </div>
             </div>
 
-            {/* Proyeksi Run-Rate Banner */}
+            {/* Proyeksi akhir bulan: laju belanja saat ini diteruskan sampai akhir bulan */}
             {(() => {
               const now = new Date();
               const isCurr = selectedMonth === now.getMonth() + 1 && selectedYear === now.getFullYear();
@@ -527,7 +524,7 @@ export function ReportsView({
                 <div className="p-2.5 bg-surface-2 rounded-xl border border-border/60 flex items-center justify-between text-xs">
                   <div className="flex items-center gap-1.5 font-bold text-text">
                     <ChartLineUp size={16} weight="bold" className="text-primary" />
-                    <span>Proyeksi Pengeluaran Akhir Bulan (Run-rate):</span>
+                    <span>Proyeksi Pengeluaran Akhir Bulan:</span>
                   </div>
                   <span className="font-extrabold text-primary tabular-nums">{formatRupiah(projected)}</span>
                 </div>

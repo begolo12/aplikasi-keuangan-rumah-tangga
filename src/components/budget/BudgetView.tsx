@@ -6,6 +6,7 @@ import { BudgetProgressBar } from './BudgetProgressBar';
 import { FinancialSafetyPlanCard, calculateFinancialSafetyPlan } from './FinancialSafetyPlanCard';
 import { ExpenseProjectionCard } from './ExpenseProjectionCard';
 import { Button } from '../ui/Button';
+import { Alert } from '../ui/Alert';
 import { Modal } from '../ui/Modal';
 import { ConfirmModal } from '../ui/ConfirmModal';
 import { AmountInput } from '../ui/AmountInput';
@@ -14,6 +15,7 @@ import { Plus, Vault, Warning, Sparkle } from '@phosphor-icons/react';
 import { BudgetTemplateSelectorModal } from './BudgetTemplateSelectorModal';
 import { formatRupiah } from '@/lib/formatters';
 import { ApiError, apiFetch, endpoints } from '@/lib/apiFetch';
+import { useToast } from '../ui/Toast';
 
 interface BudgetViewProps {
   budgets: Budget[];
@@ -40,6 +42,7 @@ export function BudgetView({
   onRefresh,
   onNavigateToWallets,
 }: BudgetViewProps) {
+  const { notify } = useToast();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingBudget, setEditingBudget] = useState<Budget | null>(null);
   const [categoryId, setCategoryId] = useState('');
@@ -92,11 +95,14 @@ export function BudgetView({
         method: 'POST',
         json: { template_id: templateId, month: currentMonth, year: currentYear },
       });
-      
+
       onRefresh();
       setIsTemplateModalOpen(false);
+      notify('Template anggaran berhasil diterapkan.', { tone: 'success' });
     } catch (error) {
-      console.error('Failed to apply template:', error);
+      const msg = error instanceof ApiError ? error.message : 'Gagal menerapkan template anggaran.';
+      setListError(msg);
+      notify(msg, { tone: 'error' });
     }
   };
 
@@ -132,8 +138,11 @@ export function BudgetView({
 
       onRefresh();
       setIsModalOpen(false);
+      notify(editingBudget ? 'Anggaran diperbarui.' : 'Anggaran baru tersimpan.', { tone: 'success' });
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Terjadi kesalahan jaringan.');
+      const msg = err instanceof ApiError ? err.message : 'Terjadi kesalahan jaringan.';
+      setError(msg);
+      notify(msg, { tone: 'error' });
     } finally {
       setIsLoading(false);
     }
@@ -148,8 +157,11 @@ export function BudgetView({
       setListError(null);
       onRefresh();
       setConfirmDeleteId(null);
+      notify('Anggaran dihapus.', { tone: 'success' });
     } catch (err) {
-      setListError(err instanceof ApiError ? err.message : 'Gagal menghapus anggaran.');
+      const msg = err instanceof ApiError ? err.message : 'Gagal menghapus anggaran.';
+      setListError(msg);
+      notify(msg, { tone: 'error' });
     }
   };
 
@@ -207,9 +219,9 @@ export function BudgetView({
 
       {/* Delete Error */}
       {listError && (
-        <div role="alert" className="rounded-xl border border-expense/30 bg-expense/10 px-4 py-3 text-sm font-semibold text-expense">
+        <Alert tone="error" size="sm">
           {listError}
-        </div>
+        </Alert>
       )}
       {/* Delete Error */}
       {/* Budgets List */}

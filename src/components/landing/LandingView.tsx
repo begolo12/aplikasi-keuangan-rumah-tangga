@@ -19,7 +19,7 @@ export function LandingView() {
   return (
     <div className="min-h-dvh bg-background text-text selection:bg-primary/20 selection:text-primary">
       {/* Navigation */}
-      <nav className="fixed w-full z-50 bg-surface/90 backdrop-blur-md border-b border-border shadow-2xs">
+      <nav className="fixed w-full z-50 bg-surface border-b border-border shadow-2xs">
         <div className="max-w-6xl mx-auto px-4 sm:px-6">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center gap-2.5">

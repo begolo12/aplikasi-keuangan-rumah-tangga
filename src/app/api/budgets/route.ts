@@ -5,6 +5,7 @@ import { budgetSchema, periodQuerySchema } from '@/lib/validations';
 import { handleRouteError, BusinessError, readJsonBody } from '@/lib/apiHelpers';
 import { Budget } from '@/lib/types';
 import { BUDGET_ROLLOVER_CTE, BUDGET_EFFECTIVE_LIMIT_SQL } from '@/lib/budgetSql';
+import { TRANSACTION_AMOUNT_WITH_FEE_SQL } from '@/lib/reportSql';
 
 export async function GET(req: NextRequest) {
   try {
@@ -37,10 +38,10 @@ export async function GET(req: NextRequest) {
         c.name as category_name, c.icon as category_icon, c.color as category_color,
         (CASE WHEN COALESCE(b.rollover_enabled, FALSE) THEN COALESCE(pb.monthly_limit, 0) - COALESCE(ps.spent, 0) ELSE 0 END)::NUMERIC as rollover_amount,
         ${BUDGET_EFFECTIVE_LIMIT_SQL}::NUMERIC as effective_limit,
-        COALESCE(SUM(t.amount), 0)::NUMERIC as spent,
-        (${BUDGET_EFFECTIVE_LIMIT_SQL} - COALESCE(SUM(t.amount), 0))::NUMERIC as remaining,
+        ${TRANSACTION_AMOUNT_WITH_FEE_SQL}::NUMERIC as spent,
+        (${BUDGET_EFFECTIVE_LIMIT_SQL} - ${TRANSACTION_AMOUNT_WITH_FEE_SQL})::NUMERIC as remaining,
         CASE
-          WHEN ${BUDGET_EFFECTIVE_LIMIT_SQL} > 0 THEN ROUND((COALESCE(SUM(t.amount), 0) / ${BUDGET_EFFECTIVE_LIMIT_SQL} * 100)::NUMERIC, 1)::FLOAT
+          WHEN ${BUDGET_EFFECTIVE_LIMIT_SQL} > 0 THEN ROUND((${TRANSACTION_AMOUNT_WITH_FEE_SQL} / ${BUDGET_EFFECTIVE_LIMIT_SQL} * 100)::NUMERIC, 1)::FLOAT
           ELSE 0
         END as percentage
       FROM latest_budgets b

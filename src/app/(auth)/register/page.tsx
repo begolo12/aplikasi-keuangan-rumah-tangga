@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { AuthCard } from '@/components/auth/AuthCard';
 import { Button } from '@/components/ui/Button';
+import { Alert } from '@/components/ui/Alert';
 import { apiFetch, endpoints } from '@/lib/apiFetch';
 import { Eye, EyeSlash, Lock, Envelope, User, UsersThree } from '@phosphor-icons/react';
 
@@ -43,9 +44,9 @@ export default function RegisterPage() {
     >
       <form onSubmit={handleSubmit} className="space-y-4">
         {error && (
-          <div className="p-3.5 bg-expense/10 border border-expense/20 rounded-2xl text-expense text-xs font-semibold">
+          <Alert tone="error" size="sm">
             {error}
-          </div>
+          </Alert>
         )}
 
         <div className="space-y-1.5">
@@ -59,7 +60,7 @@ export default function RegisterPage() {
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="Contoh: Irvan Ganang"
-              className="w-full h-12 pl-11 pr-4 bg-background border border-border rounded-xl text-sm font-medium focus:ring-2 focus:ring-primary focus:outline-none placeholder:text-text-muted/50"
+              className="w-full h-12 pl-11 pr-4 bg-background border border-border rounded-xl text-sm font-medium focus:ring-2 focus:ring-primary focus:outline-none placeholder:text-text-muted"
             />
           </div>
         </div>
@@ -74,7 +75,7 @@ export default function RegisterPage() {
               value={familyName}
               onChange={(e) => setFamilyName(e.target.value)}
               placeholder="Contoh: Keluarga Ganang"
-              className="w-full h-12 pl-11 pr-4 bg-background border border-border rounded-xl text-sm font-medium focus:ring-2 focus:ring-primary focus:outline-none placeholder:text-text-muted/50"
+              className="w-full h-12 pl-11 pr-4 bg-background border border-border rounded-xl text-sm font-medium focus:ring-2 focus:ring-primary focus:outline-none placeholder:text-text-muted"
             />
           </div>
         </div>
@@ -90,7 +91,7 @@ export default function RegisterPage() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="nama@email.com"
-              className="w-full h-12 pl-11 pr-4 bg-background border border-border rounded-xl text-sm font-medium focus:ring-2 focus:ring-primary focus:outline-none placeholder:text-text-muted/50"
+              className="w-full h-12 pl-11 pr-4 bg-background border border-border rounded-xl text-sm font-medium focus:ring-2 focus:ring-primary focus:outline-none placeholder:text-text-muted"
             />
           </div>
         </div>
@@ -107,7 +108,7 @@ export default function RegisterPage() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="••••••••"
-              className="w-full h-12 pl-11 pr-12 bg-background border border-border rounded-xl text-sm font-medium focus:ring-2 focus:ring-primary focus:outline-none placeholder:text-text-muted/50"
+              className="w-full h-12 pl-11 pr-12 bg-background border border-border rounded-xl text-sm font-medium focus:ring-2 focus:ring-primary focus:outline-none placeholder:text-text-muted"
             />
             <button
               type="button"

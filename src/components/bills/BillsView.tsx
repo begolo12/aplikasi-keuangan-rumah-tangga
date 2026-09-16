@@ -12,6 +12,9 @@ import { Plus, Receipt, Lightning, ArrowDownLeft, Sparkle } from '@phosphor-icon
 import { formatRupiah, INDONESIAN_MONTHS, getLocalDateString } from '@/lib/formatters';
 import { useBillForm } from './useBillForm';
 import { ApiError, apiFetch, endpoints } from '@/lib/apiFetch';
+import { useToast } from '../ui/Toast';
+import { StatCard, StatGrid } from '../ui/StatCard';
+import { Alert } from '../ui/Alert';
 
 interface BillsViewProps {
   bills: RecurringBill[];
@@ -30,6 +33,7 @@ export function BillsView({
   currentYear = new Date().getFullYear(),
   onRefresh,
 }: BillsViewProps) {
+  const { notify } = useToast();
   const [activeFilter, setActiveFilter] = useState<'all' | 'expense' | 'income' | 'transfer'>('all');
   const [isPayOpen, setIsPayOpen] = useState(false);
   const [selectedBill, setSelectedBill] = useState<RecurringBill | null>(null);
@@ -107,8 +111,11 @@ export function BillsView({
       });
       onRefresh();
       setIsPayOpen(false);
+      notify('Transaksi rutin berhasil dicatat.', { tone: 'success' });
     } catch (err) {
-      setPayError(err instanceof ApiError ? err.message : 'Gagal memproses transaksi rutin.');
+      const msg = err instanceof ApiError ? err.message : 'Gagal memproses transaksi rutin.';
+      setPayError(msg);
+      notify(msg, { tone: 'error' });
     } finally {
       setIsPaying(false);
     }
@@ -128,10 +135,13 @@ export function BillsView({
         { method: 'POST' }
       );
       setAutoProcessResult(res.message || 'Transaksi rutin berhasil diproses.');
+      notify(res.message || 'Transaksi rutin berhasil diproses.', { tone: 'success' });
       onRefresh();
       setTimeout(() => setAutoProcessResult(null), 5000);
     } catch (err) {
-      setListError(err instanceof ApiError ? err.message : 'Gagal memproses transaksi otomatis.');
+      const msg = err instanceof ApiError ? err.message : 'Gagal memproses transaksi otomatis.';
+      setListError(msg);
+      notify(msg, { tone: 'error' });
     } finally {
       setIsAutoProcessing(false);
     }
@@ -142,8 +152,11 @@ export function BillsView({
       await apiFetch(endpoints.bill(id), { method: 'DELETE' });
       setListError(null);
       onRefresh();
+      notify('Transaksi rutin dihapus.', { tone: 'success' });
     } catch (err) {
-      setListError(err instanceof ApiError ? err.message : 'Gagal menghapus transaksi rutin.');
+      const msg = err instanceof ApiError ? err.message : 'Gagal menghapus transaksi rutin.';
+      setListError(msg);
+      notify(msg, { tone: 'error' });
     }
   };
 
@@ -186,56 +199,43 @@ export function BillsView({
 
       {/* Auto Process Alert */}
       {autoProcessResult && (
-        <div role="status" className="p-3.5 bg-primary/10 border border-primary/20 rounded-2xl text-primary text-xs font-bold flex items-center gap-2">
-          <Sparkle size={18} weight="fill" />
-          <span>{autoProcessResult}</span>
-        </div>
+        <Alert tone="primary" size="sm" icon={<Sparkle size={18} weight="fill" />}>
+          {autoProcessResult}
+        </Alert>
       )}
 
       {/* Delete / List Error */}
       {listError && (
-        <div role="alert" className="rounded-xl border border-expense/30 bg-expense/10 px-4 py-3 text-sm font-semibold text-expense">
+        <Alert tone="error" size="sm">
           {listError}
-        </div>
+        </Alert>
       )}
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-3 gap-2.5 sm:gap-3">
-        <div className="p-3 sm:p-4 bg-surface border border-border rounded-2xl shadow-xs space-y-1">
-          <div className="flex items-center gap-1.5 text-text-muted text-xs font-semibold">
-            <ArrowDownLeft size={16} className="text-income shrink-0" weight="bold" />
-            <span className="truncate">Pemasukan Pasti Rutin</span>
-          </div>
-          <p className="text-sm sm:text-lg font-extrabold text-income whitespace-nowrap tabular-nums">
-            {formatRupiah(totalIncomeScheduled)}
-          </p>
-          <span className="text-[10px] text-text-muted block">{incomeBills.length} jadwal pemasukan (gaji/dll)</span>
-        </div>
-
-        <div className="p-3 sm:p-4 bg-surface border border-border rounded-2xl shadow-xs space-y-1">
-          <div className="flex items-center gap-1.5 text-text-muted text-xs font-semibold">
-            <Receipt size={16} className="text-expense shrink-0" weight="duotone" />
-            <span className="truncate">Pengeluaran Pasti Rutin</span>
-          </div>
-          <p className="text-sm sm:text-lg font-extrabold text-expense whitespace-nowrap tabular-nums">
-            {formatRupiah(totalExpenseScheduled)}
-          </p>
-          <span className="text-[10px] text-text-muted block">{expenseBills.length} tagihan/cicilan pasti</span>
-        </div>
-
-        <div className="col-span-2 lg:col-span-1 p-3 sm:p-4 bg-primary/10 border border-primary/20 rounded-2xl shadow-xs space-y-1 flex flex-col justify-between">
-          <div className="flex items-center gap-1.5 text-primary text-xs font-bold">
-            <Lightning size={16} weight="fill" className="shrink-0" />
-            <span className="truncate">Status Periode Ini</span>
-          </div>
-          <p className="text-sm sm:text-base font-extrabold text-primary">
-            {pendingCount === 0 ? 'Semua Sudah Tercatat' : `${pendingCount} Belum Tercatat`}
-          </p>
-          <span className="text-[10px] text-text-muted block">
-            Periode {INDONESIAN_MONTHS[currentMonth - 1]} {currentYear}
-          </span>
-        </div>
-      </div>
+      <StatGrid layout="2-3-lg">
+        <StatCard
+          tone="income"
+          label="Pemasukan Pasti Rutin"
+          icon={<ArrowDownLeft size={16} weight="bold" />}
+          value={formatRupiah(totalIncomeScheduled)}
+          hint={`${incomeBills.length} jadwal pemasukan (gaji/dll)`}
+        />
+        <StatCard
+          tone="expense"
+          label="Pengeluaran Pasti Rutin"
+          icon={<Receipt size={16} weight="duotone" />}
+          value={formatRupiah(totalExpenseScheduled)}
+          hint={`${expenseBills.length} tagihan/cicilan pasti`}
+        />
+        <StatCard
+          accent
+          className="col-span-2 lg:col-span-1"
+          label="Status Periode Ini"
+          icon={<Lightning size={16} weight="fill" />}
+          value={pendingCount === 0 ? 'Semua Sudah Tercatat' : `${pendingCount} Belum Tercatat`}
+          hint={`Periode ${INDONESIAN_MONTHS[currentMonth - 1]} ${currentYear}`}
+        />
+      </StatGrid>
 
       {/* Segmented Filter */}
       <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
@@ -255,7 +255,7 @@ export function BillsView({
           onClick={() => setActiveFilter('expense')}
           className={`min-h-[44px] px-3.5 text-xs font-bold rounded-xl transition-colors shrink-0 ${
             activeFilter === 'expense'
-              ? 'bg-expense text-white'
+              ? 'bg-expense text-expense-fg'
               : 'bg-surface border border-border text-text-muted hover:text-text'
           }`}
         >
@@ -266,7 +266,7 @@ export function BillsView({
           onClick={() => setActiveFilter('income')}
           className={`min-h-[44px] px-3.5 text-xs font-bold rounded-xl transition-colors shrink-0 ${
             activeFilter === 'income'
-              ? 'bg-income text-white'
+              ? 'bg-income text-income-fg'
               : 'bg-surface border border-border text-text-muted hover:text-text'
           }`}
         >
@@ -278,7 +278,7 @@ export function BillsView({
             onClick={() => setActiveFilter('transfer')}
             className={`min-h-[44px] px-3.5 text-xs font-bold rounded-xl transition-colors shrink-0 ${
               activeFilter === 'transfer'
-                ? 'bg-primary text-white'
+                ? 'bg-primary text-primary-fg'
                 : 'bg-surface border border-border text-text-muted hover:text-text'
             }`}
           >
@@ -323,7 +323,7 @@ export function BillsView({
                 if (expCats.length > 0) setCategoryId(expCats[0].id);
               }}
               className={`py-2 text-[11px] sm:text-xs font-bold rounded-xl transition-all ${
-                type === 'expense' ? 'bg-expense text-white shadow-xs' : 'text-text-muted hover:text-text'
+                type === 'expense' ? 'bg-expense text-expense-fg shadow-xs' : 'text-text-muted hover:text-text'
               }`}
             >
               Pengeluaran
@@ -336,7 +336,7 @@ export function BillsView({
                 if (incCats.length > 0) setCategoryId(incCats[0].id);
               }}
               className={`py-2 text-[11px] sm:text-xs font-bold rounded-xl transition-all ${
-                type === 'income' ? 'bg-income text-white shadow-xs' : 'text-text-muted hover:text-text'
+                type === 'income' ? 'bg-income text-income-fg shadow-xs' : 'text-text-muted hover:text-text'
               }`}
             >
               Pemasukan
@@ -352,7 +352,7 @@ export function BillsView({
                 }
               }}
               className={`py-2 text-[11px] sm:text-xs font-bold rounded-xl transition-all ${
-                type === 'transfer' ? 'bg-primary text-white shadow-xs' : 'text-text-muted hover:text-text'
+                type === 'transfer' ? 'bg-primary text-primary-fg shadow-xs' : 'text-text-muted hover:text-text'
               }`}
             >
               Transfer Amplop
@@ -422,7 +422,7 @@ export function BillsView({
             >
               {wallets.map((w) => (
                 <option key={w.id} value={w.id}>
-                  {w.name} (Saldo: {formatRupiah(w.balance)})
+                  {w.name}
                 </option>
               ))}
             </select>
@@ -443,7 +443,7 @@ export function BillsView({
                 <option value="">Pilih dompet tujuan...</option>
                 {wallets.filter((w) => w.id !== walletId).map((w) => (
                   <option key={w.id} value={w.id}>
-                    {w.name} (Saldo: {formatRupiah(w.balance)})
+                    {w.name}
                   </option>
                 ))}
               </select>
@@ -461,7 +461,7 @@ export function BillsView({
               onChange={(e) => setAutoRecord(e.target.checked)}
               className="w-4 h-4 text-primary rounded border-border focus:ring-primary"
             />
-            <label htmlFor="billAutoRecord" className="text-xs font-semibold text-text cursor-pointer">
+            <label htmlFor="billAutoRecord" className="text-xs font-semibold text-text cursor-pointer py-3.5 -my-2">
               Tandai sebagai transaksi otomatis (Auto-Record)
             </label>
           </div>
@@ -492,9 +492,9 @@ export function BillsView({
       >
         <form onSubmit={handlePaySubmit} className="space-y-4">
           {payError && (
-            <div className="p-3 bg-expense/10 border border-expense/20 rounded-2xl text-expense text-xs font-semibold">
+            <Alert tone="error" size="sm">
               {payError}
-            </div>
+            </Alert>
           )}
 
           <div className="p-4 bg-surface-2 rounded-2xl space-y-1">
@@ -528,7 +528,7 @@ export function BillsView({
             >
               {wallets.map((w) => (
                 <option key={w.id} value={w.id}>
-                  {w.name} (Saldo: {formatRupiah(w.balance)})
+                  {w.name}
                 </option>
               ))}
             </select>

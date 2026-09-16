@@ -13,6 +13,8 @@ interface AmountInputProps {
   allowNegative?: boolean;
   /** Placeholder kustom */
   placeholder?: string;
+  /** Jadikan input ini target auto-focus saat modal dibuka */
+  autoFocus?: boolean;
 }
 
 export function AmountInput({
@@ -24,6 +26,7 @@ export function AmountInput({
   id,
   allowNegative = false,
   placeholder,
+  autoFocus = false,
 }: AmountInputProps) {
   const inputId = id ?? `amount-${label.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
   const formatDisplay = (num: number) => {
@@ -73,7 +76,8 @@ export function AmountInput({
           aria-label={label ? undefined : 'Nominal (Rp)'}
           aria-invalid={Boolean(error)}
           aria-describedby={error ? `${inputId}-error` : undefined}
-          className={`w-full h-14 pl-12 pr-10 text-xl font-bold bg-surface border rounded-2xl focus:bg-background focus:ring-2 focus:ring-primary focus:outline-none transition-all placeholder:text-text-muted/40 ${
+          data-autofocus={autoFocus ? 'true' : undefined}
+          className={`w-full h-14 pl-12 pr-10 text-xl font-bold bg-surface border rounded-2xl focus:bg-background focus:ring-2 focus:ring-primary focus:outline-none transition-all placeholder:text-text-muted ${
             error ? 'border-expense ring-1 ring-expense' : 'border-border'
           }`}
         />

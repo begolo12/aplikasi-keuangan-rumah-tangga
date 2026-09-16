@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthSession } from '@/lib/auth';
 import { query } from '@/lib/db';
-import { handleRouteError, BusinessError } from '@/lib/apiHelpers';
+import { handleRouteError } from '@/lib/apiHelpers';
 
 export async function GET(req: NextRequest) {
   try {

@@ -190,7 +190,7 @@ export function CalendarView({
             <CalendarBlank size={20} weight="duotone" />
           </div>
           <div>
-            <h2 className="text-base sm:text-lg font-extrabold text-text leading-tight">Kalender Arus Kas</h2>
+            <h2 className="text-xl sm:text-2xl font-bold text-text leading-tight">Kalender Arus Kas</h2>
             <p className="text-[11px] sm:text-xs text-text-muted">Setiap tanggal menampilkan <span className="font-bold text-text">pemasukan − pengeluaran</span> hari itu.</p>
           </div>
         </div>
@@ -199,7 +199,7 @@ export function CalendarView({
             type="button"
             onClick={handlePrev}
             aria-label="Bulan sebelumnya"
-            className="w-9 h-9 flex items-center justify-center rounded-xl hover:bg-surface-2 text-text-muted hover:text-text transition-colors"
+            className="w-11 h-11 flex items-center justify-center rounded-xl hover:bg-surface-2 text-text-muted hover:text-text transition-colors"
           >
             <CaretLeft size={16} weight="bold" />
           </button>
@@ -210,7 +210,7 @@ export function CalendarView({
             type="button"
             onClick={handleNext}
             aria-label="Bulan berikutnya"
-            className="w-9 h-9 flex items-center justify-center rounded-xl hover:bg-surface-2 text-text-muted hover:text-text transition-colors"
+            className="w-11 h-11 flex items-center justify-center rounded-xl hover:bg-surface-2 text-text-muted hover:text-text transition-colors"
           >
             <CaretRight size={16} weight="bold" />
           </button>
@@ -220,17 +220,17 @@ export function CalendarView({
       {/* Ringkasan bulan */}
       <div className="grid grid-cols-3 gap-2 sm:gap-3">
         <div className="p-3 sm:p-4 rounded-2xl bg-income/10 border border-income/20">
-          <p className="text-[10px] font-bold uppercase tracking-widest text-income">Masuk</p>
+          <p className="text-[11px] font-bold uppercase tracking-widest text-income">Masuk</p>
           <p className="text-xs sm:text-sm font-extrabold text-income tabular-nums truncate">{formatCompactRupiah(monthlyTotals.income)}</p>
           <p className="hidden sm:block text-[11px] text-text-muted tabular-nums truncate">{formatRupiah(monthlyTotals.income)}</p>
         </div>
         <div className="p-3 sm:p-4 rounded-2xl bg-expense/10 border border-expense/20">
-          <p className="text-[10px] font-bold uppercase tracking-widest text-expense">Keluar</p>
+          <p className="text-[11px] font-bold uppercase tracking-widest text-expense">Keluar</p>
           <p className="text-xs sm:text-sm font-extrabold text-expense tabular-nums truncate">{formatCompactRupiah(monthlyTotals.expense)}</p>
           <p className="hidden sm:block text-[11px] text-text-muted tabular-nums truncate">{formatRupiah(monthlyTotals.expense)}</p>
         </div>
         <div className={`p-3 sm:p-4 rounded-2xl border ${monthlyTotals.net > 0 ? 'bg-income/10 border-income/20' : monthlyTotals.net < 0 ? 'bg-expense/10 border-expense/20' : 'bg-surface border-border'}`}>
-          <p className={`text-[10px] font-bold uppercase tracking-widest ${monthlyTotals.net > 0 ? 'text-income' : monthlyTotals.net < 0 ? 'text-expense' : 'text-text-muted'}`}>Bersih</p>
+          <p className={`text-[11px] font-bold uppercase tracking-widest ${monthlyTotals.net > 0 ? 'text-income' : monthlyTotals.net < 0 ? 'text-expense' : 'text-text-muted'}`}>Bersih</p>
           <p className={`text-xs sm:text-sm font-extrabold tabular-nums truncate flex items-center gap-1 ${monthlyTotals.net > 0 ? 'text-income' : monthlyTotals.net < 0 ? 'text-expense' : 'text-text'}`}>
             {monthlyTotals.net > 0 ? <TrendUp size={14} weight="bold" /> : monthlyTotals.net < 0 ? <TrendDown size={14} weight="bold" /> : <Minus size={14} weight="bold" />}
             <span>{monthlyTotals.net === 0 ? 'Rp 0' : `${monthlyTotals.net > 0 ? '+' : ''}${formatCompactRupiah(monthlyTotals.net)}`}</span>
@@ -251,7 +251,7 @@ export function CalendarView({
         {/* Nama hari */}
         <div className="grid grid-cols-7 bg-surface-2/60 border-b border-border">
           {WEEKDAYS.map((w) => (
-            <div key={w} className="py-2 text-center text-[10px] sm:text-xs font-extrabold tracking-widest uppercase text-text-muted">
+            <div key={w} className="py-2 text-center text-[11px] sm:text-xs font-extrabold tracking-widest uppercase text-text-muted">
               {w}
             </div>
           ))}
@@ -279,38 +279,44 @@ export function CalendarView({
                 key={day}
                 type="button"
                 onClick={() => setSelectedDay(day)}
+                aria-label={`${day} ${INDONESIAN_MONTHS[currentMonth - 1]} ${currentYear}${
+                  hasData ? `, arus kas ${net === 0 ? 'nol' : `${net > 0 ? 'surplus ' : 'defisit '}${formatRupiah(Math.abs(net))}`}` : ', tidak ada transaksi'
+                }${dayEvents.length > 0 ? `, ${dayEvents.length} acara` : ''}`}
+                aria-current={isSelected ? 'date' : undefined}
                 className={`relative min-h-[68px] sm:min-h-[84px] p-1.5 sm:p-2 flex flex-col items-start justify-between text-left border-r border-b border-border/50 transition-colors
                   ${isSelected ? 'bg-primary/10 ring-2 ring-primary ring-inset z-10' : 'bg-surface hover:bg-surface-2/40'}
                   ${isToday ? 'ring-1 ring-primary/40' : ''}
                 `}
               >
-                <span className={`w-6 h-6 sm:w-7 sm:h-7 flex items-center justify-center rounded-full text-xs font-extrabold shrink-0 ${isToday ? 'bg-primary text-white shadow-sm' : isSelected ? 'bg-primary text-white' : 'text-text'}`}>
+                <span className={`w-6 h-6 sm:w-7 sm:h-7 flex items-center justify-center rounded-full text-xs font-extrabold shrink-0 ${isToday ? 'bg-primary text-primary-fg shadow-sm' : isSelected ? 'bg-primary text-primary-fg' : 'text-text'}`}>
                   {day}
                 </span>
                 <span className="w-full mt-1">
                   {hasData ? (
-                    <span className={`inline-flex items-center gap-0.5 text-[10px] sm:text-xs font-extrabold tabular-nums leading-none px-1.5 py-1 rounded-lg max-w-full truncate ${isPositive ? 'bg-income/15 text-income border border-income/20' : isNegative ? 'bg-expense/15 text-expense border border-expense/20' : 'bg-surface-2 text-text-muted border border-border'}`}>
+                    <span className={`inline-flex items-center gap-0.5 text-[11px] sm:text-xs font-extrabold tabular-nums leading-none px-1.5 py-1 rounded-lg max-w-full truncate ${isPositive ? 'bg-income/15 text-income border border-income/20' : isNegative ? 'bg-expense/15 text-expense border border-expense/20' : 'bg-surface-2 text-text-muted border border-border'}`}>
                       {isPositive ? <TrendUp size={12} weight="bold" className="shrink-0 hidden sm:block" /> : isNegative ? <TrendDown size={12} weight="bold" className="shrink-0 hidden sm:block" /> : null}
                       <span className="truncate">{net === 0 ? '0' : `${net > 0 ? '+' : ''}${formatCompactRupiah(net)}`}</span>
                     </span>
                   ) : (
-                    <span className="text-[10px] font-semibold text-text-muted/60">-</span>
+                    <span className="text-[11px] font-semibold text-text-muted">-</span>
                   )}
                 </span>
                 {/* Event indicators */}
                 {hasEvents && selectedDay === day && (
-                  <div className="absolute bottom-1 left-1/2 -translate-x-1/2 flex gap-1">
+                  <div className="absolute bottom-1 left-1/2 -translate-x-1/2 flex gap-1" aria-hidden="true">
                     {dayEvents.map((event, idx) => (
                       <div
                         key={idx}
-                        className={`w-2 h-2 rounded-full cursor-pointer hover:scale-125 transition-transform ${EVENT_COLORS[event.type]}`}
-                        title={`Edit: ${event.title}`}
+                        className={`w-2 h-2 rounded-full ${EVENT_COLORS[event.type]}`}
                       />
                     ))}
                   </div>
                 )}
                 {!hasEvents && agg?.count === 1 && (
-                  <span className="absolute top-1 right-1 w-1.5 h-1.5 bg-primary rounded-full" title={`${agg.count} transaksi`} />
+                  <span
+                    className="absolute top-1 right-1 w-1.5 h-1.5 bg-primary rounded-full"
+                    aria-hidden="true"
+                  />
                 )}
               </button>
             );
@@ -364,14 +370,14 @@ export function CalendarView({
                   <button
                     type="button"
                     onClick={() => onOpenAddModal('expense')}
-                    className="min-h-[40px] px-4 rounded-xl bg-expense text-white text-xs font-bold hover:opacity-90"
+                    className="min-h-[44px] px-4 rounded-xl bg-expense text-expense-fg text-xs font-bold hover:opacity-90"
                   >
                     + Pengeluaran
                   </button>
                   <button
                     type="button"
                     onClick={() => onOpenAddModal('income')}
-                    className="min-h-[40px] px-4 rounded-xl bg-income text-white text-xs font-bold hover:opacity-90"
+                    className="min-h-[44px] px-4 rounded-xl bg-income text-income-fg text-xs font-bold hover:opacity-90"
                   >
                     + Pemasukan
                   </button>
@@ -425,8 +431,8 @@ export function CalendarView({
                             <button
                               type="button"
                               onClick={() => onEditTransaction(t)}
-                              className="p-1.5 text-text-muted hover:text-primary hover:bg-primary/10 rounded-lg"
-                              aria-label="Edit"
+                              className="inline-flex items-center justify-center min-w-[44px] min-h-[44px] p-1.5 text-text-muted hover:text-primary hover:bg-primary/10 rounded-lg"
+                              aria-label="Ubah catatan hari ini"
                             >
                               <PencilSimple size={14} />
                             </button>

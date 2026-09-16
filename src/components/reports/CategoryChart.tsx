@@ -3,6 +3,7 @@
 import React from 'react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 import { formatRupiah } from '@/lib/formatters';
+import { chartColorAt } from '@/lib/chartPalette';
 
 interface CategoryData {
   id: string;
@@ -17,8 +18,6 @@ interface CategoryChartProps {
   total: number;
 }
 
-const PALETTE = ['#20986C', '#1E6BE5', '#E98B0B', '#9333EA', '#D92B2B', '#0D9488', '#E11D48', '#64748B'];
-
 export function CategoryChart({ data, total }: CategoryChartProps) {
   if (!data || data.length === 0 || total === 0) {
     return (
@@ -32,7 +31,7 @@ export function CategoryChart({ data, total }: CategoryChartProps) {
     name: d.name,
     value: d.amount,
     percentage: d.percentage,
-    color: PALETTE[idx % PALETTE.length],
+    color: chartColorAt(idx),
   }));
 
   return (

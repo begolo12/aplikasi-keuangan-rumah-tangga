@@ -106,7 +106,7 @@ PENTING: Keluarkan HANYA raw JSON object yang valid tanpa markdown code block wr
     });
 
     if (validated.success) {
-      return validated.data;
+      return { ...validated.data, source: 'ai' };
     }
 
     return extractHeuristicReceipt(payload.text, today, payload.categories, payload.wallets);
@@ -190,5 +190,6 @@ export function extractHeuristicReceipt(
     suggested_wallet_id: suggestedWalletId,
     items: [],
     confidence: 'low',
+    source: 'heuristic',
   };
 }

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { clearSessionCookie, getAuthSession } from '@/lib/auth';
+import { clearSessionCookie, getAuthSession, invalidateTokenVersionCache } from '@/lib/auth';
 import { query } from '@/lib/db';
 
 /**
@@ -10,6 +10,7 @@ export async function POST(req: NextRequest) {
   try {
     const session = await getAuthSession(req);
     if (session) {
+      invalidateTokenVersionCache(session.userId);
       try {
         await query('UPDATE users SET token_version = token_version + 1 WHERE id = $1', [session.userId]);
       } catch (error) {

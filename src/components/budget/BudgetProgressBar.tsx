@@ -4,6 +4,7 @@ import React from 'react';
 import { Budget } from '@/lib/types';
 import { formatRupiah } from '@/lib/formatters';
 import { CategoryIcon } from '../ui/CategoryIcon';
+import { ProgressBar } from '../ui/ProgressBar';
 import { Warning, Trash, PencilSimple } from '@phosphor-icons/react';
 
 interface BudgetProgressBarProps {
@@ -45,7 +46,7 @@ export function BudgetProgressBar({ budget, onEdit, onDelete }: BudgetProgressBa
               <span>/</span>
               <span className="whitespace-nowrap tabular-nums">{formatRupiah(effectiveLimit)}</span>
               {rollover !== 0 && (
-                <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md border whitespace-nowrap ${
+                <span className={`text-[11px] font-bold px-1.5 py-0.5 rounded-md border whitespace-nowrap ${
                   rollover > 0
                     ? 'text-income bg-income/10 border-income/20'
                     : 'text-expense bg-expense/10 border-expense/20'
@@ -61,14 +62,14 @@ export function BudgetProgressBar({ budget, onEdit, onDelete }: BudgetProgressBa
           <button
             onClick={() => onEdit(budget)}
             title="Ubah Batas Limit"
-            className="p-1.5 text-text-muted hover:text-text hover:bg-surface-2 rounded-lg transition-colors"
+            className="inline-flex items-center justify-center min-w-[44px] min-h-[44px] p-1.5 text-text-muted hover:text-text hover:bg-surface-2 rounded-lg transition-colors"
           >
             <PencilSimple size={16} />
           </button>
           <button
             onClick={() => onDelete(budget.id)}
             title="Hapus Anggaran"
-            className="p-1.5 text-text-muted hover:text-expense hover:bg-expense/10 rounded-lg transition-colors"
+            className="inline-flex items-center justify-center min-w-[44px] min-h-[44px] p-1.5 text-text-muted hover:text-expense hover:bg-expense/10 rounded-lg transition-colors"
           >
             <Trash size={16} />
           </button>
@@ -77,12 +78,13 @@ export function BudgetProgressBar({ budget, onEdit, onDelete }: BudgetProgressBa
 
       {/* Progress Bar Container */}
       <div className="space-y-1.5">
-        <div className="w-full h-3 bg-surface-2 rounded-full overflow-hidden p-0.5">
-          <div
-            className={`h-full rounded-full transition-all duration-500 ${barColor}`}
-            style={{ width: `${percentage}%` }}
-          />
-        </div>
+        <ProgressBar
+          value={percentage}
+          size="lg"
+          inset
+          barClassName={barColor}
+          ariaLabel={`Anggaran terpakai ${budget.percentage} persen`}
+        />
 
         <div className="flex items-center justify-between text-xs font-semibold gap-2">
           <span className="text-text-muted truncate">

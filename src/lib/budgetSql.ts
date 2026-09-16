@@ -1,3 +1,5 @@
+import { TRANSACTION_AMOUNT_WITH_FEE_SQL } from '@/lib/reportSql';
+
 /**
  * Fragmen SQL bersama untuk perhitungan anggaran dengan rollover.
  * effective_limit = monthly_limit + (limit bulan lalu - realisasi bulan lalu),
@@ -15,7 +17,7 @@ export const BUDGET_ROLLOVER_CTE = `
     ORDER BY b.category_id, b.year DESC, b.month DESC
   ),
   prev_spent AS (
-    SELECT pb.category_id, COALESCE(SUM(t.amount), 0) AS spent
+    SELECT pb.category_id, ${TRANSACTION_AMOUNT_WITH_FEE_SQL} AS spent
     FROM prev_budgets pb
     LEFT JOIN transactions t
       ON t.category_id = pb.category_id AND t.type = 'expense' AND t.user_id = $1

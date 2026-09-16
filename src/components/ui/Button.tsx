@@ -33,8 +33,8 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
       secondary: 'bg-surface-2 text-text hover:bg-surface-3',
       outline: 'border border-border bg-transparent text-text hover:bg-surface-2',
       ghost: 'bg-transparent text-text hover:bg-surface-2',
-      danger: 'bg-expense text-white hover:opacity-90 shadow-sm',
-      income: 'bg-income text-white hover:opacity-90 shadow-sm',
+      danger: 'bg-expense text-expense-fg hover:opacity-90 shadow-sm',
+      income: 'bg-income text-income-fg hover:opacity-90 shadow-sm',
     };
 
     const sizes = {

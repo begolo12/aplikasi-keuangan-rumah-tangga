@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { Modal } from '../ui/Modal';
+import { Alert } from '../ui/Alert';
 import { Button } from '../ui/Button';
 import { AmountInput } from '../ui/AmountInput';
 import { formatRupiah, getLocalDateString } from '@/lib/formatters';
@@ -129,9 +130,9 @@ export function AssetScheduleModal({
     >
       <form onSubmit={handleSubmit} className="space-y-4">
         {error && (
-          <div role="alert" className="p-3 bg-expense/10 border border-expense/20 rounded-2xl text-expense text-xs font-semibold">
+          <Alert tone="error" size="sm">
             {error}
-          </div>
+          </Alert>
         )}
 
         {/* Segmented Type Action */}
@@ -140,7 +141,7 @@ export function AssetScheduleModal({
             type="button"
             onClick={() => setActionType('tax')}
             className={`py-2 text-[11px] font-bold rounded-xl transition-all ${
-              actionType === 'tax' ? 'bg-primary text-white shadow-xs' : 'text-text-muted hover:text-text'
+              actionType === 'tax' ? 'bg-primary text-primary-fg shadow-xs' : 'text-text-muted hover:text-text'
             }`}
           >
             Pajak Rutin
@@ -149,7 +150,7 @@ export function AssetScheduleModal({
             type="button"
             onClick={() => setActionType('maintenance')}
             className={`py-2 text-[11px] font-bold rounded-xl transition-all ${
-              actionType === 'maintenance' ? 'bg-primary text-white shadow-xs' : 'text-text-muted hover:text-text'
+              actionType === 'maintenance' ? 'bg-primary text-primary-fg shadow-xs' : 'text-text-muted hover:text-text'
             }`}
           >
             Servis Rutin
@@ -158,7 +159,7 @@ export function AssetScheduleModal({
             type="button"
             onClick={() => setActionType('incidental')}
             className={`py-2 text-[11px] font-bold rounded-xl transition-all ${
-              actionType === 'incidental' ? 'bg-expense text-white shadow-xs' : 'text-text-muted hover:text-text'
+              actionType === 'incidental' ? 'bg-expense text-expense-fg shadow-xs' : 'text-text-muted hover:text-text'
             }`}
           >
             Biaya Insidental
@@ -168,11 +169,11 @@ export function AssetScheduleModal({
         {/* Target Asset Info Card */}
         <div className="p-3 bg-surface-2 border border-border rounded-2xl flex items-center justify-between text-xs">
           <div>
-            <span className="text-[10px] text-text-muted block">Aset Tertaut</span>
+            <span className="text-[11px] text-text-muted block">Aset Tertaut</span>
             <span className="font-bold text-text">{asset.name}</span>
           </div>
           <div className="text-right">
-            <span className="text-[10px] text-text-muted block">Harga Perolehan</span>
+            <span className="text-[11px] text-text-muted block">Harga Perolehan</span>
             <span className="font-extrabold text-primary tabular-nums">{formatRupiah(asset.purchase_price)}</span>
           </div>
         </div>
@@ -224,7 +225,7 @@ export function AssetScheduleModal({
               >
                 {wallets.map((w) => (
                   <option key={w.id} value={w.id}>
-                    {w.name} ({formatRupiah(w.balance)})
+                    {w.name}
                   </option>
                 ))}
               </select>
@@ -259,7 +260,7 @@ export function AssetScheduleModal({
               >
                 {wallets.map((w) => (
                   <option key={w.id} value={w.id}>
-                    {w.name} ({formatRupiah(w.balance)})
+                    {w.name}
                   </option>
                 ))}
               </select>

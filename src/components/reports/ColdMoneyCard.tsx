@@ -8,6 +8,8 @@ import {
 } from '@phosphor-icons/react';
 import { formatRupiah } from '@/lib/formatters';
 import { Wallet, Budget, ColdMoneyInfo, RecurringBill, Debt } from '@/lib/types';
+import { totalLiquidCash } from '@/lib/money';
+import { StatCard, StatGrid } from '../ui/StatCard';
 
 interface ColdMoneyCardProps {
   wallets: Wallet[];
@@ -28,7 +30,7 @@ export function calculateColdMoney(
   bills: RecurringBill[] = [],
   debts: Debt[] = []
 ): ColdMoneyInfo {
-  const total_liquid_cash = wallets.reduce((sum, w) => sum + Math.max(0, w.balance || 0), 0);
+  const total_liquid_cash = totalLiquidCash(wallets);
   
   const totalBudgetFromLimits = budgets.reduce((sum, b) => sum + (b.monthly_limit || 0), 0);
   const activeBillsTotal = bills.filter((b) => b.is_active && (b.type ?? 'expense') === 'expense').reduce((sum, b) => sum + (b.amount || 0), 0);
@@ -109,7 +111,7 @@ export function ColdMoneyCard({
                 Uang Dingin & Dana Rencana Jangka Pendek
               </h3>
               <span
-                className={`text-[10px] font-extrabold px-2.5 py-0.5 rounded-full border ${
+                className={`text-[11px] font-extrabold px-2.5 py-0.5 rounded-full border ${
                   info.is_available
                     ? 'bg-primary/10 text-primary border-primary/25'
                     : 'bg-surface-2 text-text-muted border-border'
@@ -126,53 +128,42 @@ export function ColdMoneyCard({
       </div>
 
       {/* Grid 4 Kolom Alokasi Kas */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 py-3">
-        <div className="p-3 bg-surface rounded-2xl border border-border/60 space-y-1">
-          <span className="text-[10px] sm:text-[11px] font-semibold text-text-muted block">1. Total Kas Riil</span>
-          <p className="text-xs sm:text-sm md:text-base font-extrabold text-text tabular-nums whitespace-nowrap">
-            {formatRupiah(info.total_liquid_cash)}
-          </p>
-          <span className="text-[10px] text-text-muted block">Seluruh rekening & kas</span>
-        </div>
+      <StatGrid layout="2-4" className="py-3">
+        <StatCard
+          size="compact"
+          label="1. Total Kas Riil"
+          value={formatRupiah(info.total_liquid_cash)}
+          hint="Seluruh rekening & kas"
+        />
 
-        <div className="p-3 bg-surface rounded-2xl border border-border/60 space-y-1">
-          <span className="text-[10px] sm:text-[11px] font-semibold text-text-muted block">2. Cadangan 4.4x Anggaran</span>
-          <p className="text-xs sm:text-sm md:text-base font-extrabold text-text tabular-nums whitespace-nowrap">
-            {formatRupiah(info.safety_reserve_required)}
-          </p>
-          <span className="text-[10px] text-text-muted block">4 Bulan + 10% Risiko</span>
-        </div>
+        <StatCard
+          size="compact"
+          label="2. Cadangan 4.4x Anggaran"
+          value={formatRupiah(info.safety_reserve_required)}
+          hint="4 Bulan + 10% Risiko"
+        />
 
-        <div className="p-3 bg-surface rounded-2xl border border-border/60 space-y-1">
-          <span className="text-[10px] sm:text-[11px] font-semibold text-text-muted block">3. Tagihan & Hutang</span>
-          <p className="text-xs sm:text-sm md:text-base font-extrabold text-expense tabular-nums whitespace-nowrap">
-            {formatRupiah(info.pending_obligations)}
-          </p>
-          <span className="text-[10px] text-text-muted block">Kewajiban tertunda</span>
-        </div>
+        <StatCard
+          size="compact"
+          tone="expense"
+          label="3. Tagihan & Hutang"
+          value={formatRupiah(info.pending_obligations)}
+          hint="Kewajiban tertunda"
+        />
 
-        <div
-          className={`p-3 rounded-2xl border space-y-1 ${
+        <StatCard
+          size="compact"
+          label="UANG DINGIN (BEBAS PAKAI)"
+          value={formatRupiah(info.cold_money)}
+          tone={info.is_available ? 'primary' : 'muted'}
+          className={
             info.is_available
-              ? 'bg-transfer-subtle border-transfer/35'
-              : 'bg-surface-2 border-border'
-          }`}
-        >
-          <span className="text-[10px] sm:text-[11px] font-bold text-text-muted block">
-            UANG DINGIN (BEBAS PAKAI)
-          </span>
-          <p
-            className={`text-xs sm:text-sm md:text-base font-extrabold tabular-nums whitespace-nowrap ${
-              info.is_available ? 'text-primary' : 'text-text-muted'
-            }`}
-          >
-            {formatRupiah(info.cold_money)}
-          </p>
-          <span className="text-[10px] font-semibold text-text-muted block">
-            {info.is_available ? 'Bebas untuk apa saja' : 'Fokuskan cadangan'}
-          </span>
-        </div>
-      </div>
+              ? 'bg-transfer-subtle border border-transfer/35 shadow-none'
+              : 'bg-surface-2 border border-border shadow-none'
+          }
+          hint={info.is_available ? 'Bebas untuk apa saja' : 'Fokuskan cadangan'}
+        />
+      </StatGrid>
 
       {/* Guidance Insight Box */}
       <div

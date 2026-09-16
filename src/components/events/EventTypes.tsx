@@ -1,4 +1,5 @@
 import React from 'react';
+import { ON_COLOR_TEXT } from '@/lib/chartPalette';
 import { 
   TrendUp, 
   FileText, 
@@ -24,7 +25,7 @@ const eventTypes: EventTypeConfig[] = [
     label: 'Pemasukan Tambahan',
     description: 'Bonus, tunjangan, atau pemasukan ekstra lainnya',
     color: 'hsl(var(--color-income))',
-    textColor: '#ffffff',
+    textColor: ON_COLOR_TEXT,
     icon: TrendUp,
     category: 'income'
   },
@@ -33,7 +34,7 @@ const eventTypes: EventTypeConfig[] = [
     label: 'Perpanjangan Polis Asuransi',
     description: 'Tanggal jatuh tempo perpanjangan asuransi',
     color: 'hsl(var(--color-warning))',
-    textColor: '#ffffff',
+    textColor: ON_COLOR_TEXT,
     icon: FileText,
     category: 'warning'
   },
@@ -42,7 +43,7 @@ const eventTypes: EventTypeConfig[] = [
     label: 'Batas Waktu Pembayaran Pajak',
     description: 'Jatuh tempo pembayaran pajak tahunan/bulanan',
     color: 'hsl(var(--color-expense))',
-    textColor: '#ffffff',
+    textColor: ON_COLOR_TEXT,
     icon: WarningCircle,
     category: 'expense'
   },
@@ -51,7 +52,7 @@ const eventTypes: EventTypeConfig[] = [
     label: 'Kontribusi Investasi',
     description: 'Kontribusi investasi rutin bulanan/tahunan',
     color: 'hsl(var(--color-transfer))',
-    textColor: '#ffffff',
+    textColor: ON_COLOR_TEXT,
     icon: ChartPieSlice,
     category: 'primary'
   }

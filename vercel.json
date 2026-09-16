@@ -9,6 +9,10 @@
     {
       "path": "/api/bills/cron",
       "schedule": "0 2 * * *"
+    },
+    {
+      "path": "/api/subscriptions/cron",
+      "schedule": "0 3 * * *"
     }
   ]
 }

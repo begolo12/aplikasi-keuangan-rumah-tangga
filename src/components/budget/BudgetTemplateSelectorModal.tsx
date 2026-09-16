@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
-import { Sparkle, CheckCircle } from '@phosphor-icons/react';
+import { TrendUp, CheckCircle } from '@phosphor-icons/react';
 import { BudgetTemplate, Category } from '@/lib/types';
 import { apiFetch, endpoints } from '@/lib/apiFetch';
 
@@ -21,7 +21,8 @@ export function BudgetTemplateSelectorModal({
   categories,
 }: BudgetTemplateSelectorModalProps) {
   const [templates, setTemplates] = useState<BudgetTemplate[]>([]);
-  const [aiSuggestion, setAiSuggestion] = useState<BudgetTemplate | null>(null);
+  const [suggestion, setSuggestion] = useState<BudgetTemplate | null>(null);
+  const [suggestionReason, setSuggestionReason] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSelecting, setIsSelecting] = useState(false);
   const [hasSelected, setHasSelected] = useState(false);
@@ -40,9 +41,12 @@ export function BudgetTemplateSelectorModal({
     if (!isOpen) return;
     let cancelled = false;
 
-    const fetchAIRecommendation = async () => {
+    const fetchSuggestion = async () => {
       try {
-        return await apiFetch(endpoints.budgetAiRecommend);
+        return await apiFetch<{
+          success: boolean;
+          data: { template: BudgetTemplate | null; reason?: string };
+        }>(endpoints.budgetAiRecommend);
       } catch {
         return null;
       }
@@ -50,13 +54,14 @@ export function BudgetTemplateSelectorModal({
 
     Promise.all([
       apiFetch<{ success: boolean; data: BudgetTemplate[] }>(endpoints.budgetTemplates),
-      fetchAIRecommendation(),
+      fetchSuggestion(),
     ])
-      .then(([userTemplatesRes, aiResult]: any) => {
+      .then(([userTemplatesRes, suggestionRes]: any) => {
         if (cancelled) return;
         setTemplates(userTemplatesRes?.data || []);
-        if (aiResult?.success && aiResult?.data?.template) {
-          setAiSuggestion(aiResult.data.template);
+        if (suggestionRes?.success) {
+          setSuggestion(suggestionRes.data?.template ?? null);
+          setSuggestionReason(suggestionRes.data?.reason ?? null);
         }
       })
       .catch((error) => {
@@ -87,31 +92,33 @@ export function BudgetTemplateSelectorModal({
     }
   };
 
-  const getCategoryName = (categoryId: string): string => {
-    const cat = expenseCategories.find((c) => c.id === categoryId);
-    return cat?.name || 'Unknown';
-  };
-
-  const getCategoryColor = (categoryId: string): string => {
-    const cat = expenseCategories.find((c) => c.id === categoryId);
-    return cat?.color || '#6B7280';
-  };
+  /** Kategori tidak dikenal = template tidak bisa dipakai. Kembalikan null, bukan nama palsu. */
+  const findCategory = (categoryId: string) => expenseCategories.find((c) => c.id === categoryId) ?? null;
 
   const renderAllocationBar = (allocations: Array<{ category_id: string; percentage: number }>) => {
+    const known = allocations.filter((a) => findCategory(a.category_id) !== null);
+    const unknownCount = allocations.length - known.length;
+
     return (
       <div className="space-y-2">
-        {allocations.slice(0, 3).map((alloc, idx) => (
-          <div key={idx} className="flex items-center gap-2">
-            <div
-              className="w-3 h-3 rounded-full flex-shrink-0"
-              style={{ backgroundColor: getCategoryColor(alloc.category_id) }}
-            />
-            <span className="text-xs text-text-muted flex-1 truncate">
-              {getCategoryName(alloc.category_id)}
-            </span>
-            <span className="text-xs font-medium text-text">{alloc.percentage}%</span>
-          </div>
-        ))}
+        {known.slice(0, 3).map((alloc) => {
+          const cat = findCategory(alloc.category_id)!;
+          return (
+            <div key={alloc.category_id} className="flex items-center gap-2">
+              <div
+                className="w-3 h-3 rounded-full flex-shrink-0"
+                style={{ backgroundColor: cat.color }}
+              />
+              <span className="text-xs text-text-muted flex-1 truncate">{cat.name}</span>
+              <span className="text-xs font-medium text-text">{alloc.percentage}%</span>
+            </div>
+          );
+        })}
+        {unknownCount > 0 && (
+          <p className="text-[11px] text-warning">
+            {unknownCount} posisi tidak cocok dengan kategori Anda dan tidak akan diterapkan.
+          </p>
+        )}
       </div>
     );
   };
@@ -119,35 +126,37 @@ export function BudgetTemplateSelectorModal({
   return (
     <Modal isOpen={isOpen} onClose={onClose} maxWidth="lg" title="Pilih Template Anggaran">
       <div className="space-y-4">
-        {/* AI Recommendation Card */}
-        {aiSuggestion && !hasSelected && (
+        {/* Saran dari riwayat belanja (bukan AI) */}
+        {suggestion && !hasSelected && (
           <div className="bg-primary-subtle border border-primary/25 rounded-2xl p-4">
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-2">
-                <Sparkle className="text-primary" size={20} />
-                <h3 className="font-bold text-text">Rekomendasi AI</h3>
-              </div>
-              <span className="text-xs bg-primary/15 text-primary px-2 py-1 rounded-xl font-semibold">
-                Personalized
-              </span>
+            <div className="flex items-center gap-2 mb-3">
+              <TrendUp className="text-primary" size={20} />
+              <h3 className="font-bold text-text">Saran dari Riwayat Belanja</h3>
             </div>
 
             <div className="mb-3">
-              <h4 className="font-semibold text-text mb-1">{aiSuggestion.name}</h4>
-              <p className="text-sm text-text-muted">{aiSuggestion.description}</p>
+              <h4 className="font-semibold text-text mb-1">{suggestion.name}</h4>
+              <p className="text-sm text-text-muted">{suggestion.description}</p>
             </div>
 
             <div className="mb-3">
-              {renderAllocationBar(aiSuggestion.allocations)}
+              {renderAllocationBar(suggestion.allocations)}
             </div>
 
             <Button
-              onClick={() => handleSelectTemplate(aiSuggestion)}
-              disabled={isSelecting}
+              onClick={() => handleSelectTemplate(suggestion)}
+              disabled={isSelecting || suggestion.id === ''}
               className="w-full"
             >
-              {isSelecting ? 'Memuat...' : 'Gunakan Rekomendasi Ini'}
+              {isSelecting ? 'Memuat...' : 'Gunakan Saran Ini'}
             </Button>
+          </div>
+        )}
+
+        {!suggestion && !hasSelected && suggestionReason && (
+          <div className="bg-surface-2 border border-border rounded-2xl p-4">
+            <h3 className="font-bold text-text mb-1">Saran Anggaran Belum Tersedia</h3>
+            <p className="text-sm text-text-muted">{suggestionReason}</p>
           </div>
         )}
 

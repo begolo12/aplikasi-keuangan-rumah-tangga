@@ -46,7 +46,7 @@ export default function GlobalError({
           </Link>
         </div>
         {error.digest && (
-          <p className="text-[10px] text-text-muted/60 font-mono">Ref: {error.digest}</p>
+          <p className="text-[11px] text-text-muted font-mono">Ref: {error.digest}</p>
         )}
       </div>
     </div>

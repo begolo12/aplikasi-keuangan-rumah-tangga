@@ -3,6 +3,125 @@
 Log eksekusi plan. Entri baru ditambahkan di bagian paling atas.
 Format entri lihat `AGENTS.md` bagian "Langkah 3 — Catat ke Changelog".
 
+## [2026-09-15] Paket A–E — Perbaikan Visual, UI & UX Menyeluruh
+
+**Plan**: `docs/plans/2026-09-15-paket-a-sampai-e-perbaikan-visual-ui-ux.md`
+
+### Berubah
+
+**Bug nyata & quick win (Paket A)**
+- `SettingsView.tsx`: tombol "Simpan Perubahan" ganda dihapus, tinggal satu.
+- Tiga `text-warning-fg` di atas latar terang diganti `text-warning`; badge Fixed Cost memakai `bg-warning text-warning-fg` yang kontrasnya sudah dihitung.
+- `deleteError` di `page.tsx` kini benar-benar dirender (`role="alert"`); sebelumnya state-nya di-set tapi tidak pernah tampil.
+- Kelas Tailwind mati `py-0.2` diganti `py-0.5`; badge SidebarNav diperbaiki warna, radius, dan ukurannya.
+- Modal auto-focus ke kolom nominal (`autoFocus`/`data-autofocus` di `Modal`, `AmountInput`, `TransactionModal`).
+- `tailwind.config.ts`: `boxShadow.xl`/`2xl` ditambahkan sehingga kelas bayangan tidak lagi mati.
+
+**Tipografi, kontras, tap target (Paket B)**
+- 229 penggantian di 39 file: semua `text-[8.5px]`/`[9px]`/`[10px]` naik ke minimal `text-[11px]`.
+- Kontras diperbaiki: teks di hero saldo, badge status, dan `text-text-muted/40|50|60` (14 file) yang terlalu pudar.
+- 30 kontrol mobile di 11 file dinaikkan ke `min-h-[44px]`; tombol ikon `SubscriptionItem` diberi `aria-label` Indonesia.
+
+**Hierarki dashboard & umpan balik (Paket C)**
+- `page.tsx`: urutan dashboard disusun ulang — saldo → aksi cepat → daftar transaksi → dompet → ringkasan → insight; banner backup turun ke paling bawah.
+- `TransactionList` dibatasi 5 transaksi + tombol "Lihat semua (N lainnya)".
+- "Scan Struk" kini tersedia di HP: label tidak lagi disembunyikan di `TransactionModal`, dan `BottomNav` mendapat tombol lebar penuh "Scan Struk dengan AI".
+- Toast global baru `ui/Toast.tsx` (`ToastProvider` + `useToast`), dipasang di `layout.tsx` dan dipakai 11 modul untuk umpan balik sukses/gagal.
+
+**Komponen bersama (Paket D)**
+- Baru: `ui/StatCard.tsx` (+ `StatGrid`), `ui/ProgressBar.tsx`, `ui/Alert.tsx`, `ui/FormLabel.tsx`.
+- 11 implementasi kartu statistik, 8 bar progres, dan 21 kartu pesan galat/info yang sebelumnya disalin-tempel dengan padding/radius/ukuran huruf berbeda kini memakai komponen bersama.
+- Label form "yatim" (tanpa `htmlFor`) diperbaiki: `WalletsView` pemilih warna memakai `role="group"` + `aria-labelledby`, `SettingsView` input email diberi `id`.
+
+**Bahasa, palet, aksesibilitas, performa (Paket E)**
+- `src/lib/nav.ts`: satu sumber label modul untuk SidebarNav, BottomNav, dan TopHeader (sebelumnya tiga definisi terpisah).
+- `src/lib/chartPalette.ts`: hex literal di `CategoryChart`, `CashflowChart`, `WalletsView`, `EventTypes` diganti token `hsl(var(--color-*))`.
+- `aria-current="page"` di item SidebarNav; `focus-visible` pada kelas dasar `Button`; `aria-current="date"` + `aria-label` lengkap pada sel tanggal kalender.
+- `backdrop-blur` dihapus dari semua elemen `sticky`/`fixed` (TopHeader, sub-kartu hero, Modal, LandingView) untuk menghindari repaint saat scroll.
+- Istilah akuntansi diganti bahasa keluarga: "Neraca" → "Harta & Hutang", "DER" → "Rasio Hutang vs Harta", "DTI" → "Rasio Cicilan terhadap Gaji", "Run-rate" dan "Net Worth" dihapus.
+- `confirm()` bawaan browser diganti `ConfirmModal`; label pintasan keyboard (`<kbd>`) diselaraskan dengan handler sebenarnya (N/E/T).
+- `animate-pulse` dihapus dari 10 badge status; `DashboardSkeleton` ditulis ulang mengikuti urutan dashboard nyata + `aria-busy`.
+- Judul halaman diseragamkan (`text-xl sm:text-2xl font-bold`), padding kartu bagian diseragamkan (`p-4 sm:p-5`), dan `<h2>` tersembunyi ditambahkan di dashboard agar struktur heading berjenjang.
+- **Perbaikan angka**: fallback `safe_to_spend` di `BalanceHeader` dan `ReportsView` tidak menambahkan piutang yang akan masuk, padahal API menghitungnya — dua layar bisa menampilkan "dana bebas belanja" berbeda. Kini rumusnya sama: `saldo - (tagihan pending + hutang jatuh tempo) + piutang jatuh tempo`.
+- Dropdown profil mengembalikan fokus ke tombol pemicu saat ditutup dengan Escape; tombolnya diberi `aria-expanded`/`aria-haspopup`.
+- Titik indikator acara kalender tidak lagi terlihat bisa diklik padahal tidak punya aksi sendiri.
+
+### Dampak
+- Keterbacaan naik untuk pengguna usia lanjut (tidak ada lagi teks di bawah 11px, kontras diperbaiki).
+- Akar inkonsistensi visual disembuhkan: kartu statistik, bar progres, dan kartu pesan kini seragam karena berasal dari satu komponen.
+- Friksi mencatat transaksi berkurang (auto-focus, Scan Struk bisa diakses dari HP, toast sebagai umpan balik).
+- Satu angka tidak lagi tampil berbeda antara dashboard dan laporan.
+
+
+## [2026-09-14] Paket 2–5 — Satu Sumber Kebenaran Angka, Skema Lengkap, dan Transparansi AI
+
+**Plan**: `docs/plans/2026-09-14-paket-2-sampai-5-satu-sumber-kebenaran-data-dan-skema.md`
+
+### Berubah
+
+**Skema DB & dead code (Paket 4)**
+- `src/app/api/init/route.ts`: 5 tabel baru yang dipakai kode tapi belum ada di DB — `households`, `household_members`, `merchant_category_map`, `push_subscriptions`, `push_send_log`. Semua `CREATE TABLE IF NOT EXISTS` dengan FK, UNIQUE, CHECK, dan index yang sesuai.
+- `src/app/api/init/route.ts`: kolom hilang ditambahkan — `users.token_version`, `wallets.household_id/is_shared/linked_goal_id`, `budgets.rollover_enabled`, `debts.start_date`, `recurring_bills.debt_id/to_wallet_id`. Constraint `wallets_type_check` diperbarui idempoten agar memuat `'envelope'`.
+- **`subscriptions` rusak total di produksi.** DB nyata hanya punya kolom `provider`, sementara seluruh kode (`api/subscriptions/**`, `backup/import`, UI) membaca `provider_name` dan `reminder_enabled`. Setiap request ke modul Langganan gagal dengan `column "provider_name" does not exist`. Perbaikan: `ADD COLUMN IF NOT EXISTS` untuk kedua kolom, backfill `provider_name` dari `provider`, lalu `ALTER COLUMN provider DROP NOT NULL`. Tabel ini berisi 0 baris, jadi backfill hanya untuk data lama bila ada.
+- `scripts/run-db-migrations.ts`: langkah 6/6a–6e ditambahkan untuk seluruh tabel dan kolom yang sama, termasuk perbaikan `subscriptions`.
+- Dead code dihapus: `src/components/budget/EmergencyFundCard.tsx`, `src/components/budget/BudgetRecommendationCard.tsx`, `src/lib/eventsSql.ts`, dan `TRANSACTION_TRANSFER_SQL` di `src/lib/reportSql.ts`.
+
+**Satu sumber kebenaran angka (Paket 3)**
+- Helper baru `src/lib/money.ts`: `totalLiquidCash()` (dompet minus dihitung nol) dan `totalNetCash()` (minus tetap dikurangi). Dipakai di `EvaluationView`, `FinancialRatiosReport`, `DebtCalculatorModal`, `BalanceSheetReport`, `ColdMoneyCard`, `FinancialSafetyPlanCard`.
+- `src/lib/budgetSql.ts`: CTE `prev_spent` (realisasi bulan lalu untuk rollover) kini memakai `TRANSACTION_AMOUNT_WITH_FEE_SQL`, jadi sisa rollover tidak kebesaran saat ada biaya admin.
+- `api/budgets/route.ts`, `api/dashboard/bootstrap/route.ts`, `api/reports/monthly/route.ts`, `api/insights/route.ts`: `spent`, `remaining`, `percentage`, dan hitungan overbudget memakai fragmen ber-fee yang sama. Sebelumnya halaman Anggaran dan dashboard menghitung tanpa `admin_fee` sementara laporan bulanan menghitungnya, jadi dua layar menampilkan sisa anggaran berbeda.
+- `api/households/report/route.ts`: total `expense`/`income` per anggota memakai fragmen bersama sehingga `admin_fee` ikut dan angkanya cocok dengan laporan bulanan.
+- `api/reports/category/route.ts`: `ORDER BY` memakai jumlah ber-fee yang sama dengan nominal yang ditampilkan.
+- `api/reports/export-csv/route.ts`: blok ringkasan ditambahkan di akhir CSV (total pemasukan, pengeluaran termasuk biaya admin, transfer dipisah karena bukan pengeluaran, arus kas bersih). Aturannya sama dengan `TRANSACTION_EXPENSE_SQL` — biaya admin hanya melekat pada pengeluaran/transfer.
+
+**Akun kosong jangan dapat skor (Paket 2)**
+- `api/insights/route.ts`: `health.score` bernilai `null` bila tidak ada data sama sekali; bobot skor dinormalisasi ke komponen yang benar-benar bisa dihitung, `budgetScore` `null` bila tidak ada anggaran. Loop deteksi lonjakan berhenti mengarang severity `high` saat rata-rata pembanding 0.
+- `src/lib/types.ts`: `FinancialRatiosResult` semua rasio `number | null`, `health_score: number | null`, `condition_status` dan `ratio_details[].status` menerima `'unknown'`; `InsightsData.health.score: number | null`.
+- `src/components/evaluation/EvaluationView.tsx`, `src/components/reports/FinancialRatiosReport.tsx`, `src/components/debts/DebtCalculatorModal.tsx`, `src/components/reports/BalanceSheetReport.tsx`: sentinel `999`/`100`/`1` dihapus, fallback basis Rp 1 juta dihapus, pembagian nol menghasilkan `null` bukan angka. UI merender `—` atau `n/a` dengan keterangan "Belum cukup data".
+- `BalanceSheetReport.tsx`: rasio solvabilitas `null` bila tidak ada kewajiban, dan status "Belum Cukup Data" dengan warna netral untuk akun kosong (sebelumnya tampil "Solvabilitas 1x" dan ikon merah).
+- `DebtCalculatorModal.tsx`: input pokok/tenor/bunga mulai dari 0, status `'idle'` dengan badge netral "Isi Data Pinjaman untuk Dinilai", DTI `n/a` bila pemasukan belum tercatat, label kelipatan cadangan diperbaiki dari "4x" menjadi "4,4x", dan ambang DTI di teks disamakan dengan cutoff 35% di kode.
+- `scripts/audit-self-test.ts`: 6 assertion baru untuk akun kosong (`health_score === null`, `der_ratio === null`, `oer_ratio === null`, `liquidity_months === null`, `condition_status === 'unknown'`, `action_recommendations.length === 0`), plus guard `?? 0` pada assertion lama.
+
+**Stop label bohong & transparansi AI (Paket 1 & 5)**
+- `api/budgets/ai/recommend/route.ts`: cabang "Strategi 2" yang menulis `category_id: ''` dihapus; `generateRecommendationTemplate` mengembalikan `null` bila tidak ada riwayat belanja; INSERT diganti UPDATE-then-INSERT agar nama yang sama tidak menumpuk duplikat; query memakai fragmen `reportSql` yang benar.
+- `src/components/budget/BudgetTemplateSelectorModal.tsx`: label "Rekomendasi AI" diganti "Saran dari Riwayat Belanja", badge "Personalized" dihapus, fallback kategori `'Unknown'`/`'#6B7280'` diganti pencarian yang mengembalikan `null`, dan ada blok "Saran Anggaran Belum Tersedia" dengan alasan konkret.
+- `api/budgets/templates/apply/route.ts`: `defaultTotal = 5000000` dihapus; alokasi ditolak bila basis 0, kepemilikan kategori diverifikasi, dan kategori tak dikenal dilewati alih-alih diberi alokasi palsu.
+- `api/currencies/route.ts` + `src/components/settings/SettingsView.tsx`: kurs mengembalikan flag `source: 'live' | 'fallback'` dengan timeout 5 detik; UI menampilkan peringatan saat kurs jatuh ke perkiraan. Selector mata uang dihapus total karena `formatCurrency` tidak pernah dipakai — pilihan itu tidak mengubah apa pun.
+- `src/lib/deepseek.ts`, `src/lib/validations.ts`, `src/lib/types.ts`: hasil parse struk sekarang membawa `source: 'ai' | 'heuristic'`.
+- `api/ai/parse-receipt/route.ts`: pemaksaan `confidence = 'high'` dihapus.
+- `src/components/transactions/ReceiptParserModal.tsx`: judul dan tombol tidak lagi mengklaim AI, badge kuning muncul bila hasil berasal dari heuristik, dan peringatan merah muncul bila nominal terbaca 0.
+
+### Dampak
+- **Migrasi DB wajib untuk modul Langganan, rumah tangga, dan web push.** Jalankan `POST /api/init` atau `npx tsx scripts/run-db-migrations.ts`. Migrasi bersifat idempoten dan tidak menghapus data. **Perbaikan ini belum dijalankan terhadap DB.**
+- `subscriptions` kini punya kolom `provider_name` dan `reminder_enabled`; kolom `provider` dilonggarkan (tidak lagi NOT NULL) dan datanya di-backfill ke `provider_name`.
+- Skor kesehatan (`insights`, rasio keuangan, neraca, kalkulator hutang) bisa bernilai `null`. UI menampilkan "Belum cukup data" atau `—`, bukan angka. Ini perubahan perilaku yang disengaja: akun baru tidak lagi diberi skor apa pun.
+- Selector mata uang dihapus dari Pengaturan; mata uang pencatatan tetap IDR.
+- CSV ekspor sekarang punya blok ringkasan di akhir; format baris transaksi tidak berubah.
+- Pembersihan data uji di DB (3 transaksi `Test ...` dan 2 duplikat `budgets_templates`) **tidak dikerjakan** karena belum ada konfirmasi dari pemilik data.
+- `npm run build` lulus. `npm run lint` 0 error, 1 warning lama (`tabHistory` di `page.tsx`). `npm run test:audit` 159/159 lulus. `npm test` tidak dijalankan karena `test:e2e` destruktif terhadap DB di `.env.local`.
+
+## [2026-09-14] Paket 1 — Perbaikan Kritis Keuangan, Cron, dan Aksesibilitas Visual
+
+**Plan**: `docs/plans/2026-09-14-paket-1-perbaikan-kritis-keuangan-visual.md`
+
+### Berubah
+- **K-04 — hutang tidak lagi mengarang pembayaran** (`src/app/api/debts/route.ts`): blok `monthsElapsed` yang mengisi `paid_amount` dihapus, begitu pula blok yang menulis baris `debt_payments` + `bill_payments` untuk bulan yang tidak pernah dibayar. `paid_amount` sekarang hanya berasal dari `initial_paid_amount` di body request (default 0). Auto-hitung `due_date` cicilan berikutnya dan penjadwalan `recurring_bills` tetap dipertahankan karena keduanya tidak mengklaim uang keluar.
+- **K-03 — jalur `wallet_id = null` ke `debt_payments.wallet_id NOT NULL` hilang** sebagai efek samping K-04. Sebelumnya request hutang ber-`start_date` lampau bisa ROLLBACK total dan mengembalikan 500.
+- **OPS-01 — cron Vercel benar-benar jalan**: `GET` ditambahkan ke `src/app/api/bills/cron/route.ts` dan `src/app/api/push/cron/route.ts` (Vercel Cron memanggil GET, bukan POST), dan `/api/subscriptions/cron` didaftarkan di `vercel.json` (handler `GET`-nya sudah ada sejak lama tapi tidak pernah terjadwal).
+- **FIN-01 — satu sumber kebenaran pengeluaran** (`src/lib/reportSql.ts`, baru): fragmen SQL `TRANSACTION_INCOME_SQL`, `TRANSACTION_EXPENSE_SQL`, `TRANSACTION_TRANSFER_SQL`, `TRANSACTION_AMOUNT_WITH_FEE_SQL`. Laporan bulanan, tahunan, dan per kategori kini memakai fragmen yang sama sehingga `admin_fee` ikut terhitung di semuanya. Sebelumnya laporan tahunan dan kategori hanya `SUM(amount)` sementara laporan bulanan menambahkan `SUM(admin_fee)`, jadi dua laporan untuk periode yang sama bisa berbeda.
+- **UX-01 — kontras AA di mode gelap**: token `--color-income-fg`, `--color-expense-fg`, `--color-transfer-fg`, `--color-warning-fg` ditambahkan (putih di mode terang, gelap `225 20% 10%` di mode gelap) plus entri terkait di `tailwind.config.ts`. Sebelumnya `text-white` di atas `bg-income`/`bg-expense`/`bg-transfer`/`bg-warning` hanya 2,19–3,41:1 di mode gelap. Penggantian dilakukan di 25 file komponen. `BalanceHeader` memakai token terpisah `--color-primary-hero` / `--color-primary-hero-2` yang di mode terang bernilai identik dengan `primary` / `primary-hover` sehingga tampilan terang tidak berubah.
+- **UX-02 — sheet BottomNav tidak bisa difokus saat tertutup**: `inert` + `aria-hidden={!isMoreOpen}` ditambahkan.
+- **UX-06 — `role="alert"`** ditambahkan pada 5 kotak galat yang terlewat (login, register, dashboard, tagihan, dompet).
+- **FE-04 — mode privasi tidak lagi bocor**: 12 `<option>` (bukan 11) dan 6 atribut `title` yang menampilkan saldo/nominal dibersihkan. `<option>` dan `title` adalah UI native sehingga tidak bisa diblur CSS, jadi satu-satunya perbaikan yang benar adalah menghapus nominalnya. Termasuk 2 `title` di `ExpenseProjectionCard.tsx` dan 1 `<option>` di `DebtsView.tsx` yang memakai `Intl.NumberFormat` langsung (tidak tertangkap pencarian `formatRupiah`).
+- **Komentar menyesatkan** di `src/app/api/transactions/route.ts` diperbaiki: kode sebenarnya menulis satu baris INSERT dengan `admin_fee = feeAmount`, bukan "baris pendamping dengan `admin_fee` utama dinolkan".
+- **UI `DebtsView.tsx`** disesuaikan dengan K-04: state mati `initialPaidAmount` / `autoCalculatePaid` dihapus, field `initial_paid_amount` dikeluarkan dari payload, dan label diubah menjadi "Perkiraan Cicilan Berjalan" / "Perkiraan Terbayar" / "Perkiraan Sisa" supaya tidak lagi mengesankan uang sudah berpindah.
+- **`scripts/audit-self-test.ts`**: 3 assertion lama soal `monthsElapsed` diganti 4 assertion kontrak baru (route tidak lagi menulis `debt_payments`, tidak lagi memakai `monthsElapsed`, `paid_amount` hanya dari `initial_paid_amount`, dan skema hutang tanpa `initial_paid_amount` menghasilkan 0).
+
+### Dampak
+- **Perubahan perilaku**: membuat hutang baru tidak lagi otomatis menandai cicilan bulan-bulan yang sudah lewat sebagai "sudah terbayar". Kalau pengguna memang sudah mencicil, nilainya harus diisi eksplisit lewat `initial_paid_amount`. Ini disengaja — `paid_amount` adalah klaim uang keluar, dan mengisinya tanpa mutasi dompet dan tanpa baris transaksi membuat laporan tidak bisa direkonsiliasi.
+- **Data produksi**: perbaikan ini tidak menyertakan skrip migrasi. Bila sudah ada baris hutang dengan `paid_amount` hasil auto-hitung, nilainya perlu dikoreksi manual. Belum dikonfirmasi apakah ada data seperti itu.
+- `npm run build` lulus. `npm run lint` 0 error, 1 warning lama (`tabHistory` di `page.tsx`). `npm run test:audit` 152/152 lulus. Tidak ada perubahan skema DB dan tidak ada perubahan pada logika saldo, `strict-zero`, atau rumus `safe_to_spend`.
+
 ## [2026-09-13] Perbaikan Jitter Bottom Nav Mobile & Konsistensi Visual Menyeluruh
 
 **Plan**: `docs/plans/2026-09-13-perbaikan-jitter-bottom-nav-dan-konsistensi-visual.md`

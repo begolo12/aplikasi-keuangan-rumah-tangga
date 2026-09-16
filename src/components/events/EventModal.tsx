@@ -2,13 +2,13 @@
 
 import React, { useRef, useState } from 'react';
 import { Modal } from '../ui/Modal';
+import { Alert } from '../ui/Alert';
 import { Button } from '../ui/Button';
 import type { FinancialEvent } from '@/lib/types';
 import { apiFetch, ApiError } from '@/lib/apiFetch';
 import { enqueueOfflineMutation } from '@/lib/offlineQueue';
 import { Plus, PencilSimple, Trash } from '@phosphor-icons/react';
 import { getLocalDateString } from '@/lib/formatters';
-import { WifiSlash } from '@phosphor-icons/react';
 
 type EventTypeId = 'bonus' | 'insurance_renewal' | 'tax_deadline' | 'investment_contribution';
 
@@ -220,16 +220,15 @@ export function EventModal({ isOpen, onClose, editingEvent, userId, onSuccess }:
         maxWidth="md"
       >
         {offlineNotice && (
-          <div role="status" className="p-3 bg-warning/10 border border-warning/30 rounded-xl text-warning text-xs font-semibold flex items-center gap-2 mb-4">
-            <WifiSlash size={18} className="shrink-0" />
-            <span>Offline: Acara disimpan di perangkat & akan disinkronkan saat terhubung kembali.</span>
-          </div>
+          <Alert tone="offline" size="sm" className="mb-4">
+            Offline: Acara disimpan di perangkat &amp; akan disinkronkan saat terhubung kembali.
+          </Alert>
         )}
 
         {error && (
-          <div role="alert" className="p-3.5 bg-expense/10 border border-expense/20 rounded-xl text-expense text-sm font-semibold mb-4">
+          <Alert tone="error" className="mb-4">
             {error}
-          </div>
+          </Alert>
         )}
 
         <form onSubmit={handleSubmit} className="space-y-4">

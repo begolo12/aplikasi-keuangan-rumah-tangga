@@ -22,16 +22,20 @@ import {
   CalendarBlank,
   UsersThree,
   Clock,
+  Sparkle,
 } from '@phosphor-icons/react';
 import { TransactionType } from '@/lib/types';
+import { NavTab, navTabShortLabel } from '@/lib/nav';
 
-export type NavTab = 'dashboard' | 'transactions' | 'calendar' | 'budget' | 'reports' | 'evaluation' | 'wallets' | 'bills' | 'subscriptions' | 'debts' | 'assets' | 'goals' | 'household' | 'settings';
+// Re-export demi kompatibilitas: banyak berkas mengimpor NavTab dari sini.
+export type { NavTab } from '@/lib/nav';
 
 interface BottomNavProps {
   activeTab: NavTab;
   onTabChange: (tab: NavTab) => void;
   onOpenAddModal: () => void;
   onOpenTypedModal?: (type: TransactionType) => void;
+  onOpenReceiptScan?: () => void;
   pendingBillsCount?: number;
   overbudgetCount?: number;
   unpaidDebtsCount?: number;
@@ -44,6 +48,7 @@ export function BottomNav({
   onTabChange,
   onOpenAddModal,
   onOpenTypedModal,
+  onOpenReceiptScan,
   pendingBillsCount = 0,
   overbudgetCount = 0,
   unpaidDebtsCount = 0,
@@ -93,27 +98,29 @@ export function BottomNav({
   };
 
   const TAB_PRIMARY: { id: NavTab; label: string; icon: React.ElementType }[] = [
-    { id: 'dashboard', label: 'Beranda', icon: House },
-    { id: 'transactions', label: 'Transaksi', icon: ListDashes },
+    { id: 'dashboard', label: navTabShortLabel('dashboard'), icon: House },
+    { id: 'transactions', label: navTabShortLabel('transactions'), icon: ListDashes },
   ];
 
   const TAB_RIGHT: { id: NavTab; label: string; icon: React.ElementType }[] = [
-    { id: 'wallets', label: 'Dompet', icon: Wallet },
+    { id: 'wallets', label: navTabShortLabel('wallets'), icon: Wallet },
   ];
 
   // Ikon modul NETRAL sesuai DESIGN.md: palet maksimal 3 core + aksen semantik.
+  // Label diambil dari sumber tunggal src/lib/nav.ts agar konsisten dengan
+  // SidebarNav dan TopHeader.
   const MORE_MODULES = [
-    { id: 'calendar' as NavTab, label: 'Kalender', icon: CalendarBlank },
-    { id: 'household' as NavTab, label: 'Keluarga', icon: UsersThree, badge: householdActivityCount > 0 ? householdActivityCount : undefined },
-    { id: 'budget' as NavTab, label: 'Anggaran', icon: Vault, badge: overbudgetCount > 0 ? overbudgetCount : undefined },
-    { id: 'bills' as NavTab, label: 'Tagihan', icon: Receipt, badge: pendingBillsCount > 0 ? pendingBillsCount : undefined },
-    { id: 'subscriptions' as NavTab, label: 'Langganan', icon: Clock, badge: subscriptionCount > 0 ? subscriptionCount : undefined },
-    { id: 'debts' as NavTab, label: 'Hutang', icon: HandCoins, badge: unpaidDebtsCount > 0 ? unpaidDebtsCount : undefined },
-    { id: 'goals' as NavTab, label: 'Target', icon: Target },
-    { id: 'assets' as NavTab, label: 'Aset', icon: Package },
-    { id: 'reports' as NavTab, label: 'Laporan', icon: ChartPieSlice },
-    { id: 'evaluation' as NavTab, label: 'Evaluasi', icon: Heartbeat },
-    { id: 'settings' as NavTab, label: 'Pengaturan', icon: Gear },
+    { id: 'calendar' as NavTab, label: navTabShortLabel('calendar'), icon: CalendarBlank },
+    { id: 'household' as NavTab, label: navTabShortLabel('household'), icon: UsersThree, badge: householdActivityCount > 0 ? householdActivityCount : undefined },
+    { id: 'budget' as NavTab, label: navTabShortLabel('budget'), icon: Vault, badge: overbudgetCount > 0 ? overbudgetCount : undefined },
+    { id: 'bills' as NavTab, label: navTabShortLabel('bills'), icon: Receipt, badge: pendingBillsCount > 0 ? pendingBillsCount : undefined },
+    { id: 'subscriptions' as NavTab, label: navTabShortLabel('subscriptions'), icon: Clock, badge: subscriptionCount > 0 ? subscriptionCount : undefined },
+    { id: 'debts' as NavTab, label: navTabShortLabel('debts'), icon: HandCoins, badge: unpaidDebtsCount > 0 ? unpaidDebtsCount : undefined },
+    { id: 'goals' as NavTab, label: navTabShortLabel('goals'), icon: Target },
+    { id: 'assets' as NavTab, label: navTabShortLabel('assets'), icon: Package },
+    { id: 'reports' as NavTab, label: navTabShortLabel('reports'), icon: ChartPieSlice },
+    { id: 'evaluation' as NavTab, label: navTabShortLabel('evaluation'), icon: Heartbeat },
+    { id: 'settings' as NavTab, label: navTabShortLabel('settings'), icon: Gear },
   ];
 
   const iMoreActive = ['calendar', 'household', 'budget', 'bills', 'subscriptions', 'debts', 'assets', 'goals', 'reports', 'evaluation', 'settings'].includes(activeTab);
@@ -145,7 +152,7 @@ export function BottomNav({
                 }`}
               >
                 <Icon size={22} weight={isActive ? 'fill' : 'regular'} />
-                <span className="text-[10px] mt-0.5 font-semibold">{tab.label}</span>
+                <span className="text-[11px] mt-0.5 font-semibold">{tab.label}</span>
                 {isActive && (
                   <span className="absolute top-0 w-6 h-0.5 bg-primary rounded-full" />
                 )}
@@ -165,7 +172,7 @@ export function BottomNav({
             >
               <Plus size={24} weight="bold" />
             </button>
-            <span className="text-[10px] font-bold text-primary mt-0.5">Catat</span>
+            <span className="text-[11px] font-bold text-primary mt-0.5">Catat</span>
           </div>
 
           {/* Right: Dompet */}
@@ -183,7 +190,7 @@ export function BottomNav({
                 }`}
               >
                 <Icon size={22} weight={isActive ? 'fill' : 'regular'} />
-                <span className="text-[10px] mt-0.5 font-semibold">{tab.label}</span>
+                <span className="text-[11px] mt-0.5 font-semibold">{tab.label}</span>
                 {isActive && (
                   <span className="absolute top-0 w-6 h-0.5 bg-primary rounded-full" />
                 )}
@@ -203,12 +210,12 @@ export function BottomNav({
             }`}
           >
             {totalBadge > 0 && (
-              <span className="absolute top-1.5 right-2.5 w-4 h-4 bg-expense text-white rounded-full text-[9px] font-bold flex items-center justify-center">
+              <span className="absolute top-1.5 right-2.5 w-4 h-4 bg-expense text-expense-fg rounded-full text-[11px] font-bold flex items-center justify-center">
                 {totalBadge}
               </span>
             )}
             {isMoreOpen ? <X size={22} weight="bold" /> : <DotsThree size={22} weight="bold" />}
-            <span className="text-[10px] mt-0.5 font-semibold">Lainnya</span>
+            <span className="text-[11px] mt-0.5 font-semibold">Lainnya</span>
             {(iMoreActive || isMoreOpen) && (
               <span className="absolute top-0 w-6 h-0.5 bg-primary rounded-full" />
             )}
@@ -227,6 +234,8 @@ export function BottomNav({
       {/* More Bottom Sheet */}
       <div
         ref={sheetRef}
+        aria-hidden={!isMoreOpen}
+        inert={!isMoreOpen}
         className={`md:hidden fixed bottom-0 left-0 right-0 z-50 bg-surface border-t border-border rounded-t-3xl shadow-2xl transition-transform duration-300 ease-out pb-[max(env(safe-area-inset-bottom),1.5rem)] ${
           isMoreOpen ? 'translate-y-0' : 'translate-y-full pointer-events-none'
         }`}
@@ -244,7 +253,7 @@ export function BottomNav({
               type="button"
               onClick={() => setIsMoreOpen(false)}
               aria-label="Tutup menu"
-              className="p-1.5 text-text-muted hover:text-text hover:bg-surface-2 rounded-xl transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+              className="inline-flex items-center justify-center min-w-[44px] min-h-[44px] p-1.5 text-text-muted hover:text-text hover:bg-surface-2 rounded-xl transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
             >
               <X size={18} />
             </button>
@@ -278,6 +287,22 @@ export function BottomNav({
             </button>
           </div>
 
+          {/* Scan Struk dengan AI: fitur bernilai tinggi yang sebelumnya hanya
+              terjangkau dari dalam modal transaksi. */}
+          {onOpenReceiptScan && (
+            <button
+              type="button"
+              onClick={() => {
+                setIsMoreOpen(false);
+                onOpenReceiptScan();
+              }}
+              className="w-full flex items-center justify-center gap-2 py-2.5 px-3 rounded-2xl bg-primary/10 border border-primary/25 text-primary font-bold text-xs active:scale-[0.98] transition-all min-h-[44px]"
+            >
+              <Sparkle size={16} weight="fill" />
+              <span>Scan Struk dengan AI</span>
+            </button>
+          )}
+
           {/* Module Grid */}
           <div className="grid grid-cols-4 gap-2 pt-1">
             {MORE_MODULES.map((mod) => {
@@ -293,7 +318,7 @@ export function BottomNav({
                   }`}
                 >
                   {mod.badge !== undefined && (
-                    <span className="absolute -top-1 -right-1 w-4 h-4 bg-expense text-white rounded-full text-[9px] font-bold flex items-center justify-center">
+                    <span className="absolute -top-1 -right-1 w-4 h-4 bg-expense text-expense-fg rounded-full text-[11px] font-bold flex items-center justify-center">
                       {mod.badge}
                     </span>
                   )}
@@ -302,7 +327,7 @@ export function BottomNav({
                     weight={isActive ? 'fill' : 'duotone'}
                     className={isActive ? 'text-primary' : 'text-text-muted'}
                   />
-                  <span className={`text-[10px] font-semibold leading-tight text-center ${isActive ? 'text-primary' : 'text-text-muted'}`}>
+                  <span className={`text-[11px] font-semibold leading-tight text-center ${isActive ? 'text-primary' : 'text-text-muted'}`}>
                     {mod.label}
                   </span>
                 </button>

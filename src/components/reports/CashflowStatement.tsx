@@ -55,7 +55,7 @@ export function CashflowStatement({
           <div className="flex items-center gap-2.5">
             <div
               className={`w-10 h-10 rounded-2xl flex items-center justify-center shrink-0 ${
-                isSurplus ? 'bg-income text-white' : 'bg-expense text-white'
+                isSurplus ? 'bg-income text-income-fg' : 'bg-expense text-expense-fg'
               }`}
             >
               {isSurplus ? <CheckCircle size={22} weight="fill" /> : <WarningCircle size={22} weight="fill" />}
@@ -66,10 +66,10 @@ export function CashflowStatement({
                   Laporan Perputaran Kas & Tabungan
                 </h3>
                 <span
-                  className={`text-[10px] font-extrabold px-2.5 py-0.5 rounded-full border ${
+                  className={`text-[11px] font-extrabold px-2.5 py-0.5 rounded-full border ${
                     isSurplus
                       ? 'bg-income/10 text-income border-income/30'
-                      : 'bg-expense/10 text-expense border-expense/30 animate-pulse'
+                      : 'bg-expense/10 text-expense border-expense/30'
                   }`}
                 >
                   {isSurplus ? 'Bulan Ini Uang Bertambah (+)' : 'Bulan Ini Uang Berkurang (-)'}
@@ -96,23 +96,23 @@ export function CashflowStatement({
         {/* 3 Metrik Inti (Ringkas di HP, Mewah di PC) */}
         <div className="grid grid-cols-3 gap-2 sm:gap-3 py-3">
           <div className="p-2.5 sm:p-3.5 bg-surface rounded-2xl border border-border/60 space-y-0.5 sm:space-y-1 text-center sm:text-left">
-            <span className="text-[10px] sm:text-xs text-text-muted font-semibold block">Total Kas Masuk</span>
+            <span className="text-[11px] sm:text-xs text-text-muted font-semibold block">Total Kas Masuk</span>
             <p className="font-display-num text-base md:text-lg text-income tabular-nums whitespace-nowrap">
               +{formatRupiah(totalIncome)}
             </p>
-            <span className="text-[9px] sm:text-[10px] text-text-muted hidden sm:block">Pemasukan & Piutang</span>
+            <span className="text-[11px] text-text-muted hidden sm:block">Pemasukan & Piutang</span>
           </div>
 
           <div className="p-2.5 sm:p-3.5 bg-surface rounded-2xl border border-border/60 space-y-0.5 sm:space-y-1 text-center sm:text-left">
-            <span className="text-[10px] sm:text-xs text-text-muted font-semibold block">Total Kas Keluar</span>
+            <span className="text-[11px] sm:text-xs text-text-muted font-semibold block">Total Kas Keluar</span>
             <p className="font-display-num text-base md:text-lg text-expense tabular-nums whitespace-nowrap">
               -{formatRupiah(totalExpense)}
             </p>
-            <span className="text-[9px] sm:text-[10px] text-text-muted hidden sm:block">Pengeluaran & Cicilan</span>
+            <span className="text-[11px] text-text-muted hidden sm:block">Pengeluaran & Cicilan</span>
           </div>
 
           <div className="p-2.5 sm:p-3.5 bg-surface rounded-2xl border border-border/60 space-y-0.5 sm:space-y-1 text-center sm:text-left">
-            <span className="text-[10px] sm:text-xs text-text-muted font-semibold block">Arus Kas Bersih</span>
+            <span className="text-[11px] sm:text-xs text-text-muted font-semibold block">Arus Kas Bersih</span>
             <p
               className={`font-display-num text-base md:text-lg tabular-nums whitespace-nowrap ${
                 isSurplus ? 'text-income' : 'text-expense'
@@ -120,7 +120,7 @@ export function CashflowStatement({
             >
               {isSurplus ? '+' : ''}{formatRupiah(netCashflow)}
             </p>
-            <span className="text-[9px] sm:text-[10px] text-text-muted hidden sm:block">
+            <span className="text-[11px] text-text-muted hidden sm:block">
               {isSurplus ? `Tabungan ${savingsRate}%` : 'Uang Berkurang'}
             </span>
           </div>

@@ -4,6 +4,11 @@ import { query } from '@/lib/db';
 import { periodQuerySchema } from '@/lib/validations';
 import { handleRouteError } from '@/lib/apiHelpers';
 import { YearlyReportData, YearlyMonthDatum, YearlyCategoryDatum } from '@/lib/types';
+import {
+  TRANSACTION_INCOME_SQL,
+  TRANSACTION_EXPENSE_SQL,
+  TRANSACTION_AMOUNT_WITH_FEE_SQL,
+} from '@/lib/reportSql';
 
 /**
  * Laporan tahunan: tren arus kas 12 bulan, YoY per kategori,
@@ -24,21 +29,20 @@ export async function GET(req: NextRequest) {
     const [monthlyRes, categoryRes] = await Promise.all([
       query(
         `SELECT
-           EXTRACT(MONTH FROM date)::int AS month,
-           COALESCE(SUM(CASE WHEN type = 'income' THEN amount ELSE 0 END), 0)::float AS income,
-           COALESCE(SUM(CASE WHEN type = 'expense' THEN amount ELSE 0 END), 0)::float AS expense
-         FROM transactions
-          WHERE (user_id = $1 OR wallet_id IN (SELECT id FROM wallets WHERE is_shared = TRUE AND household_id IN (SELECT household_id FROM household_members WHERE user_id = $1)))
-           AND type IN ('income', 'expense')
-           AND date >= make_date($2::int, 1, 1)
-           AND date < make_date($2::int, 1, 1) + INTERVAL '1 year'
+           EXTRACT(MONTH FROM t.date)::int AS month,
+           ${TRANSACTION_INCOME_SQL}::float AS income,
+           ${TRANSACTION_EXPENSE_SQL}::float AS expense
+         FROM transactions t
+          WHERE (t.user_id = $1 OR t.wallet_id IN (SELECT id FROM wallets WHERE is_shared = TRUE AND household_id IN (SELECT household_id FROM household_members WHERE user_id = $1)))
+           AND t.date >= make_date($2::int, 1, 1)
+           AND t.date < make_date($2::int, 1, 1) + INTERVAL '1 year'
          GROUP BY 1
          ORDER BY 1`,
         [session.userId, year]
       ),
       query(
         `WITH cat_cur AS (
-           SELECT c.id, c.name, c.icon, c.color, COALESCE(SUM(t.amount), 0)::float AS amount
+           SELECT c.id, c.name, c.icon, c.color, ${TRANSACTION_AMOUNT_WITH_FEE_SQL}::float AS amount
            FROM transactions t
            JOIN categories c ON t.category_id = c.id
             WHERE (t.user_id = $1 OR t.wallet_id IN (SELECT id FROM wallets WHERE is_shared = TRUE AND household_id IN (SELECT household_id FROM household_members WHERE user_id = $1))) AND t.type = 'expense'
@@ -47,7 +51,7 @@ export async function GET(req: NextRequest) {
            GROUP BY c.id, c.name, c.icon, c.color
          ),
          cat_prev AS (
-           SELECT c.id, COALESCE(SUM(t.amount), 0)::float AS amount
+           SELECT c.id, ${TRANSACTION_AMOUNT_WITH_FEE_SQL}::float AS amount
            FROM transactions t
            JOIN categories c ON t.category_id = c.id
             WHERE (t.user_id = $1 OR t.wallet_id IN (SELECT id FROM wallets WHERE is_shared = TRUE AND household_id IN (SELECT household_id FROM household_members WHERE user_id = $1))) AND t.type = 'expense'

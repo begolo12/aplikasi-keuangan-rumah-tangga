@@ -10,6 +10,10 @@ import { AmountInput } from '../ui/AmountInput';
 import { ReconcileModal } from './ReconcileModal';
 import { useWalletForm } from './useWalletForm';
 import { ApiError, apiFetch, endpoints } from '@/lib/apiFetch';
+import { walletColorSwatch } from '@/lib/chartPalette';
+import { useToast } from '../ui/Toast';
+import { Alert } from '../ui/Alert';
+import { FormLabel } from '../ui/FormLabel';
 import {
   Plus,
   Trash,
@@ -40,6 +44,7 @@ interface WalletsViewProps {
 }
 
 export function WalletsView({ wallets, onRefresh, onOpenTransfer, onAddWallet }: WalletsViewProps) {
+  const { notify } = useToast();
   const [listError, setListError] = useState<string | null>(null);
   const [selectedReconcileWallet, setSelectedReconcileWallet] = useState<Wallet | null>(null);
   const [isReconcileOpen, setIsReconcileOpen] = useState(false);
@@ -84,8 +89,11 @@ export function WalletsView({ wallets, onRefresh, onOpenTransfer, onAddWallet }:
       setListError(null);
       setConfirmDeleteId(null);
       onRefresh();
+      notify('Dompet dihapus.', { tone: 'success' });
     } catch (err) {
-      setListError(err instanceof ApiError ? err.message : 'Gagal menghapus dompet.');
+      const msg = err instanceof ApiError ? err.message : 'Gagal menghapus dompet.';
+      setListError(msg);
+      notify(msg, { tone: 'error' });
     } finally {
       setIsDeleting(false);
     }
@@ -126,7 +134,7 @@ export function WalletsView({ wallets, onRefresh, onOpenTransfer, onAddWallet }:
       </div>
 
       {/* Total Balance Card */}
-      <div className="p-5 bg-surface border border-border rounded-3xl flex items-center justify-between shadow-xs">
+      <div className="p-4 sm:p-5 bg-surface border border-border rounded-3xl flex items-center justify-between shadow-xs">
         <div>
           <p className="text-xs font-semibold text-text-muted">Total Saldo di Semua Pos</p>
           <p className="font-display-num text-xl md:text-3xl font-extrabold text-primary mt-1 tabular-nums">
@@ -158,9 +166,9 @@ export function WalletsView({ wallets, onRefresh, onOpenTransfer, onAddWallet }:
 
       {/* Delete Error */}
       {listError && (
-        <div role="alert" className="rounded-xl border border-expense/30 bg-expense/10 px-4 py-3 text-sm font-semibold text-expense">
+        <Alert tone="error" size="sm">
           {listError}
-        </div>
+        </Alert>
       )}
       {/* Wallets Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -169,7 +177,7 @@ export function WalletsView({ wallets, onRefresh, onOpenTransfer, onAddWallet }:
           return (
           <div
             key={wallet.id}
-            className="p-5 bg-surface border border-border rounded-3xl flex flex-col justify-between space-y-4 shadow-xs hover:border-primary/40 transition-all"
+            className="p-4 sm:p-5 bg-surface border border-border rounded-3xl flex flex-col justify-between space-y-4 shadow-xs hover:border-primary/40 transition-all"
           >
             <div className="flex items-start justify-between">
               <div className="flex items-center gap-3">
@@ -178,7 +186,7 @@ export function WalletsView({ wallets, onRefresh, onOpenTransfer, onAddWallet }:
                   <div className="flex items-center gap-1.5">
                     <h4 className="text-sm font-bold text-text">{wallet.name}</h4>
                     {wallet.is_default && (
-                      <span className="text-[10px] font-bold text-primary bg-primary/10 px-1.5 py-0.5 rounded-full">
+                      <span className="text-[11px] font-bold text-primary bg-primary/10 px-1.5 py-0.5 rounded-full">
                         Utama
                       </span>
                     )}
@@ -195,7 +203,7 @@ export function WalletsView({ wallets, onRefresh, onOpenTransfer, onAddWallet }:
                     type="button"
                     disabled={isDeleting}
                     onClick={() => handleDelete(wallet.id)}
-                    className="min-h-[44px] px-3 py-1.5 bg-expense text-white text-xs font-bold rounded-xl hover:opacity-90 transition-opacity shadow-2xs"
+                    className="min-h-[44px] px-3 py-1.5 bg-expense text-expense-fg text-xs font-bold rounded-xl hover:opacity-90 transition-opacity shadow-2xs"
                   >
                     {isDeleting ? '...' : 'Hapus'}
                   </button>
@@ -214,7 +222,7 @@ export function WalletsView({ wallets, onRefresh, onOpenTransfer, onAddWallet }:
                     onClick={() => openEditModal(wallet)}
                     aria-label={`Ubah pos ${wallet.name}`}
                     title="Ubah Pos"
-                    className="min-w-[40px] min-h-[40px] flex items-center justify-center text-text-muted hover:text-text hover:bg-surface-2 rounded-xl transition-colors"
+                    className="min-w-[44px] min-h-[44px] flex items-center justify-center text-text-muted hover:text-text hover:bg-surface-2 rounded-xl transition-colors"
                   >
                     <PencilSimple size={16} />
                   </button>
@@ -223,7 +231,7 @@ export function WalletsView({ wallets, onRefresh, onOpenTransfer, onAddWallet }:
                     onClick={() => setConfirmDeleteId(wallet.id)}
                     aria-label={`Hapus pos ${wallet.name}`}
                     title="Hapus Pos"
-                    className="min-w-[40px] min-h-[40px] flex items-center justify-center text-text-muted hover:text-expense hover:bg-expense/10 rounded-xl transition-colors"
+                    className="min-w-[44px] min-h-[44px] flex items-center justify-center text-text-muted hover:text-expense hover:bg-expense/10 rounded-xl transition-colors"
                   >
                     <Trash size={16} />
                   </button>
@@ -233,16 +241,16 @@ export function WalletsView({ wallets, onRefresh, onOpenTransfer, onAddWallet }:
 
             <div className="pt-2 border-t border-border/60 flex items-center justify-between">
               <div className="space-y-0.5 min-w-0 flex-1 pr-2">
-                <span className="text-[10px] text-text-muted block">Saldo Tercatat</span>
+                <span className="text-[11px] text-text-muted block">Saldo Tercatat</span>
                 <span className={`font-display-num text-base sm:text-lg font-extrabold tabular-nums ${wallet.balance < 0 ? 'text-expense' : 'text-text'}`}>
                   {formatRupiah(wallet.balance)}
                 </span>
                 {wallet.balance < 0 && (
-                  <span className="block text-[10px] font-bold text-expense">
+                  <span className="block text-[11px] font-bold text-expense">
                     (Minus / Overdraft)
                   </span>
                 )}
-                <span className={`text-[10px] flex items-center gap-1 pt-0.5 truncate ${reconcileAge !== 'fresh' ? 'font-semibold text-warning' : 'text-text-muted'}`}>
+                <span className={`text-[11px] flex items-center gap-1 pt-0.5 truncate ${reconcileAge !== 'fresh' ? 'font-semibold text-warning' : 'text-text-muted'}`}>
                   <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${reconcileAge === 'fresh' ? 'bg-primary' : 'bg-warning'}`} />
                   <span>
                     {wallet.reconciled_at
@@ -284,13 +292,13 @@ export function WalletsView({ wallets, onRefresh, onOpenTransfer, onAddWallet }:
       >
         <form onSubmit={handleSubmit} className="space-y-4">
           {error && (
-            <div className="p-3 bg-expense/10 border border-expense/20 rounded-2xl text-expense text-xs font-semibold">
+            <Alert tone="error" size="sm">
               {error}
-            </div>
+            </Alert>
           )}
 
           <div className="space-y-1">
-            <label htmlFor="walletName" className="block text-xs font-semibold text-text-muted">Nama Pos Dompet / Rekening</label>
+            <FormLabel htmlFor="walletName" required>Nama Pos Dompet / Rekening</FormLabel>
             <input
               type="text"
               id="walletName"
@@ -303,7 +311,7 @@ export function WalletsView({ wallets, onRefresh, onOpenTransfer, onAddWallet }:
           </div>
 
           <div className="space-y-1">
-            <label htmlFor="walletType" className="block text-xs font-semibold text-text-muted">Tipe Pos</label>
+            <FormLabel htmlFor="walletType">Tipe Pos</FormLabel>
             <select
               id="walletType"
               value={type}
@@ -328,8 +336,8 @@ export function WalletsView({ wallets, onRefresh, onOpenTransfer, onAddWallet }:
           )}
           {/* Color & Icon Selector */}
           <div className="space-y-1.5">
-            <label className="block text-xs font-semibold text-text-muted">Pilih Warna</label>
-            <div className="flex flex-wrap gap-2">
+            <FormLabel as="group" id="wallet-color-label">Pilih Warna</FormLabel>
+            <div role="group" aria-labelledby="wallet-color-label" className="flex flex-wrap gap-2">
               {AVAILABLE_COLORS.map((c) => (
                 <button
                   key={c}
@@ -345,22 +353,7 @@ export function WalletsView({ wallets, onRefresh, onOpenTransfer, onAddWallet }:
                     className={`w-7 h-7 rounded-full border-2 block ${
                       color === c ? 'border-text shadow-sm' : 'border-transparent'
                     }`}
-                    style={{
-                      backgroundColor:
-                        c === 'emerald'
-                          ? '#20986C'
-                          : c === 'blue'
-                          ? '#1E6BE5'
-                          : c === 'teal'
-                          ? '#0D9488'
-                          : c === 'amber'
-                          ? '#E98B0B'
-                          : c === 'purple'
-                          ? '#9333EA'
-                          : c === 'rose'
-                          ? '#E11D48'
-                          : '#64748B',
-                    }}
+                    style={{ backgroundColor: walletColorSwatch(c) }}
                   />
                 </button>
               ))}
@@ -375,7 +368,7 @@ export function WalletsView({ wallets, onRefresh, onOpenTransfer, onAddWallet }:
               onChange={(e) => setIsDefault(e.target.checked)}
               className="w-4 h-4 text-primary rounded"
             />
-            <label htmlFor="isDefault" className="text-xs font-medium text-text cursor-pointer">
+            <label htmlFor="isDefault" className="text-xs font-medium text-text cursor-pointer py-3.5 -my-2">
               Jadikan sebagai pos dompet utama (default)
             </label>
           </div>
@@ -389,7 +382,7 @@ export function WalletsView({ wallets, onRefresh, onOpenTransfer, onAddWallet }:
                 onChange={(e) => setIsShared(e.target.checked)}
                 className="w-4 h-4 text-primary rounded"
               />
-              <label htmlFor="isShared" className="text-xs font-medium text-text cursor-pointer">
+              <label htmlFor="isShared" className="text-xs font-medium text-text cursor-pointer py-3.5 -my-2">
                 Dompet bersama (bisa dipakai seluruh anggota keluarga)
               </label>
             </div>

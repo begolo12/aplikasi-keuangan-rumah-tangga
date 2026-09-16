@@ -23,7 +23,7 @@ export function MonthlySummary({ summary }: MonthlySummaryProps) {
             className={`flex items-center gap-1 px-2.5 py-0.5 rounded-full border text-[11px] font-extrabold ${
               isSurplus
                 ? 'bg-income/10 text-income border-income/20'
-                : 'bg-expense/10 text-expense border-expense/20 animate-pulse'
+                : 'bg-expense/10 text-expense border-expense/20'
             }`}
           >
             {isSurplus ? <CheckCircle size={13} weight="fill" /> : <WarningCircle size={13} weight="fill" />}
@@ -39,7 +39,7 @@ export function MonthlySummary({ summary }: MonthlySummaryProps) {
           <div className="flex flex-col items-center justify-center py-2.5 px-1 gap-0.5">
             <div className="flex items-center gap-1 text-income">
               <ArrowUpRight size={13} weight="bold" />
-              <span className="text-[10px] font-bold text-text-muted uppercase tracking-wide">Pemasukan</span>
+              <span className="text-[11px] font-bold text-text-muted uppercase tracking-wide">Pemasukan</span>
             </div>
             <p className="text-xs sm:text-sm font-extrabold text-income tabular-nums">
               +{formatCompactRupiah(summary.total_income)}
@@ -50,7 +50,7 @@ export function MonthlySummary({ summary }: MonthlySummaryProps) {
           <div className="flex flex-col items-center justify-center py-2.5 px-1 gap-0.5">
             <div className="flex items-center gap-1 text-expense">
               <ArrowDownRight size={13} weight="bold" />
-              <span className="text-[10px] font-bold text-text-muted uppercase tracking-wide">Pengeluaran</span>
+              <span className="text-[11px] font-bold text-text-muted uppercase tracking-wide">Pengeluaran</span>
             </div>
             <p className="text-xs sm:text-sm font-extrabold text-expense tabular-nums">
               -{formatCompactRupiah(summary.total_expense)}
@@ -61,7 +61,7 @@ export function MonthlySummary({ summary }: MonthlySummaryProps) {
           <div className={`flex flex-col items-center justify-center py-2.5 px-1 gap-0.5 ${isSurplus ? 'bg-income/5' : 'bg-expense/5'}`}>
             <div className={`flex items-center gap-1 ${isSurplus ? 'text-income' : 'text-expense'}`}>
               <Scales size={13} weight="bold" />
-              <span className="text-[10px] font-bold text-text-muted uppercase tracking-wide">Arus Kas</span>
+              <span className="text-[11px] font-bold text-text-muted uppercase tracking-wide">Arus Kas</span>
             </div>
             <p className={`text-xs sm:text-sm font-extrabold tabular-nums ${isSurplus ? 'text-income' : 'text-expense'}`}>
               {isSurplus ? '+' : ''}{formatCompactRupiah(summary.net_cash_flow)}

@@ -17,12 +17,15 @@ import { apiFetch, endpoints, ApiError } from '@/lib/apiFetch';
 import { HouseholdState, HouseholdMemberReport } from '@/lib/types';
 import { formatRupiah, INDONESIAN_MONTHS } from '@/lib/formatters';
 import { ConfirmModal } from '../ui/ConfirmModal';
+import { Alert } from '../ui/Alert';
+import { useToast } from '../ui/Toast';
 
 interface HouseholdViewProps {
   onRefreshParent?: () => void;
 }
 
 export function HouseholdView({ onRefreshParent }: HouseholdViewProps) {
+  const { notify } = useToast();
   const [state, setState] = useState<HouseholdState | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -101,8 +104,11 @@ export function HouseholdView({ onRefreshParent }: HouseholdViewProps) {
       setIsLoading(true);
       await loadState();
       onRefreshParent?.();
+      notify('Keluarga berhasil dibuat.', { tone: 'success' });
     } catch (err) {
-      setActionError(err instanceof ApiError ? err.message : 'Gagal membuat keluarga.');
+      const msg = err instanceof ApiError ? err.message : 'Gagal membuat keluarga.';
+      setActionError(msg);
+      notify(msg, { tone: 'error' });
     } finally {
       setIsSubmitting(false);
     }
@@ -118,8 +124,11 @@ export function HouseholdView({ onRefreshParent }: HouseholdViewProps) {
       setIsLoading(true);
       await loadState();
       onRefreshParent?.();
+      notify('Berhasil bergabung ke keluarga.', { tone: 'success' });
     } catch (err) {
-      setActionError(err instanceof ApiError ? err.message : 'Gagal bergabung.');
+      const msg = err instanceof ApiError ? err.message : 'Gagal bergabung.';
+      setActionError(msg);
+      notify(msg, { tone: 'error' });
     } finally {
       setIsSubmitting(false);
     }
@@ -136,8 +145,11 @@ export function HouseholdView({ onRefreshParent }: HouseholdViewProps) {
       setIsLoading(true);
       await loadState();
       onRefreshParent?.();
+      notify('Berhasil keluar dari keluarga.', { tone: 'success' });
     } catch (err) {
-      setActionError(err instanceof ApiError ? err.message : 'Gagal keluar dari keluarga.');
+      const msg = err instanceof ApiError ? err.message : 'Gagal keluar dari keluarga.';
+      setActionError(msg);
+      notify(msg, { tone: 'error' });
     }
   };
 
@@ -150,8 +162,11 @@ export function HouseholdView({ onRefreshParent }: HouseholdViewProps) {
       await apiFetch(endpoints.householdMember(id), { method: 'DELETE' });
       setIsLoading(true);
       await loadState();
+      notify('Anggota dikeluarkan dari keluarga.', { tone: 'success' });
     } catch (err) {
-      setActionError(err instanceof ApiError ? err.message : 'Gagal mengeluarkan anggota.');
+      const msg = err instanceof ApiError ? err.message : 'Gagal mengeluarkan anggota.';
+      setActionError(msg);
+      notify(msg, { tone: 'error' });
     }
   };
 
@@ -186,7 +201,7 @@ export function HouseholdView({ onRefreshParent }: HouseholdViewProps) {
             setIsLoading(true);
             loadState();
           }}
-          className="min-h-[44px] px-5 py-2.5 rounded-xl bg-primary text-white text-sm font-bold hover:opacity-90"
+          className="min-h-[44px] px-5 py-2.5 rounded-xl bg-primary text-primary-fg text-sm font-bold hover:opacity-90"
         >
           Coba lagi
         </button>
@@ -202,7 +217,7 @@ export function HouseholdView({ onRefreshParent }: HouseholdViewProps) {
           <div className="w-12 h-12 bg-primary/10 text-primary rounded-2xl flex items-center justify-center mx-auto border border-primary/20">
             <UsersThree size={26} weight="duotone" />
           </div>
-          <h2 className="text-lg font-extrabold text-text">Kas Keluarga Bersama</h2>
+          <h2 className="text-xl sm:text-2xl font-bold text-text">Kas Keluarga Bersama</h2>
           <p className="text-xs text-text-muted leading-relaxed">
             Gabungkan anggota keluarga dalam satu household untuk berbagi dompet bersama dan mencatat
             transaksi dengan nama pencatat.
@@ -210,9 +225,9 @@ export function HouseholdView({ onRefreshParent }: HouseholdViewProps) {
         </div>
 
         {actionError && (
-          <div role="alert" className="rounded-xl border border-expense/30 bg-expense-subtle px-4 py-3 text-sm font-semibold text-expense">
+          <Alert tone="error" size="sm">
             {actionError}
-          </div>
+          </Alert>
         )}
 
         <form onSubmit={handleCreate} className="bg-surface border border-border rounded-2xl p-4 space-y-3">
@@ -227,7 +242,7 @@ export function HouseholdView({ onRefreshParent }: HouseholdViewProps) {
             maxLength={100}
             required
             minLength={2}
-            className="w-full min-h-[44px] px-3.5 rounded-xl bg-surface-2 border border-border text-sm font-semibold text-text placeholder:text-text-muted/60 focus:outline-none focus:ring-2 focus:ring-primary/30"
+            className="w-full min-h-[44px] px-3.5 rounded-xl bg-surface-2 border border-border text-sm font-semibold text-text placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-primary/30"
           />
           <button
             type="submit"
@@ -241,7 +256,7 @@ export function HouseholdView({ onRefreshParent }: HouseholdViewProps) {
 
         <div className="flex items-center gap-3">
           <div className="flex-1 h-px bg-border" />
-          <span className="text-[10px] font-bold text-text-muted uppercase tracking-widest">atau</span>
+          <span className="text-[11px] font-bold text-text-muted uppercase tracking-widest">atau</span>
           <div className="flex-1 h-px bg-border" />
         </div>
 
@@ -256,7 +271,7 @@ export function HouseholdView({ onRefreshParent }: HouseholdViewProps) {
             placeholder="Contoh: K7X2M9PA"
             maxLength={8}
             required
-            className="w-full min-h-[44px] px-3.5 rounded-xl bg-surface-2 border border-border text-sm font-bold text-text tracking-[0.25em] uppercase text-center placeholder:tracking-normal placeholder:font-semibold placeholder:text-text-muted/60 focus:outline-none focus:ring-2 focus:ring-primary/30"
+            className="w-full min-h-[44px] px-3.5 rounded-xl bg-surface-2 border border-border text-sm font-bold text-text tracking-[0.25em] uppercase text-center placeholder:tracking-normal placeholder:font-semibold placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-primary/30"
           />
           <button
             type="submit"
@@ -277,16 +292,16 @@ export function HouseholdView({ onRefreshParent }: HouseholdViewProps) {
   return (
     <div className="space-y-4">
       {actionError && (
-        <div role="alert" className="rounded-xl border border-expense/30 bg-expense-subtle px-4 py-3 text-sm font-semibold text-expense">
+        <Alert tone="error" size="sm">
           {actionError}
-        </div>
+        </Alert>
       )}
 
       {/* Header Keluarga */}
       <div className="bg-surface border border-border rounded-2xl p-4 space-y-3">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <h2 className="text-base font-extrabold text-text flex items-center gap-2">
+            <h2 className="text-xl sm:text-2xl font-bold text-text flex items-center gap-2">
               <UsersThree size={20} weight="duotone" className="text-primary shrink-0" />
               <span className="truncate">{state.household.name}</span>
             </h2>
@@ -295,7 +310,7 @@ export function HouseholdView({ onRefreshParent }: HouseholdViewProps) {
             </p>
           </div>
           {state.new_activity_count > 0 && (
-            <span className="shrink-0 flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-income/10 border border-income/20 text-income text-[10px] font-bold">
+            <span className="shrink-0 flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-income/10 border border-income/20 text-income text-[11px] font-bold">
               <Pulse size={12} weight="bold" />
               {state.new_activity_count} catatan baru 7 hari
             </span>
@@ -306,13 +321,13 @@ export function HouseholdView({ onRefreshParent }: HouseholdViewProps) {
         {isOwner && state.household.invite_code && (
           <div className="flex items-center justify-between gap-3 p-3 rounded-xl bg-surface-2 border border-border/60">
             <div className="min-w-0">
-              <p className="text-[10px] font-bold text-text-muted uppercase tracking-wider">Kode Undangan</p>
+              <p className="text-[11px] font-bold text-text-muted uppercase tracking-wider">Kode Undangan</p>
               <p className="text-lg font-extrabold text-text tracking-[0.3em]">{state.household.invite_code}</p>
             </div>
             <button
               type="button"
               onClick={handleCopyCode}
-              className="min-h-[40px] px-3.5 rounded-xl bg-primary/10 text-primary border border-primary/20 text-xs font-bold flex items-center gap-1.5 hover:bg-primary/20 active:scale-95 transition-all shrink-0"
+              className="min-h-[44px] px-3.5 rounded-xl bg-primary/10 text-primary border border-primary/20 text-xs font-bold flex items-center gap-1.5 hover:bg-primary/20 active:scale-95 transition-all shrink-0"
             >
               {copied ? <Check size={14} weight="bold" /> : <Copy size={14} weight="bold" />}
               {copied ? 'Tersalin' : 'Salin'}
@@ -323,7 +338,7 @@ export function HouseholdView({ onRefreshParent }: HouseholdViewProps) {
         <button
           type="button"
           onClick={() => setIsLeaveConfirmOpen(true)}
-          className="min-h-[40px] px-3.5 rounded-xl text-expense border border-expense/20 bg-expense/5 text-xs font-bold flex items-center gap-1.5 hover:bg-expense/10 active:scale-95 transition-all"
+          className="min-h-[44px] px-3.5 rounded-xl text-expense border border-expense/20 bg-expense/5 text-xs font-bold flex items-center gap-1.5 hover:bg-expense/10 active:scale-95 transition-all"
         >
           <SignOut size={14} weight="bold" />
           {isOwner ? 'Bubarkan Keluarga' : 'Keluar dari Keluarga'}
@@ -348,14 +363,14 @@ export function HouseholdView({ onRefreshParent }: HouseholdViewProps) {
                     {m.name}
                     {m.role === 'owner' && <Crown size={12} weight="fill" className="text-warning shrink-0" />}
                   </p>
-                  <p className="text-[10px] text-text-muted truncate">{m.email}</p>
+                  <p className="text-[11px] text-text-muted truncate">{m.email}</p>
                 </div>
               </div>
               {isOwner && m.role === 'member' && (
                 <button
                   type="button"
                   onClick={() => setRemoveMemberTarget({ id: m.user_id, name: m.name })}
-                  className="min-h-[44px] px-2.5 rounded-lg text-expense text-[10px] font-bold hover:bg-expense/10 transition-colors shrink-0"
+                  className="min-h-[44px] px-2.5 rounded-lg text-expense text-[11px] font-bold hover:bg-expense/10 transition-colors shrink-0"
                 >
                   Keluarkan
                 </button>
@@ -383,7 +398,7 @@ export function HouseholdView({ onRefreshParent }: HouseholdViewProps) {
             value={reportMonth}
             onChange={(e) => setReportMonth(Number(e.target.value))}
             aria-label="Bulan laporan"
-            className="min-h-[40px] px-3 rounded-xl bg-surface-2 border border-border text-xs font-bold text-text focus:outline-none focus:ring-2 focus:ring-primary/30"
+            className="min-h-[44px] px-3 rounded-xl bg-surface-2 border border-border text-xs font-bold text-text focus:outline-none focus:ring-2 focus:ring-primary/30"
           >
             {INDONESIAN_MONTHS.map((name, i) => (
               <option key={name} value={i + 1}>{name}</option>
@@ -393,7 +408,7 @@ export function HouseholdView({ onRefreshParent }: HouseholdViewProps) {
             value={reportYear}
             onChange={(e) => setReportYear(Number(e.target.value))}
             aria-label="Tahun laporan"
-            className="min-h-[40px] px-3 rounded-xl bg-surface-2 border border-border text-xs font-bold text-text focus:outline-none focus:ring-2 focus:ring-primary/30"
+            className="min-h-[44px] px-3 rounded-xl bg-surface-2 border border-border text-xs font-bold text-text focus:outline-none focus:ring-2 focus:ring-primary/30"
           >
             {Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - 4 + i).map((y) => (
               <option key={y} value={y}>{y}</option>
@@ -412,7 +427,7 @@ export function HouseholdView({ onRefreshParent }: HouseholdViewProps) {
               >
                 <div className="min-w-0">
                   <p className="text-xs font-bold text-text truncate">{r.name}</p>
-                  <p className="text-[10px] text-text-muted">
+                  <p className="text-[11px] text-text-muted">
                     {r.transaction_count} transaksi · pemasukan {formatRupiah(r.income)}
                     {(r.transfer_in > 0 || r.transfer_out > 0) && (
                       <> · setoran bersama {formatRupiah(r.transfer_in)} · penarikan {formatRupiah(r.transfer_out)}</>

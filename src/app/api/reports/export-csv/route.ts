@@ -68,10 +68,10 @@ export async function GET(req: NextRequest) {
       const dateFormatted = `${day}/${m}/${y}`;
 
       const typeLabel = r.type === 'expense' ? 'Pengeluaran' : r.type === 'income' ? 'Pemasukan' : 'Transfer';
-      // Mitigasi CSV formula injection: nilai berawalan =, +, -, @ diberi prefiks apostrof.
+      // Mitigasi CSV formula injection: nilai berawalan =, +, -, @, \t, atau \r diberi prefiks apostrof.
       const escape = (str: string | null | undefined) => {
         let v = str || '';
-        if (/^[=+\-@]/.test(v)) v = `'${v}`;
+        if (/^[=+\-@\t\r]/.test(v)) v = `'${v}`;
         return `"${v.replace(/"/g, '""')}"`;
       };
       const numeric = (value: string | null) => parseFloat(value || '0').toFixed(2);
@@ -88,7 +88,29 @@ export async function GET(req: NextRequest) {
       ].join(',');
     });
 
-    const csvContent = ['\ufeff' + csvHeaders.join(','), ...csvRows].join('\r\n');
+    // Ringkasan di akhir: transfer dipisah karena bukan pengeluaran, dan biaya admin
+    // selalu ikut ke nominal barisnya agar angkanya cocok dengan laporan di aplikasi.
+    const sumByType = (type: string) =>
+      rows.reduce((acc, r) => {
+        if (r.type !== type) return acc;
+        const amount = parseFloat(r.amount || '0');
+        // Biaya admin hanya melekat pada pengeluaran/transfer (pemasukan selalu 0),
+        // sama seperti TRANSACTION_EXPENSE_SQL di src/lib/reportSql.ts.
+        return type === 'income' ? acc + amount : acc + amount + parseFloat(r.admin_fee || '0');
+      }, 0);
+    const totalIncome = sumByType('income');
+    const totalExpense = sumByType('expense');
+    const totalTransfer = sumByType('transfer');
+    const summaryRows = [
+      '',
+      '"Ringkasan"',
+      `"Total Pemasukan",${totalIncome.toFixed(2)}`,
+      `"Total Pengeluaran (termasuk biaya admin)",${totalExpense.toFixed(2)}`,
+      `"Total Transfer (bukan pengeluaran)",${totalTransfer.toFixed(2)}`,
+      `"Arus Kas Bersih",${(totalIncome - totalExpense).toFixed(2)}`,
+    ];
+
+    const csvContent = ['\ufeff' + csvHeaders.join(','), ...csvRows, ...summaryRows].join('\r\n');
     const safeMonth = month ? String(month).padStart(2, '0') : '';
     const filename = `Laporan-Keuangan-${year || 'Semua'}${safeMonth ? `-${safeMonth}` : ''}.csv`;
 

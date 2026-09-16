@@ -88,19 +88,21 @@ export function ReceiptParserModal({
 
   const matchedCat = categories.find((c) => c.id === parsedResult?.suggested_category_id);
   const matchedWallet = wallets.find((w) => w.id === parsedResult?.suggested_wallet_id);
+  // Hasil jalur heuristik (regex lokal) tidak boleh disebut sebagai analisis AI.
+  const isHeuristic = parsedResult?.source === 'heuristic';
 
   return (
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title="Smart Scan Struk & Nota AI"
+      title="Scan Struk & Nota"
     >
       <div className="space-y-4">
         <p className="text-xs text-text-muted -mt-2">
           Ekstrak nominal, tanggal, toko, dan kategori belanja secara otomatis.
         </p>
-        <p className="text-[10px] text-text-muted">
-          Teks struk dianalisis AI di server (DeepSeek) untuk mengisi form otomatis.
+        <p className="text-[11px] text-text-muted">
+          Teks struk dikirim ke server untuk diekstrak. Hasilnya selalu perlu Anda periksa sebelum disimpan.
         </p>
 
         {/* Input Area */}
@@ -124,7 +126,7 @@ export function ReceiptParserModal({
             value={receiptText}
             onChange={(e) => setReceiptText(e.target.value)}
             placeholder="Contoh:&#10;INDOMARET POINT&#10;1x SUSU UHT ULTRA 1000ML 19.500&#10;1x ROTI TAWAR 16.000&#10;TOTAL: Rp 35.500&#10;Tgl: 28-08-2026 / BCA QRIS"
-            className="w-full text-xs font-mono p-3 rounded-xl bg-surface-2 border border-border focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none transition-all placeholder:text-text-muted/60"
+            className="w-full text-xs font-mono p-3 rounded-xl bg-surface-2 border border-border focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none transition-all placeholder:text-text-muted"
           />
         </div>
 
@@ -152,7 +154,7 @@ export function ReceiptParserModal({
             ) : (
               <span className="flex items-center gap-2">
                 <Sparkle size={16} weight="bold" />
-                Ekstrak dengan DeepSeek AI
+                Ekstrak dari Teks
               </span>
             )}
           </Button>
@@ -166,21 +168,38 @@ export function ReceiptParserModal({
                 <CheckCircle size={16} weight="fill" />
                 Hasil Ekstraksi Transaksi
               </div>
-              <span className="text-[10px] font-semibold uppercase px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">
+              <span className="text-[11px] font-semibold uppercase px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">
                 {parsedResult.type === 'income' ? 'Pemasukan' : 'Pengeluaran'}
               </span>
             </div>
 
+            {isHeuristic && (
+              <div className="p-2.5 rounded-xl bg-warning/10 border border-warning/30 flex items-start gap-2 text-[11px] text-warning font-semibold">
+                <WarningCircle size={15} weight="bold" className="shrink-0 mt-0.5" />
+                <span>
+                  Hasil ini dibaca dengan pencocokan pola sederhana, bukan analisis AI.
+                  Periksa nominal dan keterangan sebelum diterapkan.
+                </span>
+              </div>
+            )}
+
+            {parsedResult.amount === 0 && (
+              <div className="p-2.5 rounded-xl bg-expense/10 border border-expense/20 flex items-start gap-2 text-[11px] text-expense font-semibold">
+                <WarningCircle size={15} weight="bold" className="shrink-0 mt-0.5" />
+                <span>Tidak ada nominal yang terdeteksi. Isi nominal secara manual.</span>
+              </div>
+            )}
+
             <div className="grid grid-cols-2 gap-2 text-xs">
               <div className="space-y-0.5">
-                <span className="text-[10px] text-text-muted font-medium">Nominal Terdeteksi</span>
+                <span className="text-[11px] text-text-muted font-medium">Nominal Terdeteksi</span>
                 <p className="font-bold text-text text-sm sm:text-base font-display-num">
                   {formatRupiah(parsedResult.amount)}
                 </p>
               </div>
 
               <div className="space-y-0.5">
-                <span className="text-[10px] text-text-muted font-medium">Tanggal</span>
+                <span className="text-[11px] text-text-muted font-medium">Tanggal</span>
                 <p className="font-semibold text-text flex items-center gap-1">
                   <CalendarBlank size={13} className="text-text-muted" />
                   {parsedResult.date}
@@ -188,7 +207,7 @@ export function ReceiptParserModal({
               </div>
 
               <div className="space-y-0.5 col-span-2">
-                <span className="text-[10px] text-text-muted font-medium">Keterangan / Merchant</span>
+                <span className="text-[11px] text-text-muted font-medium">Keterangan / Merchant</span>
                 <p className="font-semibold text-text flex items-center gap-1">
                   <Storefront size={13} className="text-text-muted" />
                   {parsedResult.description}
@@ -197,7 +216,7 @@ export function ReceiptParserModal({
 
               {matchedCat && (
                 <div className="space-y-0.5">
-                  <span className="text-[10px] text-text-muted font-medium">Kategori Usulan</span>
+                  <span className="text-[11px] text-text-muted font-medium">Kategori Usulan</span>
                   <p className="font-semibold text-text flex items-center gap-1 truncate">
                     <Tag size={13} className="text-text-muted shrink-0" />
                     <span className="truncate">{matchedCat.name}</span>
@@ -207,7 +226,7 @@ export function ReceiptParserModal({
 
               {matchedWallet && (
                 <div className="space-y-0.5">
-                  <span className="text-[10px] text-text-muted font-medium">Dompet Sumber</span>
+                  <span className="text-[11px] text-text-muted font-medium">Dompet Sumber</span>
                   <p className="font-semibold text-text flex items-center gap-1 truncate">
                     <WalletIcon size={13} className="text-text-muted shrink-0" />
                     <span className="truncate">{matchedWallet.name}</span>
@@ -219,7 +238,7 @@ export function ReceiptParserModal({
             {/* List item belanja jika ada */}
             {parsedResult.items && parsedResult.items.length > 0 && (
               <div className="pt-2 border-t border-border/50 space-y-1">
-                <span className="text-[10px] font-bold text-text-muted uppercase">Rincian Item</span>
+                <span className="text-[11px] font-bold text-text-muted uppercase">Rincian Item</span>
                 <div className="max-h-24 overflow-y-auto space-y-1 pr-1">
                   {parsedResult.items.map((it, idx) => (
                     <div key={idx} className="flex items-center justify-between text-[11px] text-text-muted">

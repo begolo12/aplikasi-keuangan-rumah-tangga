@@ -55,7 +55,7 @@ export function IncomeStatementReport({
           <div className="flex items-center gap-2">
             <div
               className={`p-2 rounded-xl shrink-0 ${
-                isSurplus ? 'bg-income text-white' : 'bg-expense text-white'
+                isSurplus ? 'bg-income text-income-fg' : 'bg-expense text-expense-fg'
               }`}
             >
               <TrendUp size={20} weight="bold" />
@@ -66,16 +66,16 @@ export function IncomeStatementReport({
                   Perbandingan Pemasukan & Belanja ({INDONESIAN_MONTHS[selectedMonth - 1]} {selectedYear})
                 </h3>
                 <span
-                  className={`text-[10px] font-extrabold px-2.5 py-0.5 rounded-full border ${
+                  className={`text-[11px] font-extrabold px-2.5 py-0.5 rounded-full border ${
                     isSurplus
                       ? 'bg-income/10 text-income border-income/30'
-                      : 'bg-expense/10 text-expense border-expense/30 animate-pulse'
+                      : 'bg-expense/10 text-expense border-expense/30'
                   }`}
                 >
                   {isSurplus ? 'Uang Masih Sisa (+)' : 'Pengeluaran Berlebih (-)'}
                 </span>
               </div>
-              <p className="text-[10px] sm:text-[11px] text-text-muted">
+              <p className="text-[11px] text-text-muted">
                 Ringkasan uang masuk dikurangi belanja kebutuhan hidup & estimasi penurunan nilai barang.
               </p>
             </div>
@@ -85,7 +85,7 @@ export function IncomeStatementReport({
             <button
               type="button"
               onClick={onExportCsv}
-              className="self-start sm:self-center text-xs font-bold text-primary hover:underline flex items-center gap-1 min-h-[32px]"
+              className="self-start sm:self-center text-xs font-bold text-primary hover:underline flex items-center gap-1 min-h-[44px]"
             >
               <FileCsv size={15} weight="bold" />
               <span>Ekspor Data</span>
@@ -96,27 +96,27 @@ export function IncomeStatementReport({
         {/* 3 Metric Grid (Mobile-friendly) */}
         <div className="grid grid-cols-3 gap-2 sm:gap-3 py-3">
           <div className="p-2.5 sm:p-3.5 bg-surface rounded-2xl border border-border/60 space-y-0.5 sm:space-y-1 text-center sm:text-left">
-            <span className="text-[10px] sm:text-xs text-text-muted font-semibold block">Total Uang Masuk</span>
+            <span className="text-[11px] sm:text-xs text-text-muted font-semibold block">Total Uang Masuk</span>
             <p className="font-display-num text-base md:text-lg text-income tabular-nums whitespace-nowrap">
               +{formatRupiah(totalIncome)}
             </p>
-            <span className="text-[9px] sm:text-[10px] text-text-muted hidden sm:block">Gaji & Tambahan</span>
+            <span className="text-[11px] text-text-muted hidden sm:block">Gaji & Tambahan</span>
           </div>
 
           <div className="p-2.5 sm:p-3.5 bg-surface rounded-2xl border border-border/60 space-y-0.5 sm:space-y-1 text-center sm:text-left">
-            <span className="text-[10px] sm:text-xs text-text-muted font-semibold block">Total Belanja Hidup</span>
+            <span className="text-[11px] sm:text-xs text-text-muted font-semibold block">Total Belanja Hidup</span>
             <p className="font-display-num text-base md:text-lg text-expense tabular-nums whitespace-nowrap">
               -{formatRupiah(totalOperatingExpense)}
             </p>
-            <span className="text-[9px] sm:text-[10px] text-text-muted hidden sm:block">Kebutuhan & Tagihan</span>
+            <span className="text-[11px] text-text-muted hidden sm:block">Kebutuhan & Tagihan</span>
           </div>
 
           <div className="p-2.5 sm:p-3.5 bg-surface rounded-2xl border border-border/60 space-y-0.5 sm:space-y-1 text-center sm:text-left">
-            <span className="text-[10px] sm:text-xs text-text-muted font-semibold block">Penurunan Nilai Barang</span>
+            <span className="text-[11px] sm:text-xs text-text-muted font-semibold block">Penurunan Nilai Barang</span>
             <p className="font-display-num text-base md:text-lg text-transfer tabular-nums whitespace-nowrap">
               -{formatRupiah(totalMonthlyDepreciation)}
             </p>
-            <span className="text-[9px] sm:text-[10px] text-text-muted hidden sm:block">Susut Nilai Aset</span>
+            <span className="text-[11px] text-text-muted hidden sm:block">Susut Nilai Aset</span>
           </div>
         </div>
 
@@ -147,7 +147,7 @@ export function IncomeStatementReport({
         <div className="space-y-2 text-xs divide-y divide-border/40">
           {/* 1. Pendapatan */}
           <div className="pt-2 space-y-1">
-            <span className="font-bold text-text-muted uppercase text-[10px] tracking-wider block">
+            <span className="font-bold text-text-muted uppercase text-[11px] tracking-wider block">
               1. SEMUA UANG MASUK (PEMASUKAN)
             </span>
             <div className="flex items-center justify-between py-1 px-2">
@@ -162,7 +162,7 @@ export function IncomeStatementReport({
 
           {/* 2. Pengeluaran Hidup */}
           <div className="pt-2 space-y-1">
-            <span className="font-bold text-text-muted uppercase text-[10px] tracking-wider block">
+            <span className="font-bold text-text-muted uppercase text-[11px] tracking-wider block">
               2. BELANJA KEBUTUHAN HIDUP & TAGIHAN
             </span>
             <div className="flex items-center justify-between py-1 px-2">
@@ -179,7 +179,7 @@ export function IncomeStatementReport({
 
           {/* 3. Beban Penyusutan Barang */}
           <div className="pt-2 space-y-1">
-            <span className="font-bold text-text-muted uppercase text-[10px] tracking-wider block">
+            <span className="font-bold text-text-muted uppercase text-[11px] tracking-wider block">
               3. ESTIMASI PENYUSUTAN NILAI BARANG / ASET
             </span>
             <div className="flex items-center justify-between py-1 px-2">

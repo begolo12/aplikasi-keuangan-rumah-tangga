@@ -6,6 +6,7 @@ import { YearlyReportData, YearlyCategoryDatum } from '@/lib/types';
 import { formatRupiah, formatCompactRupiah, INDONESIAN_MONTHS } from '@/lib/formatters';
 import { DashboardSkeleton } from '@/components/ui/LoadingSkeleton';
 import { Button } from '@/components/ui/Button';
+import { ProgressBar } from '@/components/ui/ProgressBar';
 import {
   ChartLineUp,
   TrendUp,
@@ -23,19 +24,19 @@ interface YearlyReportProps {
 
 function DeltaBadge({ cat }: { cat: YearlyCategoryDatum }) {
   if (cat.delta_pct === null) {
-    return <span className="text-[10px] font-bold text-text-muted">Baru</span>;
+    return <span className="text-[11px] font-bold text-text-muted">Baru</span>;
   }
   const pct = Math.round(cat.delta_pct);
   if (pct === 0) {
-    return <span className="text-[10px] font-bold text-text-muted">Stabil</span>;
+    return <span className="text-[11px] font-bold text-text-muted">Stabil</span>;
   }
   const isUp = pct > 0;
   return (
     <span
-      className={`text-[10px] font-extrabold px-1.5 py-0.5 rounded-md border ${
+      className={`text-[11px] font-extrabold px-1.5 py-0.5 rounded-md border ${
         isUp ? 'bg-expense/10 text-expense border-expense/20' : 'bg-income/10 text-income border-income/20'
       }`}
-      title={`Tahun lalu: ${formatRupiah(cat.previous_amount)}`}
+      title="Dibanding tahun lalu"
     >
       {isUp ? <TrendUp size={10} weight="bold" className="inline mr-0.5" /> : <TrendDown size={10} weight="bold" className="inline mr-0.5" />}
       {isUp ? '+' : ''}
@@ -106,7 +107,7 @@ export function YearlyReport({ initialYear }: YearlyReportProps) {
             type="button"
             onClick={() => setYear((y) => y - 1)}
             aria-label="Tahun sebelumnya"
-            className="w-8 h-8 flex items-center justify-center rounded-xl hover:bg-surface-3 text-text transition-colors"
+            className="w-11 h-11 flex items-center justify-center rounded-xl hover:bg-surface-3 text-text transition-colors"
           >
             <CaretLeft size={16} weight="bold" />
           </button>
@@ -115,7 +116,7 @@ export function YearlyReport({ initialYear }: YearlyReportProps) {
             type="button"
             onClick={() => setYear((y) => y + 1)}
             aria-label="Tahun berikutnya"
-            className="w-8 h-8 flex items-center justify-center rounded-xl hover:bg-surface-3 text-text transition-colors"
+            className="w-11 h-11 flex items-center justify-center rounded-xl hover:bg-surface-3 text-text transition-colors"
           >
             <CaretRight size={16} weight="bold" />
           </button>
@@ -125,19 +126,19 @@ export function YearlyReport({ initialYear }: YearlyReportProps) {
       {/* Ringkasan Tabungan Bersih */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
         <div className="p-3 bg-surface border border-border rounded-2xl space-y-1">
-          <p className="text-[10px] font-semibold text-text-muted flex items-center gap-1">
+          <p className="text-[11px] font-semibold text-text-muted flex items-center gap-1">
             <TrendUp size={13} className="text-income" weight="bold" /> Pemasukan Setahun
           </p>
           <p className="text-sm font-extrabold text-income tabular-nums">{formatRupiah(data.total_income)}</p>
         </div>
         <div className="p-3 bg-surface border border-border rounded-2xl space-y-1">
-          <p className="text-[10px] font-semibold text-text-muted flex items-center gap-1">
+          <p className="text-[11px] font-semibold text-text-muted flex items-center gap-1">
             <TrendDown size={13} className="text-expense" weight="bold" /> Pengeluaran Setahun
           </p>
           <p className="text-sm font-extrabold text-expense tabular-nums">{formatRupiah(data.total_expense)}</p>
         </div>
         <div className={`p-3 rounded-2xl space-y-1 border ${data.net_savings >= 0 ? 'bg-income/10 border-income/20' : 'bg-expense/10 border-expense/20'}`}>
-          <p className="text-[10px] font-semibold text-text-muted flex items-center gap-1">
+          <p className="text-[11px] font-semibold text-text-muted flex items-center gap-1">
             <PiggyBank size={13} className={data.net_savings >= 0 ? 'text-income' : 'text-expense'} weight="bold" /> Tabungan Bersih
           </p>
           <p className={`text-sm font-extrabold tabular-nums ${data.net_savings >= 0 ? 'text-income' : 'text-expense'}`}>
@@ -145,7 +146,7 @@ export function YearlyReport({ initialYear }: YearlyReportProps) {
           </p>
         </div>
         <div className="p-3 bg-surface border border-border rounded-2xl space-y-1">
-          <p className="text-[10px] font-semibold text-text-muted">Savings Rate</p>
+          <p className="text-[11px] font-semibold text-text-muted">Savings Rate</p>
           <p className={`text-sm font-extrabold tabular-nums ${data.savings_rate_pct >= 0 ? 'text-primary' : 'text-expense'}`}>
             {data.savings_rate_pct.toFixed(1)}%
           </p>
@@ -156,7 +157,7 @@ export function YearlyReport({ initialYear }: YearlyReportProps) {
       <div className="p-3.5 sm:p-4 md:p-5 bg-surface border border-border rounded-2xl sm:rounded-3xl space-y-3 shadow-2xs">
         <div className="flex items-center justify-between">
           <h4 className="text-xs sm:text-sm font-bold text-text">Arus Kas per Bulan</h4>
-          <div className="flex items-center gap-3 text-[10px] font-semibold text-text-muted">
+          <div className="flex items-center gap-3 text-[11px] font-semibold text-text-muted">
             <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm bg-income inline-block" /> Pemasukan</span>
             <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm bg-expense inline-block" /> Pengeluaran</span>
           </div>
@@ -173,15 +174,15 @@ export function YearlyReport({ initialYear }: YearlyReportProps) {
                   <div
                     className="w-1/2 max-w-[14px] rounded-t-md bg-income/85 min-h-[2px] transition-all"
                     style={{ height: `${incomeH}%` }}
-                    title={`Pemasukan ${INDONESIAN_MONTHS[m.month - 1]}: ${formatRupiah(m.income)}`}
+                    title={`Pemasukan ${INDONESIAN_MONTHS[m.month - 1]}`}
                   />
                   <div
                     className="w-1/2 max-w-[14px] rounded-t-md bg-expense/85 min-h-[2px] transition-all"
                     style={{ height: `${expenseH}%` }}
-                    title={`Pengeluaran ${INDONESIAN_MONTHS[m.month - 1]}: ${formatRupiah(m.expense)}`}
+                    title={`Pengeluaran ${INDONESIAN_MONTHS[m.month - 1]}`}
                   />
                 </div>
-                <span className={`text-[9px] font-bold ${hasData ? 'text-text' : 'text-text-muted/50'}`}>
+                <span className={`text-[11px] font-bold ${hasData ? 'text-text' : 'text-text-muted'}`}>
                   {INDONESIAN_MONTHS[m.month - 1].slice(0, 3)}
                 </span>
               </div>
@@ -194,13 +195,13 @@ export function YearlyReport({ initialYear }: YearlyReportProps) {
           {data.months.map((m) => (
             <div
               key={m.month}
-              title={`${INDONESIAN_MONTHS[m.month - 1]}: masuk ${formatRupiah(m.income)}, keluar ${formatRupiah(m.expense)}`}
+              title={INDONESIAN_MONTHS[m.month - 1]}
               className={`px-1.5 py-1 rounded-lg text-center border ${
                 m.net > 0 ? 'bg-income/5 border-income/20' : m.net < 0 ? 'bg-expense/5 border-expense/20' : 'bg-surface-2 border-border/40'
               }`}
             >
-              <p className="text-[9px] font-bold text-text-muted">{INDONESIAN_MONTHS[m.month - 1].slice(0, 3)}</p>
-              <p className={`text-[9px] font-extrabold tabular-nums ${m.net >= 0 ? 'text-income' : 'text-expense'}`}>
+              <p className="text-[11px] font-bold text-text-muted">{INDONESIAN_MONTHS[m.month - 1].slice(0, 3)}</p>
+              <p className={`text-[11px] font-extrabold tabular-nums ${m.net >= 0 ? 'text-income' : 'text-expense'}`}>
                 {m.net === 0 ? '-' : formatCompactRupiah(m.net)}
               </p>
             </div>
@@ -226,12 +227,12 @@ export function YearlyReport({ initialYear }: YearlyReportProps) {
                     </span>
                     <span className="font-extrabold text-expense tabular-nums whitespace-nowrap">{formatRupiah(c.current_amount)}</span>
                   </div>
-                  <div className="h-1.5 rounded-full bg-surface-2 overflow-hidden">
-                    <div
-                      className="h-full rounded-full bg-expense/70"
-                      style={{ width: `${(c.current_amount / max) * 100}%` }}
-                    />
-                  </div>
+                  <ProgressBar
+                    value={max > 0 ? (c.current_amount / max) * 100 : 0}
+                    size="sm"
+                    tone="expense"
+                    ariaLabel={`${c.name} ${formatRupiah(c.current_amount)}`}
+                  />
                 </li>
               );
             })}

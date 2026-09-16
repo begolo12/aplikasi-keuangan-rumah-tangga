@@ -4,6 +4,8 @@ import { query } from '@/lib/db';
 import { periodQuerySchema } from '@/lib/validations';
 import { handleRouteError } from '@/lib/apiHelpers';
 import { MonthlySummary } from '@/lib/types';
+import { TRANSACTION_INCOME_SQL, TRANSACTION_EXPENSE_SQL, TRANSACTION_AMOUNT_WITH_FEE_SQL } from '@/lib/reportSql';
+import { BUDGET_ROLLOVER_CTE, BUDGET_EFFECTIVE_LIMIT_SQL } from '@/lib/budgetSql';
 
 export async function GET(req: NextRequest) {
   try {
@@ -32,21 +34,19 @@ export async function GET(req: NextRequest) {
     ] = await Promise.all([
       query<{ total: string }>('SELECT COALESCE(SUM(balance), 0) as total FROM wallets WHERE user_id = $1 OR (is_shared = TRUE AND household_id IN (SELECT household_id FROM household_members WHERE user_id = $1))', [uid]),
       query<{ total: string }>(
-        `SELECT COALESCE(SUM(amount), 0) as total
-         FROM transactions
-         WHERE (user_id = $1 OR wallet_id IN (SELECT id FROM wallets WHERE is_shared = TRUE AND household_id IN (SELECT household_id FROM household_members WHERE user_id = $1))) AND type = 'income'
-           AND date >= make_date($3::int, $2::int, 1)
-           AND date < make_date($3::int, $2::int, 1) + INTERVAL '1 month'`,
+        `SELECT ${TRANSACTION_INCOME_SQL} as total
+         FROM transactions t
+         WHERE (t.user_id = $1 OR t.wallet_id IN (SELECT id FROM wallets WHERE is_shared = TRUE AND household_id IN (SELECT household_id FROM household_members WHERE user_id = $1)))
+           AND t.date >= make_date($3::int, $2::int, 1)
+           AND t.date < make_date($3::int, $2::int, 1) + INTERVAL '1 month'`,
         [uid, month, year]
       ),
-      query<{ total: string; admin_total: string }>(
-        `SELECT
-          COALESCE(SUM(CASE WHEN type = 'expense' THEN amount ELSE 0 END), 0) as total,
-          COALESCE(SUM(admin_fee), 0) as admin_total
-         FROM transactions
-         WHERE (user_id = $1 OR wallet_id IN (SELECT id FROM wallets WHERE is_shared = TRUE AND household_id IN (SELECT household_id FROM household_members WHERE user_id = $1)))
-           AND date >= make_date($3::int, $2::int, 1)
-           AND date < make_date($3::int, $2::int, 1) + INTERVAL '1 month'`,
+      query<{ total: string }>(
+        `SELECT ${TRANSACTION_EXPENSE_SQL} as total
+         FROM transactions t
+         WHERE (t.user_id = $1 OR t.wallet_id IN (SELECT id FROM wallets WHERE is_shared = TRUE AND household_id IN (SELECT household_id FROM household_members WHERE user_id = $1)))
+           AND t.date >= make_date($3::int, $2::int, 1)
+           AND t.date < make_date($3::int, $2::int, 1) + INTERVAL '1 month'`,
         [uid, month, year]
       ),
       query<{ total: string }>(
@@ -71,34 +71,37 @@ export async function GET(req: NextRequest) {
          FROM (
            WITH latest_budgets AS (
              SELECT DISTINCT ON (category_id)
-               id, user_id, category_id, monthly_limit, month, year
+               id, user_id, category_id, monthly_limit, rollover_enabled, month, year
              FROM budgets
              WHERE user_id = $1
                AND (year < $3 OR (year = $3 AND month <= $2))
              ORDER BY category_id, year DESC, month DESC
-           )
-           SELECT b.id, b.monthly_limit, COALESCE(SUM(t.amount), 0) as spent
+           ),
+           ${BUDGET_ROLLOVER_CTE}
+           SELECT b.id, ${BUDGET_EFFECTIVE_LIMIT_SQL} AS effective_limit, ${TRANSACTION_AMOUNT_WITH_FEE_SQL} as spent
            FROM latest_budgets b
+           LEFT JOIN prev_budgets pb ON pb.category_id = b.category_id
+           LEFT JOIN prev_spent ps ON ps.category_id = b.category_id
            LEFT JOIN transactions t ON t.category_id = b.category_id
              AND t.type = 'expense'
              AND t.user_id = b.user_id
              AND t.date >= make_date($3::int, $2::int, 1)
              AND t.date < make_date($3::int, $2::int, 1) + INTERVAL '1 month'
-           GROUP BY b.id, b.monthly_limit
-           HAVING COALESCE(SUM(t.amount), 0) > b.monthly_limit
-         ) over_budgets`,
+           GROUP BY b.id, b.monthly_limit, b.rollover_enabled, pb.monthly_limit, ps.spent
+         ) over_budgets
+         WHERE over_budgets.spent > over_budgets.effective_limit`,
         [uid, month, year]
       ),
       query<{ day: number; income: string; expense: string }>(
         `SELECT
-          EXTRACT(DAY FROM date)::INTEGER as day,
-          COALESCE(SUM(CASE WHEN type = 'income' THEN amount ELSE 0 END), 0)::TEXT as income,
-          (COALESCE(SUM(CASE WHEN type = 'expense' THEN amount ELSE 0 END), 0) + COALESCE(SUM(admin_fee), 0))::TEXT as expense
-         FROM transactions
-         WHERE (user_id = $1 OR wallet_id IN (SELECT id FROM wallets WHERE is_shared = TRUE AND household_id IN (SELECT household_id FROM household_members WHERE user_id = $1)))
-           AND date >= make_date($3::int, $2::int, 1)
-           AND date < make_date($3::int, $2::int, 1) + INTERVAL '1 month'
-         GROUP BY EXTRACT(DAY FROM date)
+          EXTRACT(DAY FROM t.date)::INTEGER as day,
+          ${TRANSACTION_INCOME_SQL}::TEXT as income,
+          ${TRANSACTION_EXPENSE_SQL}::TEXT as expense
+         FROM transactions t
+         WHERE (t.user_id = $1 OR t.wallet_id IN (SELECT id FROM wallets WHERE is_shared = TRUE AND household_id IN (SELECT household_id FROM household_members WHERE user_id = $1)))
+           AND t.date >= make_date($3::int, $2::int, 1)
+           AND t.date < make_date($3::int, $2::int, 1) + INTERVAL '1 month'
+         GROUP BY EXTRACT(DAY FROM t.date)
          ORDER BY day ASC`,
         [uid, month, year]
       ),
@@ -118,7 +121,7 @@ export async function GET(req: NextRequest) {
 
     const totalBalance = parseFloat(walletBalanceRows[0]?.total || '0');
     const totalIncome = parseFloat(incomeRows[0]?.total || '0');
-    const totalExpense = parseFloat(expenseRows[0]?.total || '0') + parseFloat(expenseRows[0]?.admin_total || '0');
+    const totalExpense = parseFloat(expenseRows[0]?.total || '0');
     const totalTransfer = parseFloat(transferRows[0]?.total || '0');
     const totalBillsPendingAmount = parseFloat(pendingBillsRows[0]?.total_pending_amount || '0');
 

@@ -23,6 +23,7 @@ const CONDITION_LABEL: Record<InsightsData['health']['condition'], string> = {
   good: 'Sehat',
   warning: 'Perlu Perhatian',
   critical: 'Kritis',
+  unknown: 'Belum Cukup Data',
 };
 
 const CONDITION_COLOR: Record<InsightsData['health']['condition'], string> = {
@@ -30,6 +31,7 @@ const CONDITION_COLOR: Record<InsightsData['health']['condition'], string> = {
   good: 'text-income',
   warning: 'text-warning',
   critical: 'text-expense',
+  unknown: 'text-text-muted',
 };
 
 export function InsightWidget() {
@@ -59,8 +61,10 @@ export function InsightWidget() {
     );
   }
 
-  // Tanpa data atau tanpa insight sama sekali: widget tidak ditampilkan.
-  if (!data || data.insights.length === 0) return null;
+  // Tanpa data sama sekali: widget tidak ditampilkan.
+  if (!data) return null;
+  // Tidak ada insight dan skor pun belum bisa dihitung: tidak ada yang bisa dikatakan.
+  if (data.insights.length === 0 && data.health.score === null) return null;
 
   return (
     <div className="p-3.5 sm:p-4 md:p-5 bg-surface border border-border rounded-2xl sm:rounded-3xl space-y-3 shadow-2xs">
@@ -77,28 +81,36 @@ export function InsightWidget() {
         >
           <Heartbeat size={14} weight="bold" />
           <span className="text-xs font-extrabold tabular-nums">
-            {data.health.score} · {CONDITION_LABEL[data.health.condition]}
+            {data.health.score === null
+              ? CONDITION_LABEL.unknown
+              : `${data.health.score} · ${CONDITION_LABEL[data.health.condition]}`}
           </span>
         </div>
       </div>
 
-      <ul className="space-y-2">
-        {data.insights.map((item, i) => {
-          const meta = TYPE_META[item.type];
-          const Icon = meta.icon;
-          return (
-            <li key={i} className="flex items-start gap-2.5 p-2.5 bg-surface-2/60 border border-border/40 rounded-xl">
-              <div className={`w-7 h-7 rounded-lg border flex items-center justify-center shrink-0 ${meta.className}`}>
-                <Icon size={14} weight="bold" />
-              </div>
-              <div className="min-w-0">
-                <p className="text-xs font-bold text-text">{item.title}</p>
-                <p className="text-[11px] text-text-muted leading-relaxed">{item.description}</p>
-              </div>
-            </li>
-          );
-        })}
-      </ul>
+      {data.insights.length === 0 ? (
+        <p className="text-[11px] text-text-muted">
+          Belum ada yang perlu diperhatikan bulan ini.
+        </p>
+      ) : (
+        <ul className="space-y-2">
+          {data.insights.map((item, i) => {
+            const meta = TYPE_META[item.type];
+            const Icon = meta.icon;
+            return (
+              <li key={i} className="flex items-start gap-2.5 p-2.5 bg-surface-2/60 border border-border/40 rounded-xl">
+                <div className={`w-7 h-7 rounded-lg border flex items-center justify-center shrink-0 ${meta.className}`}>
+                  <Icon size={14} weight="bold" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-xs font-bold text-text">{item.title}</p>
+                  <p className="text-[11px] text-text-muted leading-relaxed">{item.description}</p>
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      )}
     </div>
   );
 }

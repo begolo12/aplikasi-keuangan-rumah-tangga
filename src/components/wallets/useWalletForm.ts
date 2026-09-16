@@ -3,12 +3,14 @@
 import { useState, type FormEvent } from 'react';
 import { Wallet, WalletType } from '@/lib/types';
 import { ApiError, apiFetch, endpoints } from '@/lib/apiFetch';
+import { useToast } from '../ui/Toast';
 
 interface UseWalletFormOptions {
   onSuccess: () => void;
 }
 
 export function useWalletForm({ onSuccess }: UseWalletFormOptions) {
+  const { notify } = useToast();
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [editingWallet, setEditingWallet] = useState<Wallet | null>(null);
 
@@ -72,8 +74,11 @@ export function useWalletForm({ onSuccess }: UseWalletFormOptions) {
       }
       onSuccess();
       setIsAddOpen(false);
+      notify(editingWallet ? 'Dompet diperbarui.' : 'Dompet baru tersimpan.', { tone: 'success' });
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Terjadi kesalahan jaringan.');
+      const msg = err instanceof ApiError ? err.message : 'Terjadi kesalahan jaringan.';
+      setError(msg);
+      notify(msg, { tone: 'error' });
     } finally {
       setIsLoading(false);
     }

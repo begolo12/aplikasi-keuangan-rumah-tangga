@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthSession } from '@/lib/auth';
-import { query, withTransaction } from '@/lib/db';
+import { query } from '@/lib/db';
 import { checkRateLimit } from '@/lib/rateLimit';
 import { handleRouteError, BusinessError } from '@/lib/apiHelpers';
+import { TRANSACTION_INCOME_SQL, TRANSACTION_AMOUNT_WITH_FEE_SQL } from '@/lib/reportSql';
 import { BudgetTemplate } from '@/lib/types';
 import { z } from 'zod';
 
@@ -22,17 +23,17 @@ async function analyzeSpendingPatterns(userId: string, year: number, month: numb
 }> {
   // Get total income for the period
   const incomeResult = await query<{ total: number }>(
-    `SELECT COALESCE(SUM(amount), 0)::NUMERIC as total
-     FROM transactions
-     WHERE user_id = $1 AND type = 'income'
-       AND EXTRACT(YEAR FROM date) = $2 AND EXTRACT(MONTH FROM date) = $3`,
+    `SELECT ${TRANSACTION_INCOME_SQL}::NUMERIC as total
+     FROM transactions t
+     WHERE t.user_id = $1 AND t.type = 'income'
+       AND EXTRACT(YEAR FROM t.date) = $2 AND EXTRACT(MONTH FROM t.date) = $3`,
     [userId, year, month]
   );
   const totalIncome = Number(incomeResult[0]?.total ?? 0);
 
   // Get spending by category
   const spentByCategory = await query<{ category_id: string; category_name: string; total: number }>(
-    `SELECT c.id as category_id, c.name as category_name, COALESCE(SUM(t.amount), 0)::NUMERIC as total
+    `SELECT c.id as category_id, c.name as category_name, ${TRANSACTION_AMOUNT_WITH_FEE_SQL}::NUMERIC as total
      FROM categories c
      LEFT JOIN transactions t ON t.category_id = c.id AND t.user_id = $1 AND t.type = 'expense'
        AND EXTRACT(YEAR FROM t.date) = $2 AND EXTRACT(MONTH FROM t.date) = $3
@@ -76,7 +77,10 @@ async function analyzeSpendingPatterns(userId: string, year: number, month: numb
 }
 
 /**
- * Generate a budget template based on spending analysis
+ * Susun template anggaran dari riwayat belanja nyata pengguna.
+ * Mengembalikan `null` bila riwayat belum cukup — dulu fungsi ini mengarang
+ * template 50/30/20 berisi `category_id: ''`, yang bukan UUID valid dan membuat
+ * template tidak bisa dipakai.
  */
 async function generateRecommendationTemplate(
   userId: string,
@@ -86,46 +90,27 @@ async function generateRecommendationTemplate(
     average_monthly_expenses: number;
     top_categories: Array<{ category_id: string; category_name: string; amount: number; percentage: number }>;
   }
-): Promise<BudgetTemplate> {
+): Promise<BudgetTemplate | null> {
   const { top_categories, total_income, average_monthly_expenses } = analysis;
 
-  // Strategy 1: Data-driven - use actual spending percentages
-  if (top_categories.length > 0 && total_income > 0 && average_monthly_expenses > 0) {
-    const allocations = top_categories.slice(0, 5).map((cat) => ({
-      category_id: cat.category_id,
-      percentage: Math.round(cat.percentage),
-    }));
-
-    const totalPercentage = allocations.reduce((sum, a) => sum + a.percentage, 0);
-
-    return {
-      id: '',
-      user_id: userId,
-      name: 'Saran Anggaran AI',
-      description: `Berdasarkan pola pengeluaran Anda bulan ini (${average_monthly_expenses.toFixed(0)} dari ${total_income.toFixed(0)})`,
-      rule_type: 'custom',
-      is_default: false,
-      allocations,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    };
+  if (top_categories.length === 0 || total_income <= 0 || average_monthly_expenses <= 0) {
+    return null;
   }
 
-  // Strategy 2: Default to 50-30-20 with suggested allocations
-  const defaultAllocations = [
-    { category_id: '', percentage: 50 }, // Needs - placeholder
-    { category_id: '', percentage: 30 }, // Wants - placeholder
-    { category_id: '', percentage: 20 }, // Savings - placeholder
-  ];
+  // Persentase diambil dari porsi belanja nyata tiap kategori, bukan dari aturan baku.
+  const allocations = top_categories.slice(0, 5).map((cat) => ({
+    category_id: cat.category_id,
+    percentage: Math.round(cat.percentage),
+  }));
 
   return {
     id: '',
     user_id: userId,
-    name: 'Aturan 50/30/20',
-    description: 'Distribusi standar: 50% kebutuhan, 30% keinginan, 20% tabungan',
-    rule_type: '50_30_20',
-    is_default: true,
-    allocations: defaultAllocations,
+    name: 'Saran dari Riwayat Belanja',
+    description: `Dari rata-rata pengeluaran ${average_monthly_expenses.toFixed(0)} terhadap pemasukan ${total_income.toFixed(0)} pada periode ini.`,
+    rule_type: 'custom',
+    is_default: false,
+    allocations,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
   };
@@ -158,16 +143,39 @@ export async function GET(req: NextRequest) {
     // Analyze spending patterns
     const analysis = await analyzeSpendingPatterns(session.userId, year, month);
 
-    // Generate recommendation template
+    // Generate recommendation template (null bila riwayat belum cukup)
     const recommendation = await generateRecommendationTemplate(session.userId, analysis);
 
-    // Save recommendation as temporary template (not persisted permanently)
-    // This allows user to easily adopt it later
-    const inserted = await query(
-      `INSERT INTO budgets_templates (user_id, name, description, rule_type, allocations, is_default)
-       VALUES ($1, $2, $3, $4, $5, FALSE)
-       ON CONFLICT DO NOTHING
-       RETURNING *`,
+    if (!recommendation) {
+      return NextResponse.json({
+        success: true,
+        data: {
+          template: null,
+          analysis: {
+            total_income: analysis.total_income,
+            average_monthly_expenses: analysis.average_monthly_expenses,
+            recommended_allocation_count: 0,
+          },
+          reason: 'Belum ada pemasukan dan pengeluaran yang cukup pada periode ini untuk menyusun saran anggaran.',
+        },
+      });
+    }
+
+    // Simpan sebagai template agar bisa dipilih. Satu baris per nama, sehingga
+    // klik berulang memperbarui baris yang sama alih-alih menumpuk duplikat.
+    const saved = await query(
+      `WITH updated AS (
+         UPDATE budgets_templates
+         SET description = $3, rule_type = $4, allocations = $5, updated_at = NOW()
+         WHERE user_id = $1 AND name = $2
+         RETURNING *
+       ), inserted AS (
+         INSERT INTO budgets_templates (user_id, name, description, rule_type, allocations, is_default)
+         SELECT $1, $2, $3, $4, $5, FALSE
+         WHERE NOT EXISTS (SELECT 1 FROM updated)
+         RETURNING *
+       )
+       SELECT * FROM updated UNION ALL SELECT * FROM inserted`,
       [
         session.userId,
         recommendation.name,
@@ -180,7 +188,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({
       success: true,
       data: {
-        template: inserted[0] ?? recommendation,
+        template: saved[0] ?? recommendation,
         analysis: {
           total_income: analysis.total_income,
           average_monthly_expenses: analysis.average_monthly_expenses,
@@ -199,7 +207,7 @@ export async function POST(req: NextRequest) {
     if (!session) return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
 
     const rawBody = await req.json();
-    const validatedData = analyzeBudgetRequestSchema.parse(rawBody);
+    analyzeBudgetRequestSchema.parse(rawBody);
 
     // For POST, accept explicit parameters in body
     const result = await GET(req);

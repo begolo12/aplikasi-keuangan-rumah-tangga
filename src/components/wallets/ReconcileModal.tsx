@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { getLocalDateString, formatRupiah } from '@/lib/formatters';
 import { Modal } from '../ui/Modal';
+import { Alert } from '../ui/Alert';
 import { Button } from '../ui/Button';
 import { AmountInput } from '../ui/AmountInput';
 import { Wallet } from '@/lib/types';
@@ -87,9 +88,9 @@ export function ReconcileModal({
     >
       <form onSubmit={handleSubmit} className="space-y-4">
         {error && (
-          <div role="alert" className="p-3.5 bg-expense/10 border border-expense/20 rounded-2xl text-expense text-xs font-semibold">
+          <Alert tone="error" size="sm">
             {error}
-          </div>
+          </Alert>
         )}
 
         {/* Current App Balance vs Real Account Input */}

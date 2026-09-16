@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { Modal } from '../ui/Modal';
+import { Alert } from '../ui/Alert';
 import { Button } from '../ui/Button';
 import { AmountInput } from '../ui/AmountInput';
 import { formatRupiah, getLocalDateString } from '@/lib/formatters';
@@ -110,9 +111,9 @@ export function SellAssetModal({
     >
       <form onSubmit={handleSubmit} className="space-y-4">
         {error && (
-          <div role="alert" className="p-3.5 bg-expense/10 border border-expense/20 rounded-2xl text-expense text-xs font-semibold">
+          <Alert tone="error" size="sm">
             {error}
-          </div>
+          </Alert>
         )}
 
         {/* Asset Benchmark Summary Card */}
@@ -197,7 +198,7 @@ export function SellAssetModal({
             >
               {wallets.map((w) => (
                 <option key={w.id} value={w.id}>
-                  {w.name} (Saldo: {formatRupiah(w.balance)})
+                  {w.name}
                 </option>
               ))}
             </select>
@@ -240,8 +241,8 @@ export function SellAssetModal({
                 {debts
                   .filter((d) => d.type === 'payable' && d.status !== 'paid')
                   .map((d) => (
-                    <option key={d.id} value={d.id}>
-                      {d.person_name} (Sisa: {formatRupiah(d.remaining_amount)})
+                      <option key={d.id} value={d.id}>
+                        {d.person_name}
                     </option>
                   ))}
               </select>

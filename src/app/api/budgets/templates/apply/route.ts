@@ -49,27 +49,43 @@ export async function POST(req: NextRequest) {
       `SELECT COALESCE(AVG(amount), 0)::NUMERIC as avg_income
        FROM transactions
        WHERE user_id = $1 AND type = 'income'
-         AND EXTRACT(YEAR FROM date) = $3 AND EXTRACT(MONTH FROM date) = $4`,
+         AND EXTRACT(YEAR FROM date) = $2 AND EXTRACT(MONTH FROM date) = $3`,
       [session.userId, year, month]
     );
 
     const baseAmount = Number(averageMonthlyIncome[0]?.avg_income || 0);
-    
-    // If no historical data, use default amounts
-    const defaultTotal = 5000000; // Default monthly income of 5M IDR
+
+    // Tanpa riwayat pemasukan tidak ada dasar untuk menghitung nominal anggaran.
+    // Dulu route memakai angka karangan Rp 5.000.000; sekarang ditolak apa adanya.
+    if (!(baseAmount > 0)) {
+      throw new BusinessError(
+        'Belum ada pemasukan tercatat pada periode ini, jadi nominal anggaran tidak bisa dihitung. Catat pemasukan dulu atau isi nominal anggaran secara manual.'
+      );
+    }
+
+    // Kategori pada template wajib milik user ini dan masih ada.
+    const categoryIds = allocations.map((a) => a.category_id).filter((id) => typeof id === 'string' && id !== '');
+    const ownedCategories = await query<{ id: string }>(
+      `SELECT id FROM categories WHERE user_id = $1 AND id = ANY($2::uuid[])`,
+      [session.userId, categoryIds]
+    );
+    const ownedIds = new Set(ownedCategories.map((c) => c.id));
+
+    if (ownedIds.size === 0) {
+      throw new BusinessError(
+        'Tidak ada kategori pada template ini yang cocok dengan kategori akun Anda. Perbarui template lalu coba lagi.'
+      );
+    }
 
     const budgetsToCreate: Array<{ category_id: string; monthly_limit: number; month: number; year: number }> = [];
 
     for (const alloc of allocations) {
-      let targetAmount: number;
+      // Alokasi ke kategori yang tidak dikenal dilewati, bukan dipasang ke kategori lain.
+      if (!ownedIds.has(alloc.category_id)) continue;
 
-      if (baseAmount > 0) {
-        // Calculate based on actual or average income
-        targetAmount = Math.round((baseAmount * alloc.percentage) / 100);
-      } else {
-        // Use default allocation amount
-        targetAmount = Math.round((defaultTotal * alloc.percentage) / 100);
-      }
+      // Nominal dihitung dari rata-rata pemasukan nyata, bukan angka cadangan.
+      const targetAmount = Math.round((baseAmount * alloc.percentage) / 100);
+      if (!(targetAmount > 0)) continue;
 
       budgetsToCreate.push({
         category_id: alloc.category_id,

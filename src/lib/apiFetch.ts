@@ -19,7 +19,8 @@ async function request<T>(path: string, init?: RequestInit & { json?: unknown })
   try { body = await res.json(); } catch { /* biarkan null */ }
   // Sesi mati tengah jalan: kembalikan ke login (kecuali pemanggil auth sendiri).
   if (res.status === 401 && typeof window !== 'undefined' && !path.startsWith('/api/auth/')) {
-    window.location.href = '/api/auth/login?callback=' + encodeURIComponent(window.location.pathname);
+    // eslint-disable-next-line @next/next/no-location-assign-relative-destination
+    window.location.href = '/login?callback=' + encodeURIComponent(window.location.pathname);
     return { success: false, error: 'Unauthorized' };
   }
   if (!res.ok || !body?.success) {

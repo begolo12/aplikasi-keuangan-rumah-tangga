@@ -9,7 +9,7 @@ const SUPPORTED_CURRENCIES: Record<CurrencyType, boolean> = {
   CNY: true,
 };
 
-// Base rates relative to USD (fetched from free forex API)
+// Base rates relative to USD. Nilai statis ini hanya cadangan, bukan kurs terkini.
 const BASE_RATES: Record<string, number> = {
   USD: 1,
   IDR: 15745.50,
@@ -34,8 +34,7 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    // Fetch latest rates from free forex API (exchangerate.host - no API key required)
-    const rates = await fetchLatestRates();
+    const { rates, source } = await fetchLatestRates();
 
     // Convert to base currency
     const convertedRates: Record<string, number> = {};
@@ -49,6 +48,7 @@ export async function GET(req: NextRequest) {
       base,
       timestamp: Date.now(),
       rates: convertedRates,
+      source,
     };
 
     return NextResponse.json({ success: true, data: response });
@@ -61,28 +61,31 @@ export async function GET(req: NextRequest) {
   }
 }
 
-async function fetchLatestRates(): Promise<Record<string, number>> {
+/**
+ * Ambil kurs terkini. `source` menentukan cara UI menyajikan angkanya:
+ * 'live' boleh disebut kurs, 'fallback' harus disebut perkiraan.
+ */
+async function fetchLatestRates(): Promise<{ rates: Record<string, number>; source: 'live' | 'fallback' }> {
   try {
-    // Try free forex API first
-    const response = await fetch('https://api.exchangerate.host/latest?bases=USD', {
-      headers: {
-        'Accept': 'application/json',
-      },
+    const response = await fetch('https://api.exchangerate.host/latest?base=USD', {
+      headers: { Accept: 'application/json' },
+      signal: AbortSignal.timeout(5000),
     });
 
     if (response.ok) {
       const data = await response.json();
-      if (data.rates && typeof data.rates === 'object') {
-        return data.rates;
+      // Penyedia bisa membalas HTTP 200 dengan success:false (mis. kunci tidak ada).
+      // Tanpa cek ini, cadangan statis akan dikirim sambil mengaku sebagai kurs live.
+      if (data?.success !== false && data.rates && typeof data.rates === 'object' && data.rates.IDR) {
+        return { rates: data.rates as Record<string, number>, source: 'live' };
       }
+      console.warn('[Currencies] Penyedia mengembalikan respons tanpa rates yang sah:', data?.success);
     }
   } catch (err) {
-    console.warn('[Currencies] Free API failed, using fallback rates:', err);
+    console.warn('[Currencies] Penyedia kurs gagal dihubungi, memakai tabel statis:', err);
   }
 
-  // Fallback to static rates (updated weekly)
-  console.log('[Currencies] Using fallback rates');
-  return BASE_RATES;
+  return { rates: BASE_RATES, source: 'fallback' };
 }
 
 export async function POST(req: NextRequest) {
@@ -109,7 +112,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const rates = await fetchLatestRates();
+    const { rates, source } = await fetchLatestRates();
     const conversionRate = rates[target] / rates[base];
 
     return NextResponse.json({
@@ -119,6 +122,7 @@ export async function POST(req: NextRequest) {
         target,
         rate: conversionRate,
         timestamp: Date.now(),
+        source,
       },
     });
   } catch (error) {

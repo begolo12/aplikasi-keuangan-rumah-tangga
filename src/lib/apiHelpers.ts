@@ -116,13 +116,16 @@ export async function readJsonBody(req: NextRequest): Promise<unknown> {
  */
 export function verifySameOrigin(req: NextRequest): boolean {
   const requestedOrigin = req.headers.get('origin');
-  if (!requestedOrigin) return true; // XMLHttpRequest tanpa origin = same-domain
+  if (!requestedOrigin) return true; // XMLHttpRequest / fetch tanpa origin = same-domain
 
   const hostHeader = req.headers.get('host') ?? 'localhost';
+  const protoHeader = req.headers.get('x-forwarded-proto') ?? (req.nextUrl?.protocol ? req.nextUrl.protocol.replace(':', '') : 'http');
 
   try {
     const url = new URL(requestedOrigin);
-    return url.hostname === hostHeader.split(':')[0] && url.protocol === window.location.protocol;
+    const expectedHost = hostHeader.split(':')[0];
+    const expectedProto = `${protoHeader}:`;
+    return url.hostname === expectedHost && url.protocol === expectedProto;
   } catch {
     return false;
   }

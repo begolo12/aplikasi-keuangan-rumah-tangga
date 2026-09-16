@@ -21,13 +21,13 @@ export function BillItem({ bill, onPay, onDelete }: BillItemProps) {
   const getTypeBadge = () => {
     if (isTransfer) {
       return (
-        <span className="text-[10px] font-bold px-2 py-0.5 rounded-md border bg-primary/10 text-primary border-primary/20">
+        <span className="text-[11px] font-bold px-2 py-0.5 rounded-md border bg-primary/10 text-primary border-primary/20">
           Transfer Amplop
         </span>
       );
     }
     return (
-      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md border ${
+      <span className={`text-[11px] font-bold px-2 py-0.5 rounded-md border ${
         isIncome ? 'bg-income/10 text-income border-income/20' : 'bg-expense/10 text-expense border-expense/20'
       }`}>
         {isIncome ? 'Pemasukan Pasti' : 'Pengeluaran Pasti'}
@@ -46,7 +46,7 @@ export function BillItem({ bill, onPay, onDelete }: BillItemProps) {
         );
       case 'due_today':
         return (
-          <span className={`flex items-center gap-1 text-[11px] font-bold px-2.5 py-1 rounded-full border animate-pulse ${
+          <span className={`flex items-center gap-1 text-[11px] font-bold px-2.5 py-1 rounded-full border ${
             isIncome ? 'text-income bg-income/10 border-income/20' : 'text-expense bg-expense/10 border-expense/20'
           }`}>
             <WarningCircle size={14} weight="fill" />
@@ -107,12 +107,12 @@ export function BillItem({ bill, onPay, onDelete }: BillItemProps) {
             <h4 className="text-xs sm:text-sm md:text-base font-bold text-text truncate max-w-full">{bill.title}</h4>
             {getTypeBadge()}
             {bill.debt_id && (
-              <span className="text-[10px] font-bold text-expense bg-expense/10 px-2 py-0.5 rounded-md border border-expense/20">
+              <span className="text-[11px] font-bold text-expense bg-expense/10 px-2 py-0.5 rounded-md border border-expense/20">
                 Cicilan Hutang
               </span>
             )}
             {bill.auto_record && (
-              <span className="text-[10px] font-semibold text-primary bg-primary/10 px-1.5 py-0.5 rounded-md flex items-center gap-0.5">
+              <span className="text-[11px] font-semibold text-primary bg-primary/10 px-1.5 py-0.5 rounded-md flex items-center gap-0.5">
                 <Lightning size={12} weight="fill" /> Auto
               </span>
             )}
@@ -140,8 +140,8 @@ export function BillItem({ bill, onPay, onDelete }: BillItemProps) {
         {!bill.is_paid && (
           <button
             onClick={() => onPay(bill)}
-            className={`min-h-[40px] px-3.5 sm:px-4 py-2 text-white text-xs font-bold rounded-xl active:scale-95 transition-all shadow-xs ${
-              isIncome ? 'bg-income hover:opacity-90' : 'bg-primary hover:bg-primary-hover'
+            className={`min-h-[44px] px-3.5 sm:px-4 py-2 text-xs font-bold rounded-xl active:scale-95 transition-all shadow-xs ${
+              isIncome ? 'bg-income text-income-fg hover:opacity-90' : 'bg-primary text-primary-fg hover:bg-primary-hover'
             }`}
           >
             {isIncome ? 'Catat Masuk Kas' : isTransfer ? 'Jalankan Transfer' : 'Bayar Sekarang'}
@@ -158,14 +158,14 @@ export function BillItem({ bill, onPay, onDelete }: BillItemProps) {
                 setShowConfirm(false);
               }}
               disabled={isDeleting}
-              className="min-h-[38px] px-3 py-1.5 bg-expense text-white text-xs font-bold rounded-xl hover:opacity-90 transition-opacity shadow-2xs disabled:opacity-50 disabled:pointer-events-none"
+              className="min-h-[44px] px-3 py-1.5 bg-expense text-expense-fg text-xs font-bold rounded-xl hover:opacity-90 transition-opacity shadow-2xs disabled:opacity-50 disabled:pointer-events-none"
             >
               {isDeleting ? 'Menghapus...' : 'Hapus'}
             </button>
             <button
               onClick={() => setShowConfirm(false)}
               disabled={isDeleting}
-              className="min-h-[38px] px-3 py-1.5 bg-surface-2 hover:bg-surface-3 text-text text-xs font-semibold rounded-xl border border-border transition-colors disabled:opacity-50"
+              className="min-h-[44px] px-3 py-1.5 bg-surface-2 hover:bg-surface-3 text-text text-xs font-semibold rounded-xl border border-border transition-colors disabled:opacity-50"
             >
               Batal
             </button>
@@ -175,7 +175,7 @@ export function BillItem({ bill, onPay, onDelete }: BillItemProps) {
             onClick={() => setShowConfirm(true)}
             title="Hapus Jadwal Rutin"
             aria-label={`Hapus ${bill.title}`}
-            className="min-w-[40px] min-h-[40px] flex items-center justify-center text-text-muted hover:text-expense hover:bg-expense/10 rounded-xl transition-colors"
+            className="min-w-[44px] min-h-[44px] flex items-center justify-center text-text-muted hover:text-expense hover:bg-expense/10 rounded-xl transition-colors"
           >
             <Trash size={18} />
           </button>

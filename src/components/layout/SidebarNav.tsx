@@ -24,7 +24,7 @@ import {
   UsersThree,
   Clock,
 } from '@phosphor-icons/react';
-import { NavTab } from './BottomNav';
+import { NavTab, navTabLabel } from '@/lib/nav';
 import { TransactionType } from '@/lib/types';
 
 interface SidebarNavProps {
@@ -122,44 +122,44 @@ export function SidebarNav({
     {
       title: 'Utama',
       items: [
-        { id: 'dashboard', label: 'Beranda', icon: House },
-        { id: 'transactions', label: 'Riwayat Transaksi', icon: ListDashes },
-        { id: 'calendar', label: 'Kalender', icon: CalendarBlank },
+        { id: 'dashboard', label: navTabLabel('dashboard'), icon: House },
+        { id: 'transactions', label: navTabLabel('transactions'), icon: ListDashes },
+        { id: 'calendar', label: navTabLabel('calendar'), icon: CalendarBlank },
       ],
     },
     {
       title: 'Kas & Anggaran',
       items: [
-        { id: 'wallets', label: 'Pos Kas & Rekening', icon: Wallet },
-        { id: 'household', label: 'Kas Keluarga Bersama', icon: UsersThree, badge: householdActivityCount > 0 ? String(householdActivityCount) : undefined },
+        { id: 'wallets', label: navTabLabel('wallets'), icon: Wallet },
+        { id: 'household', label: navTabLabel('household'), icon: UsersThree, badge: householdActivityCount > 0 ? String(householdActivityCount) : undefined },
         {
           id: 'budget',
-          label: 'Anggaran Bulanan',
+          label: navTabLabel('budget'),
           icon: Vault,
           badge: overbudgetCount > 0 ? String(overbudgetCount) : undefined,
         },
         {
           id: 'bills',
-          label: 'Tagihan Rutin',
+          label: navTabLabel('bills'),
           icon: Receipt,
           badge: pendingBillsCount > 0 ? String(pendingBillsCount) : undefined,
         },
         {
           id: 'subscriptions',
-          label: 'Langganan',
+          label: navTabLabel('subscriptions'),
           icon: Clock,
           badge: subscriptionCount > 0 ? String(subscriptionCount) : undefined,
         },
-        { id: 'goals', label: 'Target Tabungan', icon: Target },
+        { id: 'goals', label: navTabLabel('goals'), icon: Target },
       ],
     },
     {
       title: 'Aset & Kewajiban',
       items: [
-        { id: 'assets', label: 'Aset & Depresiasi', icon: Package },
+        { id: 'assets', label: navTabLabel('assets'), icon: Package },
         {
           id: 'debts',
-          label: 'Hutang & Piutang',
+          label: navTabLabel('debts'),
           icon: HandCoins,
           badge: unpaidDebtsCount > 0 ? String(unpaidDebtsCount) : undefined,
         },
@@ -168,14 +168,14 @@ export function SidebarNav({
     {
       title: 'Laporan & Evaluasi',
       items: [
-        { id: 'reports', label: 'Laporan & Ekspor', icon: ChartPieSlice },
-        { id: 'evaluation', label: 'Evaluasi Keuangan', icon: Heartbeat },
+        { id: 'reports', label: navTabLabel('reports'), icon: ChartPieSlice },
+        { id: 'evaluation', label: navTabLabel('evaluation'), icon: Heartbeat },
       ],
     },
     {
       title: 'Sistem',
       items: [
-        { id: 'settings', label: 'Pengaturan & Backup', icon: Gear },
+        { id: 'settings', label: navTabLabel('settings'), icon: Gear },
       ],
     },
   ];
@@ -190,15 +190,20 @@ export function SidebarNav({
         {/* Brand Identity Header + Toggle Button */}
         <div className={`flex items-center ${isCollapsed ? 'flex-col gap-2 justify-center' : 'justify-between gap-2 px-1 pt-0.5'}`}>
           <div className={`flex items-center gap-3 min-w-0 ${isCollapsed ? 'justify-center w-full' : ''}`}>
-            <div
+            <button
+              type="button"
               onClick={() => isCollapsed && toggleCollapsed()}
-              className={`w-9 h-9 bg-primary text-primary-fg rounded-2xl flex items-center justify-center shadow-sm shadow-primary/15 ring-1 ring-primary/20 shrink-0 ${
-                isCollapsed ? 'cursor-pointer hover:scale-105 transition-transform' : ''
+              disabled={!isCollapsed}
+              aria-label={isCollapsed ? 'Perluas sidebar' : undefined}
+              aria-hidden={!isCollapsed}
+              tabIndex={isCollapsed ? 0 : -1}
+              className={`w-9 h-9 bg-primary text-primary-fg rounded-2xl flex items-center justify-center shadow-sm shadow-primary/15 ring-1 ring-primary/20 shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 ${
+                isCollapsed ? 'cursor-pointer hover:scale-105 transition-transform' : 'pointer-events-none'
               }`}
               title={isCollapsed ? 'Klik untuk memperluas sidebar' : undefined}
             >
               <Wallet size={20} weight="duotone" />
-            </div>
+            </button>
             {!isCollapsed && (
               <div className="min-w-0 flex-1">
                 <h1 className="text-base font-extrabold text-text leading-tight tracking-tight">KasKeluarga</h1>
@@ -260,7 +265,7 @@ export function SidebarNav({
                 <span>Catat Transaksi</span>
               </div>
               <div className="flex items-center gap-1.5">
-                <span className="text-[9px] bg-white/20 px-1.5 py-0.5 rounded font-mono font-medium">N</span>
+                <span className="text-[11px] bg-white/20 px-1.5 py-0.5 rounded font-mono font-medium">N</span>
                 <CaretDown
                   size={12}
                   weight="bold"
@@ -279,7 +284,7 @@ export function SidebarNav({
                   : 'left-0 right-0 top-full mt-2'
               }`}
             >
-              <div className="px-2.5 py-1 text-[9px] font-bold text-text-muted uppercase tracking-wider">
+              <div className="px-2.5 py-1 text-[11px] font-bold text-text-muted uppercase tracking-wider">
                 Pilih Jenis Transaksi
               </div>
 
@@ -297,11 +302,11 @@ export function SidebarNav({
                     <p className="text-xs font-bold text-text group-hover:text-expense transition-colors">
                       Pengeluaran
                     </p>
-                    <p className="text-[10px] text-text-muted truncate">Belanja & uang keluar</p>
+                    <p className="text-[11px] text-text-muted truncate">Belanja & uang keluar</p>
                   </div>
                 </div>
-                <kbd className="bg-surface-2 border border-border px-1.5 py-0.5 rounded text-[10px] font-mono text-text-muted">
-                  E
+                <kbd className="bg-surface-2 border border-border px-1.5 py-0.5 rounded text-[11px] font-mono text-text-muted">
+                  N
                 </kbd>
               </button>
 
@@ -319,11 +324,11 @@ export function SidebarNav({
                     <p className="text-xs font-bold text-text group-hover:text-income transition-colors">
                       Pemasukan
                     </p>
-                    <p className="text-[10px] text-text-muted truncate">Gaji, bonus & dividen</p>
+                    <p className="text-[11px] text-text-muted truncate">Gaji, bonus & dividen</p>
                   </div>
                 </div>
-                <kbd className="bg-surface-2 border border-border px-1.5 py-0.5 rounded text-[10px] font-mono text-text-muted">
-                  I
+                <kbd className="bg-surface-2 border border-border px-1.5 py-0.5 rounded text-[11px] font-mono text-text-muted">
+                  E
                 </kbd>
               </button>
 
@@ -341,10 +346,10 @@ export function SidebarNav({
                     <p className="text-xs font-bold text-text group-hover:text-transfer transition-colors">
                       Transfer Dompet
                     </p>
-                    <p className="text-[10px] text-text-muted truncate">Pindah saldo kas/bank</p>
+                    <p className="text-[11px] text-text-muted truncate">Pindah saldo kas/bank</p>
                   </div>
                 </div>
-                <kbd className="bg-surface-2 border border-border px-1.5 py-0.5 rounded text-[10px] font-mono text-text-muted">
+                <kbd className="bg-surface-2 border border-border px-1.5 py-0.5 rounded text-[11px] font-mono text-text-muted">
                   T
                 </kbd>
               </button>
@@ -360,7 +365,7 @@ export function SidebarNav({
               {isCollapsed ? (
                 <div className="my-1.5 border-t border-border/40 mx-1" />
               ) : (
-                <div className="px-2.5 pt-1.5 pb-1 text-[9.5px] font-bold uppercase tracking-widest text-text-muted/60">
+                <div className="px-2.5 pt-1.5 pb-1 text-[11px] font-bold uppercase tracking-widest text-text-muted">
                   {section.title}
                 </div>
               )}
@@ -376,6 +381,7 @@ export function SidebarNav({
                         type="button"
                         onClick={() => onTabChange(item.id)}
                         aria-label={item.label}
+                        aria-current={isActive ? 'page' : undefined}
                         className={`w-full flex items-center rounded-xl text-xs transition-all ${
                           isCollapsed
                             ? 'justify-center p-2.5'
@@ -384,7 +390,7 @@ export function SidebarNav({
                           isActive
                             ? 'bg-primary/10 text-primary font-bold border border-primary/20 shadow-2xs'
                             : 'text-text/75 font-medium hover:text-text hover:bg-surface-2 border border-transparent'
-                        }`}
+                        } focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1`}
                       >
                         <div className={`flex items-center min-w-0 ${isCollapsed ? 'justify-center' : 'gap-2.5'}`}>
                           <Icon
@@ -399,10 +405,10 @@ export function SidebarNav({
 
                         {!isCollapsed && item.badge && (
                           <span
-                            className={`text-[8.5px] font-extrabold px-1.5 py-0.2 rounded-md ${
+                            className={`text-[11px] font-bold px-1.5 py-0.5 rounded-full ${
                               isActive
-                                ? 'bg-primary text-white'
-                                : 'bg-primary/15 text-primary border border-primary/20'
+                                ? 'bg-warning text-warning-fg'
+                                : 'bg-warning/15 text-warning border border-warning/25'
                             }`}
                           >
                             {item.badge}
@@ -421,7 +427,7 @@ export function SidebarNav({
                           <div className="bg-surface border border-border text-text font-bold text-xs px-2.5 py-1.5 rounded-xl shadow-lg whitespace-nowrap flex items-center gap-2">
                             <span>{item.label}</span>
                             {item.badge && (
-                              <span className="text-[9px] font-extrabold px-1.5 py-0.2 rounded bg-primary text-white">
+                              <span className="text-[11px] font-bold px-1.5 py-0.5 rounded-full bg-warning text-warning-fg">
                                 {item.badge}
                               </span>
                             )}
@@ -472,7 +478,7 @@ export function SidebarNav({
               </div>
               <div className="overflow-hidden min-w-0">
                 <p className="text-xs font-bold text-text truncate leading-tight">{userName}</p>
-                <p className="text-[10px] text-text-muted truncate leading-tight">Akun Terhubung</p>
+                <p className="text-[11px] text-text-muted truncate leading-tight">Akun Terhubung</p>
               </div>
             </div>
             <button

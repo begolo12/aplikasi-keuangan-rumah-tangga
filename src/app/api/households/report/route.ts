@@ -4,6 +4,7 @@ import { query } from '@/lib/db';
 import { periodQuerySchema } from '@/lib/validations';
 import { handleRouteError, BusinessError } from '@/lib/apiHelpers';
 import { getMembership } from '@/lib/household';
+import { TRANSACTION_INCOME_SQL, TRANSACTION_EXPENSE_SQL } from '@/lib/reportSql';
 
 /**
  * Laporan per-anggota: total pengeluaran/pemasukan tiap anggota
@@ -33,8 +34,8 @@ export async function GET(req: NextRequest) {
     const rows = await query(
       `SELECT
          u.id AS user_id, u.name,
-         COALESCE(SUM(CASE WHEN t.type = 'expense' THEN t.amount ELSE 0 END), 0)::float AS expense,
-         COALESCE(SUM(CASE WHEN t.type = 'income' THEN t.amount ELSE 0 END), 0)::float AS income,
+         ${TRANSACTION_EXPENSE_SQL}::float AS expense,
+         ${TRANSACTION_INCOME_SQL}::float AS income,
          COALESCE(SUM(CASE WHEN t.type = 'transfer' AND t.wallet_id IN (SELECT id FROM wallets WHERE household_id = $1) THEN t.amount ELSE 0 END), 0)::float AS transfer_out,
          COALESCE(SUM(CASE WHEN t.type = 'transfer' AND t.to_wallet_id IN (SELECT id FROM wallets WHERE household_id = $1) THEN t.amount ELSE 0 END), 0)::float AS transfer_in,
          COUNT(t.id)::int AS transaction_count

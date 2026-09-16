@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAuthSession } from '@/lib/auth';
 import { query } from '@/lib/db';
 import { handleRouteError } from '@/lib/apiHelpers';
+import { TRANSACTION_INCOME_SQL, TRANSACTION_EXPENSE_SQL, TRANSACTION_AMOUNT_WITH_FEE_SQL } from '@/lib/reportSql';
+import { BUDGET_ROLLOVER_CTE, BUDGET_EFFECTIVE_LIMIT_SQL } from '@/lib/budgetSql';
 import { InsightItem, InsightsData } from '@/lib/types';
 
 const SPIKE_MIN_ABSOLUTE = 50_000; // Lonjakan kecil diabaikan agar insight tidak berisik
@@ -27,7 +29,7 @@ export async function GET(req: NextRequest) {
       // Lonjakan kategori: bulan ini vs rata-rata 3 bulan sebelumnya
       query(
         `WITH cur AS (
-           SELECT c.id, c.name, COALESCE(SUM(t.amount), 0)::float AS amount
+           SELECT c.id, c.name, ${TRANSACTION_AMOUNT_WITH_FEE_SQL}::float AS amount
            FROM transactions t JOIN categories c ON t.category_id = c.id
            WHERE t.user_id = $1 AND t.type = 'expense'
              AND t.date >= make_date($3::int, $2::int, 1)
@@ -35,7 +37,7 @@ export async function GET(req: NextRequest) {
            GROUP BY c.id, c.name
          ),
          past AS (
-           SELECT c.id, COALESCE(SUM(t.amount), 0)::float AS amount
+           SELECT c.id, ${TRANSACTION_AMOUNT_WITH_FEE_SQL}::float AS amount
            FROM transactions t JOIN categories c ON t.category_id = c.id
            WHERE t.user_id = $1 AND t.type = 'expense'
              AND t.date >= make_date($3::int, $2::int, 1) - INTERVAL '3 months'
@@ -68,30 +70,33 @@ export async function GET(req: NextRequest) {
       ),
       query(
         `SELECT
-           COALESCE(SUM(CASE WHEN type = 'income' THEN amount ELSE 0 END), 0)::float AS income,
-           COALESCE(SUM(CASE WHEN type = 'expense' THEN amount ELSE 0 END), 0)::float AS expense
-         FROM transactions
-         WHERE user_id = $1
-           AND date >= make_date($3::int, $2::int, 1)
-           AND date < make_date($3::int, $2::int, 1) + INTERVAL '1 month'`,
+           ${TRANSACTION_INCOME_SQL}::float AS income,
+           ${TRANSACTION_EXPENSE_SQL}::float AS expense
+         FROM transactions t
+         WHERE (t.user_id = $1 OR t.wallet_id IN (SELECT id FROM wallets WHERE is_shared = TRUE AND household_id IN (SELECT household_id FROM household_members WHERE user_id = $1)))
+           AND t.date >= make_date($3::int, $2::int, 1)
+           AND t.date < make_date($3::int, $2::int, 1) + INTERVAL '1 month'`,
         [uid, month, year]
       ),
       query(
         `SELECT COUNT(*)::int AS total FROM (
            WITH latest_budgets AS (
-             SELECT DISTINCT ON (category_id) id, category_id, monthly_limit, month, year
+             SELECT DISTINCT ON (category_id) id, user_id, category_id, monthly_limit, month, year, rollover_enabled
              FROM budgets
              WHERE user_id = $1 AND (year < $3 OR (year = $3 AND month <= $2))
              ORDER BY category_id, year DESC, month DESC
-           )
-           SELECT b.id, b.monthly_limit
+           ),
+           ${BUDGET_ROLLOVER_CTE}
+           SELECT b.id
            FROM latest_budgets b
+           LEFT JOIN prev_budgets pb ON pb.category_id = b.category_id
+           LEFT JOIN prev_spent ps ON ps.category_id = b.category_id
            LEFT JOIN transactions t
              ON t.category_id = b.category_id AND t.type = 'expense' AND t.user_id = $1
              AND t.date >= make_date($3::int, $2::int, 1)
              AND t.date < make_date($3::int, $2::int, 1) + INTERVAL '1 month'
-           GROUP BY b.id, b.monthly_limit
-           HAVING COALESCE(SUM(t.amount), 0) > b.monthly_limit
+           GROUP BY b.id, b.monthly_limit, b.rollover_enabled, pb.monthly_limit, ps.spent
+           HAVING ${TRANSACTION_AMOUNT_WITH_FEE_SQL} > ${BUDGET_EFFECTIVE_LIMIT_SQL}
          ) over_budgets`,
         [uid, month, year]
       ),
@@ -107,7 +112,12 @@ export async function GET(req: NextRequest) {
     // 1. Lonjakan pengeluaran kategori
     for (const row of spikeRes as { name: string; current_amount: number; avg_amount: number }[]) {
       const avg = Number(row.avg_amount) / 3;
-      const pct = avg > 0 ? Math.round(((Number(row.current_amount) - avg) / avg) * 100) : 100;
+      // Tanpa riwayat pembanding tidak ada lonjakan yang bisa dibuktikan. Dulu kasus ini
+      // dilaporkan sebagai "100% di atas rata-rata" dengan severity tinggi, padahal itu
+      // sekadar kategori baru yang belum pernah dipakai.
+      if (avg <= 0) continue;
+
+      const pct = Math.round(((Number(row.current_amount) - avg) / avg) * 100);
       insights.push({
         type: 'spike',
         severity: pct > 80 ? 'high' : 'medium',
@@ -154,22 +164,51 @@ export async function GET(req: NextRequest) {
       if (insights.length >= 8) break;
     }
 
-    // Skor kesehatan keuangan (0-100): savings ratio, budget compliance, beban hutang
+    // Skor kesehatan keuangan (0-100): savings ratio, budget compliance, beban hutang.
     const income = Number((summaryRes[0] as { income: number })?.income ?? 0);
     const expense = Number((summaryRes[0] as { expense: number })?.expense ?? 0);
-    const totalBudgets = Number((budgetRes[0] as { total: number })?.total ?? 0);
+    const overBudgetCount = Number((budgetRes[0] as { total: number })?.total ?? 0);
     const totalPayable = Number((debtRes[0] as { total_payable: number })?.total_payable ?? 0);
 
-    const savingsScore = income > 0 ? Math.min(100, Math.max(0, ((income - expense) / income) * 100)) : income === 0 && expense === 0 ? 50 : 0;
-    // Budget compliance diasumsikan baik (100) bila user tidak memakai anggaran.
-    const activeBudgetCount = totalBudgets; // over-budget count
-    const budgetScore = activeBudgetCount === 0 ? 100 : Math.max(0, 100 - activeBudgetCount * 20);
-    // Beban hutang: skala 100 (hutang lunas) turun proporsional terhadap income 3 bulan estimasi.
-    const debtScore = income > 0 ? Math.max(0, 100 - (totalPayable / (income * 6)) * 100) : totalPayable > 0 ? 0 : 100;
+    // Apakah ada anggaran sama sekali? Tanpa ini, "tidak over anggaran" tidak berarti apa-apa.
+    const budgetCountRes = await query<{ total: number }>(
+      `SELECT COUNT(*)::int AS total FROM budgets
+       WHERE user_id = $1 AND (year < $3 OR (year = $3 AND month <= $2))`,
+      [uid, month, year]
+    );
+    const activeBudgetCount = Number(budgetCountRes[0]?.total ?? 0);
 
-    const healthScore = Math.round(savingsScore * 0.4 + budgetScore * 0.3 + debtScore * 0.3);
-    const condition: InsightsData['health']['condition'] =
-      healthScore >= 80 ? 'excellent' : healthScore >= 60 ? 'good' : healthScore >= 40 ? 'warning' : 'critical';
+    const hasAnyData = income !== 0 || expense !== 0 || activeBudgetCount > 0 || totalPayable !== 0;
+
+    let healthScore: number | null = null;
+    let condition: InsightsData['health']['condition'] = 'unknown';
+
+    if (hasAnyData) {
+      const savingsScore = income > 0
+        ? Math.min(100, Math.max(0, ((income - expense) / income) * 100))
+        : 0;
+      // Tanpa anggaran, kepatuhan anggaran tidak bisa dinilai: komponen ini tidak dihitung.
+      const budgetScore = activeBudgetCount === 0
+        ? null
+        : Math.max(0, 100 - overBudgetCount * 20);
+      // Beban hutang: skala 100 (hutang lunas) turun proporsional terhadap income 6 bulan estimasi.
+      const debtScore = income > 0
+        ? Math.max(0, 100 - (totalPayable / (income * 6)) * 100)
+        : totalPayable > 0 ? 0 : 100;
+
+      // Bobot dinormalisasi ke komponen yang benar-benar bisa dihitung.
+      const components: Array<{ weight: number; value: number }> = [
+        { weight: 0.4, value: savingsScore },
+        { weight: 0.3, value: debtScore },
+      ];
+      if (budgetScore !== null) components.push({ weight: 0.3, value: budgetScore });
+
+      const totalWeight = components.reduce((sum, c) => sum + c.weight, 0);
+      healthScore = Math.round(
+        components.reduce((sum, c) => sum + c.weight * c.value, 0) / totalWeight
+      );
+      condition = healthScore >= 80 ? 'excellent' : healthScore >= 60 ? 'good' : healthScore >= 40 ? 'warning' : 'critical';
+    }
 
     const order: Record<Severity, number> = { high: 0, medium: 1, low: 2 };
     insights.sort((a, b) => order[a.severity] - order[b.severity]);

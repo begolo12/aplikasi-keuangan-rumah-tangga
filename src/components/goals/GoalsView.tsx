@@ -2,10 +2,13 @@
 
 import React, { useState } from 'react';
 import { Modal } from '../ui/Modal';
+import { Alert } from '../ui/Alert';
 import { AmountInput } from '../ui/AmountInput';
 import { Button } from '../ui/Button';
 import { Wallet, SavingsGoal } from '@/lib/types';
 import { apiFetch, endpoints, ApiError } from '@/lib/apiFetch';
+import { useToast } from '../ui/Toast';
+import { ProgressBar } from '../ui/ProgressBar';
 import { formatRupiah, formatDate, getLocalDateString } from '@/lib/formatters';
 import {
   Target,
@@ -14,7 +17,6 @@ import {
   PencilSimple,
   Trash,
   ArrowsLeftRight,
-  WarningCircle,
   CaretRight,
 } from '@phosphor-icons/react';
 
@@ -24,6 +26,7 @@ interface GoalsViewProps {
 }
 
 export function GoalsView({ wallets, onRefreshParent }: GoalsViewProps) {
+  const { notify } = useToast();
   const [goals, setGoals] = useState<SavingsGoal[] | null>(null);
   const [listError, setListError] = useState<string | null>(null);
 
@@ -135,8 +138,11 @@ export function GoalsView({ wallets, onRefreshParent }: GoalsViewProps) {
       });
       setIsFormOpen(false);
       await fetchGoals();
+      notify(editingGoal ? 'Target tabungan diperbarui.' : 'Target tabungan dibuat.', { tone: 'success' });
     } catch (err) {
-      setFormError(err instanceof ApiError ? err.message : 'Gagal menyimpan target.');
+      const msg = err instanceof ApiError ? err.message : 'Gagal menyimpan target.';
+      setFormError(msg);
+      notify(msg, { tone: 'error' });
     } finally {
       setIsSaving(false);
     }
@@ -158,8 +164,11 @@ export function GoalsView({ wallets, onRefreshParent }: GoalsViewProps) {
       setContribGoal(null);
       await fetchGoals();
       onRefreshParent?.();
+      notify('Dana berhasil dialokasikan ke target.', { tone: 'success' });
     } catch (err) {
-      setActionError(err instanceof ApiError ? err.message : 'Gagal mengalokasikan dana.');
+      const msg = err instanceof ApiError ? err.message : 'Gagal mengalokasikan dana.';
+      setActionError(msg);
+      notify(msg, { tone: 'error' });
     } finally {
       setIsContributing(false);
     }
@@ -172,8 +181,11 @@ export function GoalsView({ wallets, onRefreshParent }: GoalsViewProps) {
       await apiFetch(endpoints.goal(deleteTarget.id), { method: 'DELETE' });
       setDeleteTarget(null);
       await fetchGoals();
+      notify('Target tabungan dihapus.', { tone: 'success' });
     } catch (err) {
-      setActionError(err instanceof ApiError ? err.message : 'Gagal menghapus target.');
+      const msg = err instanceof ApiError ? err.message : 'Gagal menghapus target.';
+      setActionError(msg);
+      notify(msg, { tone: 'error' });
     } finally {
       setIsDeleting(false);
     }
@@ -194,7 +206,7 @@ export function GoalsView({ wallets, onRefreshParent }: GoalsViewProps) {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
         <div>
-          <h2 className="text-base sm:text-xl font-bold text-text flex items-center gap-2">
+          <h2 className="text-xl sm:text-2xl font-bold text-text flex items-center gap-2">
             <Target size={22} className="text-primary" weight="duotone" />
             <span>Target Tabungan</span>
           </h2>
@@ -208,10 +220,9 @@ export function GoalsView({ wallets, onRefreshParent }: GoalsViewProps) {
       </div>
 
       {actionError && (
-        <div role="alert" className="p-3 bg-expense/10 border border-expense/20 rounded-2xl text-expense text-xs font-semibold flex items-center gap-2">
-          <WarningCircle size={16} weight="fill" />
+        <Alert tone="error" size="sm">
           {actionError}
-        </div>
+        </Alert>
       )}
 
       {listError && (
@@ -251,7 +262,7 @@ export function GoalsView({ wallets, onRefreshParent }: GoalsViewProps) {
           }
 
           return (
-            <div key={g.id} className="p-4 bg-surface border border-border rounded-3xl space-y-3 shadow-2xs">
+            <div key={g.id} className="p-4 sm:p-5 bg-surface border border-border rounded-3xl space-y-3 shadow-2xs">
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0 space-y-0.5">
                   <h3 className="text-sm font-bold text-text truncate">{g.name}</h3>
@@ -260,18 +271,18 @@ export function GoalsView({ wallets, onRefreshParent }: GoalsViewProps) {
                     {g.target_date ? ` • Target ${formatDate(g.target_date, 'short')}` : ''}
                   </p>
                 </div>
-                <span className={`text-[10px] font-extrabold px-2 py-1 rounded-lg shrink-0 ${isReached ? 'bg-income/10 text-income' : 'bg-primary-subtle text-primary'}`}>
+                <span className={`text-[11px] font-extrabold px-2 py-1 rounded-lg shrink-0 ${isReached ? 'bg-income/10 text-income' : 'bg-primary-subtle text-primary'}`}>
                   {pct}%
                 </span>
               </div>
 
               {/* Progress Bar */}
-              <div className="w-full h-2.5 bg-surface-2 rounded-full overflow-hidden">
-                <div
-                  className={`h-full rounded-full transition-all duration-700 ${isReached ? 'bg-income' : 'bg-primary'}`}
-                  style={{ width: `${pct}%` }}
-                />
-              </div>
+              <ProgressBar
+                value={pct}
+                size="md"
+                barClassName={isReached ? 'bg-income' : 'bg-primary'}
+                ariaLabel={`Progres target ${pct} persen`}
+              />
 
               <div className="grid grid-cols-3 gap-2 text-[11px]">
                 <div>
@@ -332,9 +343,9 @@ export function GoalsView({ wallets, onRefreshParent }: GoalsViewProps) {
       <Modal isOpen={isFormOpen} onClose={() => setIsFormOpen(false)} title={editingGoal ? 'Ubah Target Tabungan' : 'Buat Target Tabungan'} maxWidth="sm">
         <form onSubmit={handleSaveGoal} className="space-y-4">
           {formError && (
-            <div role="alert" className="p-3 bg-expense/10 border border-expense/20 rounded-2xl text-expense text-xs font-semibold">
+            <Alert tone="error" size="sm">
               {formError}
-            </div>
+            </Alert>
           )}
 
           <div className="space-y-1">
@@ -416,7 +427,7 @@ export function GoalsView({ wallets, onRefreshParent }: GoalsViewProps) {
             >
               {(contribGoal ? wallets.filter((w) => w.id !== contribGoal.wallet_id) : wallets).map((w) => (
                 <option key={w.id} value={w.id}>
-                  {w.name} ({formatRupiah(w.balance)})
+                  {w.name}
                 </option>
               ))}
             </select>

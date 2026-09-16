@@ -34,6 +34,8 @@ import { ReceiptParserModal } from '@/components/transactions/ReceiptParserModal
 import { HouseholdState } from '@/lib/types';
 import { ReminderScheduler } from '@/components/pwa/ReminderScheduler';
 import { LandingView } from '@/components/landing/LandingView';
+import { useToast } from '@/components/ui/Toast';
+import { Alert } from '@/components/ui/Alert';
 
 
 const TransactionModal = dynamic(
@@ -100,6 +102,7 @@ type BootstrapData = {
   budgets?: Budget[];
   bills?: RecurringBill[];
   debts?: Debt[];
+  subscriptions?: Subscription[];
   summary?: MonthlySummaryType;
   settings?: AppSettings;
 };
@@ -120,6 +123,9 @@ const NAV_TABS: NavTab[] = [
   'household',
   'settings',
 ];
+
+/** Jumlah transaksi terbaru yang ditampilkan di dashboard (sisanya via "Lihat semua"). */
+const DASHBOARD_TX_LIMIT = 5;
 
 // Baca tab aktif tersimpan: history.state → sessionStorage → localStorage.
 // (Robust untuk F5/soft vs hard reload; null bila tidak ada yang tersimpan.)
@@ -162,6 +168,7 @@ function persistTab(tab: NavTab): void {
 
 export default function MainPage() {
   const router = useRouter();
+  const { notify } = useToast();
 
   // Authentication State
   const [user, setUser] = useState<User | null>(null);
@@ -291,33 +298,37 @@ export default function MainPage() {
     if (typeof window === 'undefined') return;
     const params = new URLSearchParams(window.location.search);
     const action = params.get('action');
+    const consumeAction = (tab: NavTab) => {
+      window.history.replaceState({ tab }, '', '/');
+    };
     if (action === 'new-expense') {
       queueMicrotask(() => {
         setTxModalType('expense');
         setEditingTransaction(null);
         setIsTxModalOpen(true);
       });
-      window.history.replaceState({}, '', '/');
+      consumeAction('dashboard');
     } else if (action === 'new-income') {
       queueMicrotask(() => {
         setTxModalType('income');
         setEditingTransaction(null);
         setIsTxModalOpen(true);
       });
-      window.history.replaceState({}, '', '/');
+      consumeAction('dashboard');
     } else if (action === 'scan-receipt') {
       queueMicrotask(() => {
         setIsReceiptParserOpen(true);
       });
-      window.history.replaceState({}, '', '/');
-    } else if (action === 'tab-bills') {
-      // Deep link dari notifikasi push pengingat tagihan.
+      consumeAction('dashboard');
+    } else if (action === 'tab-bills' || action === 'tab-calendar') {
+      // Deep link dari notifikasi push pengingat tagihan/event jatuh tempo.
+      const target: NavTab = action === 'tab-bills' ? 'bills' : 'calendar';
       queueMicrotask(() => {
-        setActiveTab('bills');
-        setTabHistory(['bills']);
+        setActiveTab(target);
+        setTabHistory([target]);
       });
-      persistTab('bills');
-      window.history.replaceState({}, '', '/');
+      persistTab(target);
+      consumeAction(target);
     }
   }, []);
 
@@ -342,24 +353,19 @@ export default function MainPage() {
         setBudgets(data.budgets || []);
         setBills(data.bills || []);
         setDebts(data.debts || []);
+        setSubscriptions(data.subscriptions || []);
         if (data.summary) setSummary(data.summary);
         if (data.settings) setSettings(data.settings);
         
-        // Financial events: gagal muat tidak boleh menggagalkan bootstrap dashboard
-        try {
-          const events = await getFinancialEvents(user.id);
-          setFinancialEvents(events || []);
-        } catch {
-          setFinancialEvents([]);
-        }
-        
-        // Badge aktivitas keluarga: gagal muat tidak boleh menggagalkan bootstrap.
-        try {
-          const household = await apiFetch<HouseholdState>(endpoints.households, { signal: controller.signal });
-          setHouseholdActivityCount(household.new_activity_count || 0);
-        } catch {
-          setHouseholdActivityCount(0);
-        }
+        // Financial events + badge keluarga paralel: gagal muat tidak boleh menggagalkan bootstrap.
+        const [events, household] = await Promise.allSettled([
+          getFinancialEvents(user.id),
+          apiFetch<HouseholdState>(endpoints.households, { signal: controller.signal }),
+        ]);
+        setFinancialEvents(events.status === 'fulfilled' ? events.value || [] : []);
+        setHouseholdActivityCount(
+          household.status === 'fulfilled' ? household.value.new_activity_count || 0 : 0
+        );
       } catch (err) {
         if (err instanceof Error && err.name === 'AbortError') return;
         if (ignore) return;
@@ -383,6 +389,8 @@ export default function MainPage() {
   // Handle Tab Navigation with History Stack
   const handleTabChange = useCallback((newTab: NavTab) => {
     if (newTab === activeTab) return;
+    setActiveTab(newTab);
+    setTabHistory((prev) => [...prev, newTab]);
     persistTab(newTab);
     window.history.pushState({ tab: newTab }, '', '');
   }, [activeTab]);
@@ -415,28 +423,41 @@ export default function MainPage() {
 
   // Handle Mobile Back Button & Exit Confirmation
   // Sinkronisasi history awal ditangani efek restore di atas (hydration-safe).
+  // Model state-driven: setiap entry history membawa { tab }, popstate membaca
+  // event.state.tab langsung — tanpa pushState ulang yang membuat history bertumpuk.
   useEffect(() => {
-    const handlePopState = () => {
-      // 1. If transaction modal is open, close it first
-      if (isTxModalOpen) {
+    const handlePopState = (e: PopStateEvent) => {
+      // 1. Modal terbuka: tutup dulu, lalu pasang ulang entry intersepsi back.
+      if (isTxModalOpen || isEventModalOpen || isReceiptParserOpen) {
         setIsTxModalOpen(false);
+        setIsEventModalOpen(false);
+        setIsReceiptParserOpen(false);
+        setEditingTransaction(null);
+        setEditingEvent(null);
         window.history.pushState({ tab: activeTab }, '', '');
         return;
       }
 
-      // 2. If on non-dashboard tab, pop history back to previous tab
-      if (activeTab !== 'dashboard') {
-        const next = [...tabHistory];
-        next.pop();
-        const previous = next.length > 0 ? next[next.length - 1] : 'dashboard';
-        setTabHistory(next.length > 0 ? next : ['dashboard']);
-        setActiveTab(previous);
-        persistTab(previous);
-        window.history.pushState({ tab: previous }, '', '');
+      const target = (e.state as { tab?: string } | null)?.tab;
+      const validTarget: NavTab | null =
+        target && NAV_TABS.includes(target as NavTab) ? (target as NavTab) : null;
+
+      // 2. Ada tab valid di history: navigasi langsung tanpa pushState ulang.
+      if (validTarget && validTarget !== activeTab) {
+        setActiveTab(validTarget);
+        setTabHistory([validTarget]);
+        persistTab(validTarget);
         return;
       }
 
-      // 3. If on root dashboard tab, trigger double-back exit confirmation
+      // 3. Di beranda tanpa entry tab: konfirmasi keluar dua-kali-tekan.
+      if (activeTab !== 'dashboard') {
+        setActiveTab('dashboard');
+        setTabHistory(['dashboard']);
+        persistTab('dashboard');
+        window.history.pushState({ tab: 'dashboard' }, '', '');
+        return;
+      }
       if (!exitToast) {
         setExitToast(true);
         window.history.pushState({ tab: 'dashboard' }, '', '');
@@ -455,15 +476,15 @@ export default function MainPage() {
       window.removeEventListener('popstate', handlePopState);
       clearTimeout(exitToastTimerRef.current as unknown as NodeJS.Timeout);
     };
-  }, [activeTab, isTxModalOpen, exitToast, tabHistory]);
+  }, [activeTab, isTxModalOpen, isEventModalOpen, isReceiptParserOpen, exitToast]);
 
 
-  const handleOpenAddModal = (type: TransactionType = 'expense') => {
+  const handleOpenAddModal = useCallback((type: TransactionType = 'expense') => {
     setEditingTransaction(null);
     setParsedReceiptData(null);
     setTxModalType(type);
     setIsTxModalOpen(true);
-  };
+  }, []);
 
   const handleApplyReceipt = (parsed: ParsedReceiptResult) => {
     setEditingTransaction(null);
@@ -484,14 +505,19 @@ export default function MainPage() {
     // Hapus TIDAK didukung offline: menghapus yang tersimpan di server butuh koneksi,
     // dan menyantroningnya ke antrean offline berisiko menghapus saat user lupa.
     if (typeof navigator !== 'undefined' && !navigator.onLine) {
-      setDeleteError('Hapus transaksi hanya bisa dilakukan saat online. Coba lagi setelah terhubung.');
+      const offlineMsg = 'Hapus transaksi hanya bisa dilakukan saat online. Coba lagi setelah terhubung.';
+      setDeleteError(offlineMsg);
+      notify(offlineMsg, { tone: 'error' });
       return;
     }
     try {
       await apiFetch(endpoints.transaction(id), { method: 'DELETE' });
       setReloadKey((k) => k + 1);
+      notify('Transaksi berhasil dihapus.', { tone: 'success' });
     } catch (err) {
-      setDeleteError(err instanceof ApiError ? err.message : 'Gagal menghapus transaksi.');
+      const msg = err instanceof ApiError ? err.message : 'Gagal menghapus transaksi.';
+      setDeleteError(msg);
+      notify(msg, { tone: 'error' });
     }
   };
 
@@ -599,6 +625,7 @@ export default function MainPage() {
       onTabChange={handleTabChange}
       onOpenAddModal={() => handleOpenAddModal('expense')}
       onOpenTypedModal={handleOpenAddModal}
+      onOpenReceiptScan={() => setIsReceiptParserOpen(true)}
       currentMonth={currentMonth}
       currentYear={currentYear}
       onPeriodChange={handlePeriodChange}
@@ -612,16 +639,87 @@ export default function MainPage() {
       overbudgetCount={summary.budget_over_count}
       unpaidDebtsCount={summary.payable_unpaid_count}
       householdActivityCount={householdActivityCount}
+      subscriptionCount={subscriptions.filter((s) => s.is_active).length}
     >
       {/* Error Message */}
       {dataError ? (
-        <div className="p-4 text-center text-expense text-sm font-semibold">
+        <Alert tone="error" className="justify-center text-center">
           {dataError}
-        </div>
+        </Alert>
       ) : isDataLoading && transactions.length === 0 && wallets.length === 0 ? (
         <DashboardSkeleton />
       ) : activeTab === 'dashboard' ? (
         <div className="space-y-3.5 sm:space-y-5">
+          {/* Judul bagian untuk struktur heading; pengguna visual sudah melihat kartu saldo. */}
+          <h2 className="sr-only">Ringkasan Keuangan</h2>
+          {/* Total Balance & Safe-to-Spend Gradient Card */}
+          <BalanceHeader
+            totalBalance={summary.total_balance}
+            walletCount={wallets.length}
+            safeToSpend={summary.safe_to_spend}
+            pendingBillsAmount={summary.total_bills_pending_amount}
+            payableDueAmount={summary.total_payable_due}
+            receivableDueAmount={summary.total_receivable_due}
+            monthlyRecurringTotal={subscriptions.reduce((sum, s) => {
+              if (s.cycle === 'monthly') return sum + s.amount;
+              if (s.cycle === 'yearly') return sum + s.amount / 12;
+              if (s.cycle === 'weekly') return sum + s.amount * 4.33;
+              if (s.cycle === 'daily') return sum + s.amount * 30;
+              return sum;
+            }, 0)}
+            onManageWallets={() => handleTabChange('wallets')}
+            onNavigateToDebts={() => handleTabChange('debts')}
+          />
+
+          {/* Quick Grid Actions */}
+          <QuickActions
+            onOpenTransactionModal={handleOpenAddModal}
+            onNavigate={handleTabChange}
+            onOpenReceiptScan={() => setIsReceiptParserOpen(true)}
+            pendingBillsCount={summary.bill_pending_count}
+            overbudgetCount={summary.budget_over_count}
+            unpaidDebtsCount={summary.payable_unpaid_count}
+            subscriptionCount={subscriptions.filter(s => s.is_active).length}
+          />
+
+          {/* Recent Transactions List: informasi paling sering dicari, taruh dekat atas */}
+          {deleteError && (
+            <Alert
+              tone="error"
+              size="sm"
+              onDismiss={() => setDeleteError(null)}
+              dismissLabel="Tutup pesan galat"
+              dismissText="Tutup"
+            >
+              {deleteError}
+            </Alert>
+          )}
+
+          <div className="p-4 sm:p-5 bg-surface border border-border rounded-2xl shadow-2xs">
+            <TransactionList
+              transactions={transactions}
+              onDeleteTransaction={handleDeleteTransaction}
+              onEditTransaction={handleEditTransaction}
+              onOpenAddModal={handleOpenAddModal}
+              isLoading={isDataLoading}
+              limit={DASHBOARD_TX_LIMIT}
+              onViewAll={() => handleTabChange('transactions')}
+            />
+          </div>
+
+          {/* Digital Wallets Scroller */}
+          <WalletScroller
+            wallets={wallets}
+            onAddWallet={() => handleTabChange('wallets')}
+            onTransfer={() => handleOpenAddModal('transfer')}
+          />
+
+          {/* Monthly Cashflow Summary (In / Out / Net) */}
+          <MonthlySummary summary={summary} />
+
+          {/* Insight Hari Ini: deteksi pola + saran yang bisa ditindaklanjuti */}
+          <InsightWidget />
+
           {!backupNudgeDismissed && (
             <div className="flex items-center justify-between gap-3 p-3 bg-warning/10 border border-warning/20 rounded-2xl">
               <div className="flex items-center gap-3 flex-1">
@@ -645,7 +743,7 @@ export default function MainPage() {
                     } catch { /* abaikan */ }
                     setBackupNudgeDismissed(true);
                   }}
-                  className="min-h-[44px] flex items-center px-3 rounded-xl bg-warning text-white text-xs font-bold hover:opacity-90 active:opacity-80 transition-opacity"
+                  className="min-h-[44px] flex items-center px-3 rounded-xl bg-warning text-warning-fg text-xs font-bold hover:opacity-90 active:opacity-80 transition-opacity"
                 >
                   Unduh
                 </a>
@@ -660,58 +758,6 @@ export default function MainPage() {
               </div>
             </div>
           )}
-
-          {/* Total Balance & Safe-to-Spend Gradient Card */}
-          <BalanceHeader
-            totalBalance={summary.total_balance}
-            walletCount={wallets.length}
-            safeToSpend={summary.safe_to_spend}
-            pendingBillsAmount={summary.total_bills_pending_amount}
-            payableDueAmount={summary.total_payable_due}
-            monthlyRecurringTotal={subscriptions.reduce((sum, s) => {
-              if (s.cycle === 'monthly') return sum + s.amount;
-              if (s.cycle === 'yearly') return sum + s.amount / 12;
-              if (s.cycle === 'weekly') return sum + s.amount * 4.33;
-              if (s.cycle === 'daily') return sum + s.amount * 30;
-              return sum;
-            }, 0)}
-            onManageWallets={() => handleTabChange('wallets')}
-            onNavigateToDebts={() => handleTabChange('debts')}
-          />
-
-          {/* Quick Grid Actions */}
-          <QuickActions
-            onOpenTransactionModal={handleOpenAddModal}
-            onNavigate={handleTabChange}
-            onOpenReceiptScan={() => setIsReceiptParserOpen(true)}
-            pendingBillsCount={summary.bill_pending_count}
-            overbudgetCount={summary.budget_over_count}
-            unpaidDebtsCount={summary.payable_unpaid_count}
-            subscriptionCount={subscriptions.filter(s => s.is_active).length}
-          />
-
-
-          {/* Digital Wallets Scroller */}
-          <WalletScroller
-            wallets={wallets}
-            onAddWallet={() => handleTabChange('wallets')}
-            onTransfer={() => handleOpenAddModal('transfer')}
-          />
-
-          {/* Monthly Cashflow Summary (In / Out / Net) */}
-          <MonthlySummary summary={summary} />
-
-          {/* Insight Hari Ini: deteksi pola + saran yang bisa ditindaklanjuti */}
-          <InsightWidget />
-
-          {/* Recent Transactions List */}
-          <TransactionList
-            transactions={transactions}
-            onDeleteTransaction={handleDeleteTransaction}
-            onEditTransaction={handleEditTransaction}
-            onOpenAddModal={handleOpenAddModal}
-            isLoading={isDataLoading}
-          />
         </div>
       ) : activeTab === 'transactions' ? (
         <>
@@ -835,6 +881,7 @@ export default function MainPage() {
 
       {/* Global Financial Event Modal */}
       <EventModal
+        key={editingEvent?.id || 'new'}
         isOpen={isEventModalOpen}
         onClose={() => {
           setIsEventModalOpen(false);

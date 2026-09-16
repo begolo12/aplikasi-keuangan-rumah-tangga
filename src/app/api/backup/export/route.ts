@@ -14,24 +14,35 @@ export async function GET(req: NextRequest) {
       throw new BusinessError(`Terlalu banyak unduhan backup. Coba lagi dalam ${rl.retryAfterSec} detik.`, 429);
     }
 
-    const [wallets, categories, transactions, budgets, bills, billPayments, settings, assets, debts, debtPayments, goals, goalContributions] =
-      await Promise.all([
-        query('SELECT * FROM wallets WHERE user_id = $1', [session.userId]),
-        query('SELECT * FROM categories WHERE user_id = $1', [session.userId]),
-        query('SELECT * FROM transactions WHERE user_id = $1 ORDER BY date ASC', [session.userId]),
-        query('SELECT * FROM budgets WHERE user_id = $1', [session.userId]),
-        query('SELECT * FROM recurring_bills WHERE user_id = $1', [session.userId]),
-        query('SELECT * FROM bill_payments WHERE user_id = $1', [session.userId]),
-        query('SELECT * FROM app_settings WHERE user_id = $1', [session.userId]),
-        query('SELECT * FROM assets WHERE user_id = $1', [session.userId]),
-        query('SELECT * FROM debts WHERE user_id = $1', [session.userId]),
-        query('SELECT * FROM debt_payments WHERE user_id = $1', [session.userId]),
-        query('SELECT * FROM savings_goals WHERE user_id = $1', [session.userId]),
-        query('SELECT * FROM goal_contributions WHERE user_id = $1', [session.userId]),
-      ]);
+    // PERF-01: Eksekusi batch bertahap (maks 4 query paralel) agar tidak melebihi connection pool database Neon (max: 10).
+    const [wallets, categories, transactions, budgets] = await Promise.all([
+      query('SELECT * FROM wallets WHERE user_id = $1', [session.userId]),
+      query('SELECT * FROM categories WHERE user_id = $1', [session.userId]),
+      query('SELECT * FROM transactions WHERE user_id = $1 ORDER BY date ASC', [session.userId]),
+      query('SELECT * FROM budgets WHERE user_id = $1', [session.userId]),
+    ]);
+
+    const [bills, billPayments, settings, assets] = await Promise.all([
+      query('SELECT * FROM recurring_bills WHERE user_id = $1', [session.userId]),
+      query('SELECT * FROM bill_payments WHERE user_id = $1', [session.userId]),
+      query('SELECT * FROM app_settings WHERE user_id = $1', [session.userId]),
+      query('SELECT * FROM assets WHERE user_id = $1', [session.userId]),
+    ]);
+
+    const [debts, debtPayments, goals, goalContributions] = await Promise.all([
+      query('SELECT * FROM debts WHERE user_id = $1', [session.userId]),
+      query('SELECT * FROM debt_payments WHERE user_id = $1', [session.userId]),
+      query('SELECT * FROM savings_goals WHERE user_id = $1', [session.userId]),
+      query('SELECT * FROM goal_contributions WHERE user_id = $1', [session.userId]),
+    ]);
+
+    const [subscriptions, financialEvents] = await Promise.all([
+      query('SELECT * FROM subscriptions WHERE user_id = $1', [session.userId]),
+      query('SELECT * FROM financial_events WHERE user_id = $1', [session.userId]),
+    ]);
 
     const backupData = {
-      version: '1.1',
+      version: '1.2',
       exported_at: new Date().toISOString(),
       user: {
         id: session.userId,
@@ -51,6 +62,8 @@ export async function GET(req: NextRequest) {
         debt_payments: debtPayments,
         savings_goals: goals,
         goal_contributions: goalContributions,
+        subscriptions,
+        financial_events: financialEvents,
       },
     };
 

@@ -171,8 +171,10 @@ export async function POST(req: NextRequest) {
 
       const totalDebit =
         validated.type === 'transfer' ? validated.amount + (validated.admin_fee || 0) : validated.amount;
-      // Biaya admin dibukukan sebagai transaksi expense pendamping agar masuk laporan
-      // dan bisa berkategori; admin_fee baris utama dinolkan agar tidak dihitung ganda.
+      // Biaya admin disimpan di kolom admin_fee pada baris transaksi yang SAMA — tidak ada
+      // baris transaksi pendamping. Karena itu total pengeluaran di laporan harus
+      // menjumlahkan amount + admin_fee (lihat src/lib/reportSql.ts). Biaya pada transaksi
+      // income tidak pernah dibebankan, jadi selalu nol.
       const feeAmount = validated.type === 'income' ? 0 : validated.admin_fee || 0;
 
       // Saldo dompet diizinkan bernilai minus (overdraft / cashflow defisit).
@@ -235,7 +237,7 @@ export async function POST(req: NextRequest) {
           session.userId,
           validated.type,
           validated.amount,
-          feeAmount > 0 ? 0 : validated.admin_fee || 0,
+          feeAmount,
           validated.category_id || null,
           validated.wallet_id,
           validated.to_wallet_id || null,
@@ -245,22 +247,6 @@ export async function POST(req: NextRequest) {
           idempotencyKey,
         ]
       );
-
-      if (feeAmount > 0) {
-        await client.query(
-          `INSERT INTO transactions (
-            user_id, type, amount, admin_fee, category_id, wallet_id, description, date
-          ) VALUES ($1, 'expense', $2, 0, $3, $4, $5, $6)`,
-          [
-            session.userId,
-            feeAmount,
-            validated.category_id || null,
-            validated.wallet_id,
-            `Biaya admin: ${validated.description || (validated.type === 'transfer' ? 'transfer' : 'transaksi')}`,
-            validated.date,
-          ]
-        );
-      }
 
       return { row: insertedTrx.rows[0], replayed: false };
     });
