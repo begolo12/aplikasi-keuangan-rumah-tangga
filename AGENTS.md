@@ -94,6 +94,9 @@ Meski tanpa plan doc, **perubahan tetap dicatat** ke `changelog.md` sebagai entr
 - Jangan commit `.env.local`, `env-*.json`, atau secret apa pun.
 - Validasi input pakai Zod; query DB selalu filter by user id (data isolation multi-user).
 - Saldo dompet boleh minus (overdraft didukung untuk kartu kredit & rekonsiliasi riil; constraint strict-zero sudah dilepas sejak plan 2026-08-27).
+- **Bump cache service worker saat rilis.** Setiap perubahan aset yang di-precache di `public/sw.js` (`PRECACHE_URLS`) atau perubahan shell aplikasi WAJIB menaikkan `CACHE_NAME` (mis. `kaskeluarga-static-v4` → `v5`). Tanpa bump, pengguna yang sudah meng-install PWA dapat terus memakai aset lama. Jangan pernah menambahkan endpoint `/api/` ke precache: data finansial harus selalu dari jaringan.
+- **Migrasi DB wajib diverifikasi.** Setelah menambah kolom/tabel yang dibaca kode, jalankan `npx tsx scripts/run-db-migrations.ts` (idempoten, gagal keras bila ada objek yang belum siap). Jangan pernah menganggap migrasi "sukses" hanya karena SQL tidak melempar error — insiden `subscriptions.provider_name` (2026-09-16) terjadi persis karena itu.
+- **Jangan arahkan suite destruktif ke produksi.** `scripts/e2e-full-suite.ts` membuat dan menghapus user uji. Suite ini menolak berjalan tanpa `E2E_ALLOW_DESTRUCTIVE=1` dan nama database yang memuat penanda uji (`test`/`e2e`/`staging`/`dev`/`local`). `npm test` sengaja hanya menjalankan self-test statis.
 
 <!-- BEGIN:nextjs-agent-rules -->
 

@@ -3,6 +3,61 @@
 Log eksekusi plan. Entri baru ditambahkan di bagian paling atas.
 Format entri lihat `AGENTS.md` bagian "Langkah 3 — Catat ke Changelog".
 
+## [2026-09-16] Hardening Produksi — Gap Deploy, Database, dan Repo
+
+**Plan**: `docs/plans/2026-09-16-hardening-produksi.md`
+
+### Berubah
+
+**Blocker database (modul Langganan rusak total di produksi)**
+- DB produksi ternyata belum pernah menjalankan migrasi: `subscriptions` hanya punya kolom warisan `provider`, sedangkan seluruh kode membaca `provider_name`, `reminder_enabled`, dan `auto_debit`. Setiap request `/api/subscriptions*` gagal dengan `column "provider_name" does not exist` (HTTP 500). Migrasi sudah dijalankan ke DB produksi; `provider` juga dilonggarkan (`DROP NOT NULL`) agar INSERT dari aplikasi tidak gagal.
+- `scripts/run-db-migrations.ts`: `auto_debit` ditambahkan ke langkah 6d (sebelumnya hanya ada di `/api/init`, sehingga skrip migrasi saja tidak cukup).
+- `scripts/run-db-migrations.ts`: verifikasi akhir diganti dari sekadar mencetak kolom `transactions` menjadi pemeriksaan keras 16 kolom + 7 tabel + status nullable `provider`, dengan `exit 1` bila ada yang belum siap. Akar insiden ini adalah "sukses" yang hanya berarti SQL tidak melempar error.
+- Diverifikasi terhadap DB produksi: kolom siap, query yang dipakai aplikasi lulus, INSERT tanpa kolom legacy berhasil, dan siklus CRUD + auto-debit langganan (potong saldo, catat transaksi, majukan `next_charge_date`) lulus. Data produksi (5 user, 75 transaksi) tidak berubah.
+
+**Keselamatan pengujian**
+- `scripts/e2e-full-suite.ts`: guard dua lapis sebelum menyentuh database. Suite destruktif ini sebelumnya membaca `DATABASE_URL` produksi dari `.env.local` lalu menjalankan `DELETE FROM users`. Kini wajib `E2E_ALLOW_DESTRUCTIVE=1` **dan** nama database memuat penanda uji (`test`/`e2e`/`staging`/`dev`/`local`).
+- `package.json`: `npm test` tidak lagi menjalankan `test:e2e`; kini hanya self-test statis (tidak menyentuh DB). Suite destruktif tetap tersedia lewat `npm run test:e2e` dengan guard di atas.
+
+**Kalender WIB vs UTC**
+- Server produksi (Vercel) berjalan di UTC, sehingga antara 00:00–06:59 WIB tanggal server masih kemarin. Ini membuat jatuh tempo tagihan, langganan, dan hutang bisa meleset sehari.
+- `src/lib/formatters.ts`: helper baru `getJakartaDateParts()`, `getJakartaDateString()`, `addDaysToDateString()`.
+- Dipakai di `api/push/cron` (rentang hari ini/besok, label "Hari ini"/"Besok", format tanggal event & hutang), `api/bills/cron` dan `api/bills/auto-process` (periode default), serta `api/subscriptions/cron` (selisih hari dihitung dari tanggal kalender, bukan selisih jam).
+- `components/subscriptions/SubscriptionsView.tsx`: default `next_charge_date` memakai `getLocalDateString()`, bukan `toISOString()` UTC.
+
+**Mutu, CI, dan dokumentasi**
+- `src/app/page.tsx`: state `tabHistory` dihapus. Nilainya tidak pernah dibaca (model navigasi sudah pindah ke `history.state`), jadi hanya memicu warning lint.
+- `.github/workflows/ci.yml` (baru): typecheck, lint, build, dan self-test pada setiap push.
+- `public/sw.js`: `CACHE_NAME` naik `v4` → `v5`.
+- `AGENTS.md`: aturan baru — bump cache service worker tiap rilis, migrasi DB wajib diverifikasi keras, dan larangan mengarahkan suite destruktif ke produksi.
+- `scripts/audit-self-test.ts`: 7 regression test kalender WIB (00:30 WIB, 06:59 WIB, tengah malam, lintas bulan/tahun, tahun kabisat). Total 159 → 166.
+- `.env.example` + `DEPLOYMENT.md`: `INIT_SECRET` dan `VAPID_PRIVATE_KEY` didokumentasikan; langkah migrasi ditulis ulang sebagai langkah **wajib** (Step 3) dengan perintah verifikasi.
+- `README.md`: "Next.js 15" → 16; klaim "Validasi Saldo Ketat (Strict Zero)" diganti deskripsi overdraft yang benar.
+- `FINAL-STATUS.md`, `URGENT-FIXES.md`, `CHECKLIST.md`: ditandai usang di bagian atas (isinya menyatakan build gagal dan 147/151 test, padahal sudah tidak benar).
+
+### Dampak
+- **Modul Langganan kini berfungsi.** Sebelumnya seluruh endpoint-nya mengembalikan HTTP 500.
+- `npm test` tidak lagi destruktif; suite E2E butuh env khusus. Sesuaikan CI/script yang mengandalkan perilaku lama.
+- `INIT_SECRET` kini wajib diset agar `POST /api/init` bisa dijalankan setelah database berisi user.
+- Pengguna PWA akan menerima cache baru (`v5`) dan memuat ulang aset.
+- Belum dikerjakan: pemantauan error (Sentry) — butuh keputusan pemilik; refactor state `page.tsx`; pembersihan data uji di DB (menunggu konfirmasi).
+
+## [2026-09-16] Audit Alur dan Automasi Keuangan (F1-F6)
+
+**Plan**: `docs/plans/2026-09-16-audit-alur-dan-automasi.md`
+
+### Berubah
+- F1: Tagihan cicilan otomatis nonaktif saat hutang lunas, dua jalur (bayar manual `debts/[id]/pay` + auto-process `billAutoProcess`). Kas tidak terpotong bulan berikut.
+- F2: Langganan dapat opt-in auto-debit (kolom baru `subscriptions.auto_debit` + migrasi `init`). Cron langganan memotong saldo, mencatat transaksi expense, memajukan `next_charge_date` per siklus, lalu melewati pengingat untuk yg sudah terdebit. UI: checkbox auto-debit di form tambah + badge Auto-debit di item.
+- F3: Form Tagihan Rutin bisa ditautkan ke hutang (field `debt_id`: schema `recurringBillSchema`, API `bills`, hook `useBillForm`, dropdown di `BillsView`, prop `debts` dari `page.tsx`). Cicilan yg ditaut ikut mengupdate sisa hutang via `billAutoProcess`.
+- F4: Cron push harian (`push/cron`) kini mencakup hutang belum lunas yg jatuh tempo hari ini/besok/sudah lewat dan belum punya tagihan cicilan aktif (tanpa dobel ingatkan).
+- F5: Kalender menampilkan agenda jatuh tempo read-only: penanda hari + panel rincian (tagihan rutin, hutang/piutang, langganan) dari data bootstrap yg sudah ada. Export iCal tetap event manual (tidak diubah).
+- F6: Backup utuh: export mencakup `budget_templates`; import memulihkan `budgets.rollover_enabled`, relasi langganan (kategori/dompet di-remap, `auto_debit`), dan `budget_templates`.
+
+### Dampak
+- Kolom DB baru `subscriptions.auto_debit` (default FALSE): migrasi via `POST /api/init` (ALTER TABLE IF NOT EXISTS, aman idempoten). Cron langganan hanya mendebit yg eksplisit opt-in + punya dompet; default perilaku lama (pengingat saja) tidak berubah.
+- Sengaja tidak diubah: depresiasi aset tetap on-the-fly (tanpa jurnal beban), rekomendasi anggaran tetap heuristik lokal, rollover tetap query-time.
+
 ## [2026-09-15] Paket A–E — Perbaikan Visual, UI & UX Menyeluruh
 
 **Plan**: `docs/plans/2026-09-15-paket-a-sampai-e-perbaikan-visual-ui-ux.md`

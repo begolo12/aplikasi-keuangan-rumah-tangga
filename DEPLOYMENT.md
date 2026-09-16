@@ -1,65 +1,38 @@
-# 🚀 Deployment Guide - KasKeluarga SaaS
+# 🚀 Deployment Guide - KasKeluarga
 
-## ✅ Production Ready Checklist
+> **Catatan (2026-09-16)**: Bagian "Known Issues" lama (syntax error `SidebarNav`,
+> `SettingsView`, `GoalsView`, ikon Phosphor, "147/151 test") sudah **tidak berlaku** —
+> semuanya sudah diperbaiki dan diverifikasi. Status mutu terkini:
+> `tsc --noEmit` lulus · `npm run lint` 0 error 0 warning · `npm run build` lulus ·
+> `npm run test:audit` 159/159 lulus.
 
-### Build & Tests Status
-- [x] Landing Page (SaaS public site) - **COMPLETE**
-- [ ] Core App (`src/app/page.tsx`) - **NEEDS FIXES**
-- [ ] Test Suite - 147/151 PASSED (4 FAILED)
-- [ ] Linting - 54 problems remaining
+## ✅ Status Kesiapan Produksi (terverifikasi 2026-09-16)
 
-### Known Issues to Fix Before Full Launch
-
-#### 1. Sidebar Navigation Syntax Error
-**File**: `src/components/layout/SidebarNav.tsx`
-**Issue**: Broken drag-drop state code inserted inside JSX tags
-**Status**: File corrupted by previous edits, needs git restore + clean fix
-
-#### 2. Subscription Component Icon Error  
-**File**: `src/components/subscriptions/SubscriptionsView.tsx`
-**Issue**: Used non-existent Phosphor icon `TrendingUp`
-**Status**: Fixed - replaced with `CircleDashed`
-
-#### 3. Database Schema Migration
-**Files Created**: 
-- `/api/budgets/templates`
-- `/api/subscriptions/route`
-- `/api/events/*`
-- `/api/currencies/route`
-
-**Action Required**: Run `POST /api/init` after deploy to Vercel to create new tables.
+- [x] Landing page publik
+- [x] Aplikasi inti (dashboard, transaksi, anggaran, tagihan, hutang, target, aset, laporan)
+- [x] Modul Langganan (setelah migrasi database dijalankan — lihat Step 3)
+- [x] PWA + service worker + Web Push
+- [x] Self-test 159/159
+- [x] CI otomatis (typecheck, lint, build, self-test)
 
 ## 📦 Deployment Steps
 
-### Step 1: Fix Core App Issues
+### Step 1: Siapkan Environment Variables (Vercel)
 
-```bash
-# Restore broken files from git first
-git checkout src/components/layout/SidebarNav.tsx
-
-# Re-implement features cleanly without breaking syntax
-# See notes below for implementation approach
-```
-
-**Implementation Note**: 
-- Do NOT insert JavaScript state declarations inside JSX
-- Move all logic outside of render methods
-- Use proper component structure: props/state → functions → return JSX
-
-### Step 2: Update Environment Variables (Vercel)
-
-Add these in Vercel Dashboard > Project Settings > Environment Variables:
+Tambahkan di Vercel Dashboard > Project Settings > Environment Variables:
 
 | Variable | Value | Notes |
 |----------|-------|-------|
 | `DATABASE_URL` | Your Neon Postgres URL | Serverless, SSL required |
 | `JWT_SECRET` | Random 32-char string | Generate: `openssl rand -base64 32` |
 | `NEXT_PUBLIC_APP_NAME` | "KasKeluarga" | PWA app name |
+| `INIT_SECRET` | Random string | Wajib untuk menjalankan migrasi setelah DB berisi user |
 | `DEEPSEEK_API_KEY` | (Optional) DeepSeek API key | For receipt scanning AI |
 | `VAPID_PUBLIC_KEY` | (Optional) Web Push keys | For notifications |
-| `CRON_SECRET` | (Optional) Cron auth token | For scheduled tasks |
+| `VAPID_PRIVATE_KEY` | (Optional) Web Push keys | Pasangan dari `VAPID_PUBLIC_KEY` |
+| `CRON_SECRET` | (Optional) Cron auth token | Wajib agar cron berjalan; cron menolak request tanpa ini |
 
-### Step 3: Deploy to Vercel
+### Step 2: Deploy to Vercel
 
 ```bash
 # Install Vercel CLI if not already
@@ -77,36 +50,73 @@ Or use GitHub integration:
 2. Vercel auto-deploys on push
 3. Configure environment variables in dashboard
 
-### Step 4: Run Database Migrations
+### Step 3: Jalankan Migrasi Database — WAJIB
 
-After deployment, initialize database:
+> **Jangan lewati langkah ini.** Migrasi bukan opsional: modul yang kodenya sudah
+> ada tetap gagal total bila kolomnya belum ada di database. Ini pernah terjadi pada
+> modul Langganan — seluruh request `/api/subscriptions*` mengembalikan HTTP 500
+> karena kolom `provider_name` belum dibuat di produksi.
+
+**Opsi A (disarankan): skrip migrasi langsung ke database**
 
 ```bash
-curl -X POST https://your-app.vercel.app/api/init
+# Membaca DATABASE_URL dari .env.local, lalu memverifikasi hasilnya sendiri.
+npx tsx scripts/run-db-migrations.ts
 ```
 
-This creates all tables including:
-- ✅ `budgets_templates` (AI budget templates)
-- ✅ `subscriptions` (Subscription tracker)
-- ✅ `financial_events` (Calendar events)
-- ✅ All existing tables with constraints
+Skrip ini idempoten (aman dijalankan berulang), tidak menghapus data, dan
+**gagal dengan exit code 1** bila ada kolom/tabel yang belum siap — jadi "sukses"
+berarti benar-benar siap, bukan sekadar tidak melempar error.
 
-### Step 5: Configure cron jobs (Optional)
+**Opsi B: lewat endpoint aplikasi**
 
-Set up daily reminders at `02:00 UTC`:
+```bash
+curl -X POST https://your-app.vercel.app/api/init \
+  -H "X-Init-Secret: $INIT_SECRET"
+```
+
+Setelah database berisi user, endpoint ini **terkunci** dan menolak request tanpa
+header `X-Init-Secret` yang cocok. Pada database yang masih kosong, endpoint boleh
+dipanggil tanpa secret untuk bootstrap pertama.
+
+**Verifikasi setelah migrasi** (semua harus terpenuhi):
+
+```bash
+# 1. Health check
+curl -s https://your-app.vercel.app/api/health
+
+# 2. Modul Langganan tidak lagi 500 (401 = normal, artinya butuh login)
+curl -s -o /dev/null -w "%{http_code}\n" https://your-app.vercel.app/api/subscriptions
+
+# 3. Cron mengenali secret (200, bukan 401/503)
+curl -s -H "Authorization: Bearer $CRON_SECRET" https://your-app.vercel.app/api/subscriptions/cron
+```
+
+Migrasi menyiapkan antara lain:
+- ✅ `subscriptions.provider_name`, `reminder_enabled`, `auto_debit` (+ `provider` dilonggarkan)
+- ✅ `push_send_log`, `push_subscriptions` (Web Push)
+- ✅ `households`, `household_members` (rumah tangga)
+- ✅ `budgets_templates`, `financial_events`
+- ✅ `merchant_category_map`, kolom rollover, idempotency, dan indeks pendukung
+
+### Step 4: Configure cron jobs
+
+Cron di `vercel.json` sudah terdaftar dan Vercel akan memanggilnya otomatis
+(`/api/push/cron` 01:00 UTC, `/api/bills/cron` 02:00 UTC, `/api/subscriptions/cron`
+03:00 UTC). Yang perlu Anda pastikan hanya `CRON_SECRET` sudah diset — ketiga
+endpoint menolak request tanpa itu (fail-closed).
 
 **Vercel Cron Setup**:
 1. Go to Vercel Dashboard > Cron Triggers
-2. Add schedule: `0 2 * * *`
-3. Endpoint: `/api/bills/cron` AND `/api/push/cron`
-4. Auth secret: Use your `CRON_SECRET`
+2. Pastikan ketiga endpoint di atas terdaftar
+3. Auth secret: gunakan `CRON_SECRET` yang sama dengan environment variable
 
 Or use external scheduler like:
 - AWS EventBridge
 - Cron-job.org
 - Uptime Robot
 
-### Step 6: Configure PWA
+### Step 5: Configure PWA
 
 Ensure these files exist in public/:
 - [x] `manifest.json` ✓
@@ -120,7 +130,7 @@ PWA should be installable on:
 - ✅ Windows Edge/Chrome
 - ✅ macOS Safari
 
-### Step 7: Monitoring & Analytics
+### Step 6: Monitoring & Analytics
 
 Set up monitoring tools:
 

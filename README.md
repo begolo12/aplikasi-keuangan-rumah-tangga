@@ -13,7 +13,7 @@ Aplikasi pencatatan dan manajemen keuangan keluarga modern berstandar **PWA (*Pr
   - **Tablet ($768\text{px} - 1023\text{px}$)**: Compact Rail Sidebar + 2 Kolom Grid.
   - **Mobile ($< 768\text{px}$)**: Bottom Navigation Bar + FAB (`+`) + Slide-up Bottom Sheet.
 - 📶 **PWA & Offline-First**: Dapat di-install di Home Screen Android, Windows, macOS, dan iOS Safari. Transaksi saat offline tersimpan di **IndexedDB** dan otomatis tersinkronisasi saat terhubung internet kembali.
-- 🎯 **Validasi Saldo Ketat (*Strict Zero*)**: Mencegah pengeluaran atau transfer melebihi saldo dompet yang tersedia.
+- 🎯 **Saldo Fleksibel (Overdraft Didukung)**: Saldo dompet boleh minus untuk kartu kredit, rekonsiliasi riil, dan pencatatan defisit kas. Pengeluaran yang melebihi saldo tetap dicatat apa adanya, bukan ditolak.
 - 📊 **Anggaran Bulanan Real-Time**: Progress bar visual dengan 4 status tingkatan (*Aman, Waspada, Kritis, Overbudget*).
 - 🧾 **Tagihan Rutin & Smart Badge**: Indikator pintar untuk tagihan jatuh tempo dalam 3 hari ke depan ($H-3$) atau menunggak, dengan tombol pelunasan 1-klik yang otomatis mendebit saldo dompet dan mencatat transaksi pengeluaran.
 - 📈 **Grafik Analitik & Ekspor CSV**: Donut Chart komposisi pengeluaran kategori, Bar Chart arus kas harian, dan unduh CSV siap buka & siap rumus di Excel / Google Sheets.
@@ -23,7 +23,7 @@ Aplikasi pencatatan dan manajemen keuangan keluarga modern berstandar **PWA (*Pr
 
 ## 🛠️ Arsitektur Teknologi
 
-- **Framework**: Next.js 15 (App Router) + TypeScript
+- **Framework**: Next.js 16 (App Router) + TypeScript
 - **Styling**: Tailwind CSS + HSL Design System Tokens + Dark Mode
 - **Typography**: Manrope (Google Fonts via `next/font/google` offline-ready)
 - **Icons**: Phosphor Icons (`@phosphor-icons/react`)

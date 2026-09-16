@@ -1,3 +1,16 @@
+> # ⚠️ DOKUMEN USANG — JANGAN DIPAKAI SEBAGAI ACUAN
+>
+> **Ditulis 2026-09-08. Isinya sudah tidak benar.**
+>
+> Dokumen ini menyatakan build gagal, ada 5 syntax error di `SettingsView.tsx`,
+> `SidebarNav.tsx`, dan `GoalsView.tsx`, ikon Phosphor hilang, serta test 147/151.
+> **Semua itu sudah diperbaiki.** Status terverifikasi 2026-09-16:
+> `tsc --noEmit` lulus · `npm run lint` 0 error 0 warning · `npm run build` lulus ·
+> `npm run test:audit` 159/159 lulus · `/api/health` produksi `healthy`.
+>
+> Acuan yang berlaku: `DEPLOYMENT.md`, `docs/plans/`, dan `changelog.md`.
+> Dokumen ini disimpan hanya sebagai catatan sejarah.
+
 # 🚀 KasKeluarga v2.0 - Final Deployment Status Report
 
 **Date**: 2026-09-08  

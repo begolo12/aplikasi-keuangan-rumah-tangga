@@ -1,3 +1,16 @@
+> # ⚠️ DOKUMEN USANG — JANGAN DIPAKAI SEBAGAI ACUAN
+>
+> **Ditulis 2026-09-08. Isinya sudah tidak benar.**
+>
+> Dokumen ini memuat instruksi perbaikan untuk masalah yang **sudah selesai**:
+> error `SettingsView.tsx`, marker `PONYPOTAIL` di `SidebarNav.tsx`, dan struktur
+> `useEffect` di `GoalsView.tsx`. Tidak ada satu pun yang masih berlaku.
+> Status terverifikasi 2026-09-16: `tsc --noEmit` lulus · `npm run lint` 0 error
+> 0 warning · `npm run build` lulus · `npm run test:audit` 159/159 lulus.
+>
+> Untuk deployment yang benar, ikuti `DEPLOYMENT.md`. Dokumen ini disimpan hanya
+> sebagai catatan sejarah.
+
 # 🔧 Urgent Fixes Required Before Production Deployment
 
 **Date**: 2026-09-08  

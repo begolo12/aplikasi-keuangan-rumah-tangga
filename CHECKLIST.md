@@ -1,3 +1,15 @@
+> # ⚠️ DOKUMEN USANG — JANGAN DIPAKAI SEBAGAI ACUAN
+>
+> **Ditulis 2026-09-08. Isinya sudah tidak benar.**
+>
+> Checklist ini masih meminta perbaikan error kompilasi `SidebarNav.tsx`, test
+> 151/151, dan ESLint yang belum bersih. **Semuanya sudah selesai.**
+> Status terverifikasi 2026-09-16: `tsc --noEmit` lulus · `npm run lint` 0 error
+> 0 warning · `npm run build` lulus · `npm run test:audit` 159/159 lulus ·
+> CI aktif di `.github/workflows/ci.yml`.
+>
+> Acuan yang berlaku: `DEPLOYMENT.md`. Dokumen ini disimpan hanya sebagai catatan sejarah.
+
 # ✅ KasKeluarga v2.0 Deployment Checklist
 
 ## 🎯 Immediate Actions Required
