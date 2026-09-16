@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useMemo, useState } from 'react';
-import { Transaction, FinancialEvent } from '@/lib/types';
+import { Transaction, FinancialEvent, RecurringBill, Debt, Subscription } from '@/lib/types';
 import { formatRupiah, formatCompactRupiah, INDONESIAN_MONTHS } from '@/lib/formatters';
 import { CategoryIcon } from '../ui/CategoryIcon';
 import {
@@ -18,6 +18,9 @@ import {
 interface CalendarViewProps {
   transactions: Transaction[];
   financialEvents?: FinancialEvent[];
+  bills?: RecurringBill[];
+  debts?: Debt[];
+  subscriptions?: Subscription[];
   currentMonth: number;
   currentYear: number;
   onPeriodChange: (month: number, year: number) => void;
@@ -57,6 +60,9 @@ function firstWeekdayMon0(month: number, year: number): number {
 export function CalendarView({
   transactions,
   financialEvents,
+  bills = [],
+  debts = [],
+  subscriptions = [],
   currentMonth,
   currentYear,
   onPeriodChange,
@@ -123,9 +129,33 @@ export function CalendarView({
       const existing = map.get(day) || { income: 0, expense: 0, net: 0, count: 0, hasEvents: false };
       map.set(day, { ...existing, hasEvents: true, count: existing.count + events.length });
     }
-    
+
+    // Agenda belum-bayar: tagihan rutin (due_day), hutang (due_date), langganan (next_charge_date).
+    const lastDay = new Date(currentYear, currentMonth, 0).getDate();
+    const markDay = (day: number) => {
+      if (day < 1 || day > lastDay) return;
+      const e = map.get(day) || { income: 0, expense: 0, net: 0, count: 0, hasEvents: false };
+      map.set(day, { ...e, hasEvents: true, count: e.count + 1 });
+    };
+    for (const b of bills) {
+      if (!b.is_active || b.is_paid) continue;
+      markDay(Math.min(b.due_day, lastDay));
+    }
+    for (const d of debts) {
+      if (!d.due_date || d.status === 'paid') continue;
+      const dt = new Date(d.due_date);
+      if (isNaN(dt.getTime()) || dt.getMonth() + 1 !== currentMonth || dt.getFullYear() !== currentYear) continue;
+      markDay(dt.getDate());
+    }
+    for (const s of subscriptions) {
+      if (!s.is_active || !s.next_charge_date) continue;
+      const dt = new Date(String(s.next_charge_date).slice(0, 10));
+      if (isNaN(dt.getTime()) || dt.getMonth() + 1 !== currentMonth || dt.getFullYear() !== currentYear) continue;
+      markDay(dt.getDate());
+    }
+
     return map;
-  }, [transactions, financialEvents, currentMonth, currentYear]);
+  }, [transactions, financialEvents, bills, debts, subscriptions, currentMonth, currentYear]);
 
   const monthlyTotals = useMemo(() => {
     let income = 0;
@@ -181,6 +211,34 @@ export function CalendarView({
   }, [financialEvents, currentMonth, currentYear]);
   
   const selectedDayEvents = selectedDay != null ? (eventsByDateRef.get(selectedDay) || []) : [];
+
+  // Agenda belum-bayar untuk hari terpilih (read-only, navigasi ke modul asal).
+  const selectedAgenda = useMemo(() => {
+    if (selectedDay == null) return [] as Array<{ kind: string; title: string; amount: number }>;
+    const items: Array<{ kind: string; title: string; amount: number }> = [];
+    const lastDay = new Date(currentYear, currentMonth, 0).getDate();
+    for (const b of bills) {
+      if (!b.is_active || b.is_paid) continue;
+      if (Math.min(b.due_day, lastDay) === selectedDay) {
+        items.push({ kind: b.type === 'income' ? 'Pemasukan rutin' : b.type === 'transfer' ? 'Transfer rutin' : 'Tagihan', title: b.title, amount: b.amount });
+      }
+    }
+    const pad = (n: number) => String(n).padStart(2, '0');
+    const iso = `${currentYear}-${pad(currentMonth)}-${pad(selectedDay)}`;
+    for (const d of debts) {
+      if (!d.due_date || d.status === 'paid') continue;
+      if (String(d.due_date).slice(0, 10) === iso) {
+        items.push({ kind: d.type === 'receivable' ? 'Piutang' : 'Hutang', title: d.person_name, amount: d.remaining_amount ?? d.total_amount });
+      }
+    }
+    for (const s of subscriptions) {
+      if (!s.is_active || !s.next_charge_date) continue;
+      if (String(s.next_charge_date).slice(0, 10) === iso) {
+        items.push({ kind: 'Langganan', title: s.provider_name, amount: s.amount });
+      }
+    }
+    return items;
+  }, [selectedDay, bills, debts, subscriptions, currentMonth, currentYear]);
   return (
     <div className="space-y-4 max-w-5xl mx-auto">
       {/* Header kalender + navigasi */}
@@ -361,7 +419,7 @@ export function CalendarView({
             </div>
           )}
 
-          {selectedTransactions.length === 0 && selectedDayEvents.length === 0 ? (
+          {selectedTransactions.length === 0 && selectedDayEvents.length === 0 && selectedAgenda.length === 0 ? (
             <div className="py-6 text-center space-y-2 border border-dashed border-border rounded-2xl bg-surface-2/30">
               <p className="text-sm font-bold text-text">Tidak ada transaksi hari ini</p>
               <p className="text-xs text-text-muted">Catat pemasukan atau pengeluaran untuk tanggal ini.</p>
@@ -481,6 +539,26 @@ export function CalendarView({
                       </div>
                     );
                   })}
+                </>
+              )}
+              {/* Agenda jatuh tempo (tagihan, hutang, langganan) */}
+              {selectedAgenda.length > 0 && (
+                <>
+                  <h4 className="text-xs font-bold text-text">Jatuh tempo hari ini</h4>
+                  {selectedAgenda.map((a, i) => (
+                    <div
+                      key={`${a.kind}-${a.title}-${i}`}
+                      className="flex items-center gap-2 p-3 bg-warning/10 border border-warning/20 rounded-2xl"
+                    >
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-bold text-text truncate">{a.title}</p>
+                        <p className="text-[11px] text-text-muted">{a.kind} • bayar via modul asal</p>
+                      </div>
+                      <span className="text-sm font-extrabold text-text tabular-nums whitespace-nowrap">
+                        {formatRupiah(a.amount)}
+                      </span>
+                    </div>
+                  ))}
                 </>
               )}
             </div>

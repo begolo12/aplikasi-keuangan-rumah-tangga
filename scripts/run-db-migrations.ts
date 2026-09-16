@@ -291,12 +291,13 @@ async function main() {
       );
     `);
 
-    // 6d. Langganan: kolom yang dipakai aplikasi (provider_name, reminder_enabled).
-    console.log('6d. Adding provider_name and reminder_enabled to subscriptions...');
+    // 6d. Langganan: kolom yang dipakai aplikasi (provider_name, reminder_enabled, auto_debit).
+    console.log('6d. Adding provider_name, reminder_enabled, auto_debit to subscriptions...');
     await client.query(`
       ALTER TABLE subscriptions
       ADD COLUMN IF NOT EXISTS provider_name VARCHAR(150),
       ADD COLUMN IF NOT EXISTS reminder_enabled BOOLEAN NOT NULL DEFAULT TRUE,
+      ADD COLUMN IF NOT EXISTS auto_debit BOOLEAN NOT NULL DEFAULT FALSE,
       ALTER COLUMN provider DROP NOT NULL;
       UPDATE subscriptions SET provider_name = provider WHERE provider_name IS NULL AND provider IS NOT NULL;
       CREATE INDEX IF NOT EXISTS idx_subscriptions_user ON subscriptions(user_id);
@@ -324,13 +325,73 @@ async function main() {
     `);
   });
 
-  console.log('\nAll migrations executed successfully!');
+  console.log('\nSemua migrasi berhasil dijalankan.');
 
-  // Verify columns now
-  const cols = await query<{ column_name: string }>(
-    `SELECT column_name FROM information_schema.columns WHERE table_name = 'transactions' ORDER BY ordinal_position`
+  // Verifikasi keras: migrasi dianggap gagal bila ada kolom/tabel yang belum siap.
+  // Tanpa ini, "sukses" hanya berarti SQL tidak melempar error — bukan berarti
+  // skema benar-benar cocok dengan yang dibaca aplikasi (lihat insiden provider_name).
+  const requiredColumns: Array<[string, string]> = [
+    ['subscriptions', 'provider_name'],
+    ['subscriptions', 'reminder_enabled'],
+    ['subscriptions', 'auto_debit'],
+    ['recurring_bills', 'debt_id'],
+    ['recurring_bills', 'to_wallet_id'],
+    ['recurring_bills', 'asset_id'],
+    ['recurring_bills', 'auto_record'],
+    ['budgets', 'rollover_enabled'],
+    ['users', 'token_version'],
+    ['debts', 'start_date'],
+    ['wallets', 'household_id'],
+    ['wallets', 'is_shared'],
+    ['wallets', 'linked_goal_id'],
+    ['transactions', 'idempotency_key'],
+    ['transactions', 'asset_id'],
+    ['transactions', 'edited_at'],
+  ];
+
+  const requiredTables = [
+    'push_send_log',
+    'push_subscriptions',
+    'households',
+    'household_members',
+    'merchant_category_map',
+    'budgets_templates',
+    'financial_events',
+  ];
+
+  const missing: string[] = [];
+
+  for (const [table, column] of requiredColumns) {
+    const found = await query(
+      `SELECT 1 FROM information_schema.columns WHERE table_name = $1 AND column_name = $2`,
+      [table, column]
+    );
+    if (found.length === 0) missing.push(`${table}.${column}`);
+  }
+
+  for (const table of requiredTables) {
+    const found = await query(
+      `SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = $1`,
+      [table]
+    );
+    if (found.length === 0) missing.push(`tabel ${table}`);
+  }
+
+  // Kolom warisan `provider` harus sudah nullable agar INSERT dari aplikasi tidak gagal.
+  const providerCol = await query<{ is_nullable: string }>(
+    `SELECT is_nullable FROM information_schema.columns WHERE table_name = 'subscriptions' AND column_name = 'provider'`
   );
-  console.log('Transactions columns now:', cols.map((c) => c.column_name));
+  if (providerCol.length > 0 && providerCol[0].is_nullable !== 'YES') {
+    missing.push('subscriptions.provider masih NOT NULL');
+  }
+
+  if (missing.length > 0) {
+    console.error('\n❌ VERIFIKASI MIGRASI GAGAL. Objek berikut belum siap:');
+    for (const m of missing) console.error(`   - ${m}`);
+    process.exit(1);
+  }
+
+  console.log(`✅ Verifikasi lulus: ${requiredColumns.length} kolom + ${requiredTables.length} tabel siap.`);
 }
 
 main().catch((err) => {

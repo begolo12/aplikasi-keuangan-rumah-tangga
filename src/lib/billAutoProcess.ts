@@ -188,6 +188,13 @@ export async function processPendingBills(
             'UPDATE debts SET paid_amount = $1, status = $2, updated_at = NOW() WHERE id = $3 AND user_id = $4',
             [newPaid, newStatus, bill.debt_id, userId]
           );
+          // Hutang lunas via jalur otomatis: nonaktifkan bill cicilan agar tidak kepotong lagi.
+          if (newStatus === 'paid') {
+            await client.query(
+              'UPDATE recurring_bills SET is_active = FALSE WHERE id = $1 AND user_id = $2',
+              [bill.id, userId]
+            );
+          }
         }
       }
     }

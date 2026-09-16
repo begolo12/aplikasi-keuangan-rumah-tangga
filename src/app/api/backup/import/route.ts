@@ -49,6 +49,16 @@ const backupBudget = z.object({
   monthly_limit: z.number().finite().positive(),
   month: z.number().int().min(1).max(12),
   year: z.number().int().min(2000).max(2100),
+  rollover_enabled: z.boolean().default(false).optional(),
+});
+
+const backupBudgetTemplate = z.object({
+  id: z.string().uuid().optional(),
+  name: z.string().min(1).max(100),
+  description: z.string().max(500).optional().nullable(),
+  rule_type: z.enum(['50_30_20', 'zero_based', 'custom']),
+  is_default: z.boolean().default(false),
+  allocations: z.array(z.unknown()).default([]),
 });
 
 const backupBill = z.object({
@@ -142,8 +152,11 @@ const backupSubscription = z.object({
   amount: z.number().finite().positive(),
   cycle: z.enum(['daily', 'weekly', 'monthly', 'yearly']),
   next_charge_date: dateStr,
+  category_id: z.string().uuid().optional().nullable(),
+  wallet_id: z.string().uuid().optional().nullable(),
   is_active: z.boolean().default(true),
   reminder_enabled: z.boolean().default(true),
+  auto_debit: z.boolean().default(false).optional(),
 });
 
 const backupFinancialEvent = z.object({
@@ -169,6 +182,7 @@ const backupSchema = z.object({
     goal_contributions: z.array(backupGoalContribution).max(20000).default([]),
     subscriptions: z.array(backupSubscription).max(500).default([]),
     financial_events: z.array(backupFinancialEvent).max(2000).default([]),
+    budget_templates: z.array(backupBudgetTemplate).max(200).default([]),
     settings: z
       .object({
         family_name: z.string().min(1).max(100),
@@ -211,6 +225,7 @@ export async function POST(req: NextRequest) {
       await client.query('DELETE FROM bill_payments WHERE user_id = $1', [uid]);
       await client.query('DELETE FROM recurring_bills WHERE user_id = $1', [uid]);
       await client.query('DELETE FROM budgets WHERE user_id = $1', [uid]);
+      await client.query('DELETE FROM budgets_templates WHERE user_id = $1', [uid]);
       await client.query('DELETE FROM transactions WHERE user_id = $1', [uid]);
       await client.query('DELETE FROM subscriptions WHERE user_id = $1', [uid]);
       await client.query('DELETE FROM financial_events WHERE user_id = $1', [uid]);
@@ -321,10 +336,10 @@ export async function POST(req: NextRequest) {
         const categoryId = categoryMap.get(b.category_id);
         if (!categoryId) throw new BusinessError('Backup memuat anggaran dengan kategori yang tidak dikenal.');
         await client.query(
-          `INSERT INTO budgets (user_id, category_id, monthly_limit, month, year)
-           VALUES ($1, $2, $3, $4, $5)
-           ON CONFLICT (user_id, category_id, month, year) DO UPDATE SET monthly_limit = EXCLUDED.monthly_limit`,
-          [uid, categoryId, b.monthly_limit.toFixed(2), b.month, b.year]
+          `INSERT INTO budgets (user_id, category_id, monthly_limit, month, year, rollover_enabled)
+           VALUES ($1, $2, $3, $4, $5, $6)
+           ON CONFLICT (user_id, category_id, month, year) DO UPDATE SET monthly_limit = EXCLUDED.monthly_limit, rollover_enabled = EXCLUDED.rollover_enabled`,
+          [uid, categoryId, b.monthly_limit.toFixed(2), b.month, b.year, b.rollover_enabled ?? false]
         );
       }
 
@@ -419,17 +434,24 @@ export async function POST(req: NextRequest) {
         );
       }
 
-      // Subscriptions & financial events (schema 1.2; kosong pada backup lama).
+      // Subscriptions & financial events (relasi kategori/dompet ikut di-remap, bukan null).
+      let restoredTemplates = 0;
       for (const s of d.subscriptions) {
-        const categoryId = null;
-        const walletId = null;
-        void categoryId;
-        void walletId;
+        const categoryId = s.category_id ? categoryMap.get(s.category_id) ?? null : null;
+        const walletId = s.wallet_id ? walletMap.get(s.wallet_id) ?? null : null;
         await client.query(
-          `INSERT INTO subscriptions (user_id, provider_name, amount, cycle, next_charge_date, is_active, reminder_enabled)
-           VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-          [uid, s.provider_name, s.amount.toFixed(2), s.cycle, s.next_charge_date, s.is_active, s.reminder_enabled]
+          `INSERT INTO subscriptions (user_id, provider_name, amount, cycle, next_charge_date, category_id, wallet_id, is_active, reminder_enabled, auto_debit)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+          [uid, s.provider_name, s.amount.toFixed(2), s.cycle, s.next_charge_date, categoryId, walletId, s.is_active, s.reminder_enabled, s.auto_debit ?? false]
         );
+      }
+      for (const t of d.budget_templates ?? []) {
+        await client.query(
+          `INSERT INTO budgets_templates (user_id, name, description, rule_type, is_default, allocations)
+           VALUES ($1, $2, $3, $4, $5, $6::jsonb)`,
+          [uid, t.name, t.description ?? null, t.rule_type, t.is_default, JSON.stringify(t.allocations ?? [])]
+        );
+        restoredTemplates++;
       }
       for (const ev of d.financial_events) {
         await client.query(
@@ -452,6 +474,7 @@ export async function POST(req: NextRequest) {
         goal_contributions: restoredContribs,
         subscriptions: d.subscriptions.length,
         financial_events: d.financial_events.length,
+        budget_templates: restoredTemplates,
       };
     });
 

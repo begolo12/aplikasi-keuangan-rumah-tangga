@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { query, withTransaction } from '@/lib/db';
 import { handleRouteError } from '@/lib/apiHelpers';
 import { processPendingBills } from '@/lib/billAutoProcess';
+import { getJakartaDateString, getJakartaDateParts } from '@/lib/formatters';
 
 /**
  * Cron harian auto-record tagihan (dipanggil Vercel Cron dengan
@@ -20,10 +21,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
     }
 
-    const today = new Date();
-    const month = today.getMonth() + 1;
-    const year = today.getFullYear();
-    const todayStr = `${year}-${String(month).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+    // Kalender pengguna (WIB), bukan kalender server (UTC): auto-record tagihan
+    // harus mengikuti tanggal Indonesia agar tidak mencatat sehari terlalu awal.
+    const todayStr = getJakartaDateString();
+    const { month, year } = getJakartaDateParts();
 
     const users = await query<{ user_id: string }>(
       'SELECT DISTINCT user_id FROM recurring_bills WHERE is_active = TRUE AND auto_record = TRUE'

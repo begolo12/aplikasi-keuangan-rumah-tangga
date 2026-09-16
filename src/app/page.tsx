@@ -180,7 +180,6 @@ export default function MainPage() {
 
   // Navigation & History State
   const [activeTab, setActiveTab] = useState<NavTab>(getInitialTab);
-  const [tabHistory, setTabHistory] = useState<NavTab[]>(() => [getInitialTab()]);
   const [exitToast, setExitToast] = useState(false);
   const exitToastTimerRef = useRef<NodeJS.Timeout | null>(null);
   const hasRestoredTabRef = useRef(false);
@@ -242,7 +241,6 @@ export default function MainPage() {
     if (saved && saved !== activeTab) {
       queueMicrotask(() => {
         setActiveTab(saved);
-        setTabHistory([saved]);
       });
       try {
         window.history.replaceState({ tab: saved }, '', '');
@@ -258,7 +256,6 @@ export default function MainPage() {
       const restored = readSavedTab();
       if (restored) {
         setActiveTab((prev) => (prev !== restored ? restored : prev));
-        setTabHistory((prev) => (prev[0] !== restored ? [restored] : prev));
         try {
           window.history.replaceState({ tab: restored }, '', '');
         } catch {}
@@ -325,7 +322,6 @@ export default function MainPage() {
       const target: NavTab = action === 'tab-bills' ? 'bills' : 'calendar';
       queueMicrotask(() => {
         setActiveTab(target);
-        setTabHistory([target]);
       });
       persistTab(target);
       consumeAction(target);
@@ -390,7 +386,6 @@ export default function MainPage() {
   const handleTabChange = useCallback((newTab: NavTab) => {
     if (newTab === activeTab) return;
     setActiveTab(newTab);
-    setTabHistory((prev) => [...prev, newTab]);
     persistTab(newTab);
     window.history.pushState({ tab: newTab }, '', '');
   }, [activeTab]);
@@ -445,7 +440,6 @@ export default function MainPage() {
       // 2. Ada tab valid di history: navigasi langsung tanpa pushState ulang.
       if (validTarget && validTarget !== activeTab) {
         setActiveTab(validTarget);
-        setTabHistory([validTarget]);
         persistTab(validTarget);
         return;
       }
@@ -453,7 +447,6 @@ export default function MainPage() {
       // 3. Di beranda tanpa entry tab: konfirmasi keluar dua-kali-tekan.
       if (activeTab !== 'dashboard') {
         setActiveTab('dashboard');
-        setTabHistory(['dashboard']);
         persistTab('dashboard');
         window.history.pushState({ tab: 'dashboard' }, '', '');
         return;
@@ -798,6 +791,7 @@ export default function MainPage() {
           bills={bills}
           wallets={wallets}
           categories={categories}
+          debts={debts}
           currentMonth={currentMonth}
           currentYear={currentYear}
           onRefresh={refetch}
@@ -837,6 +831,9 @@ export default function MainPage() {
         <CalendarView
           transactions={transactions}
           financialEvents={financialEvents}
+          bills={bills}
+          debts={debts}
+          subscriptions={subscriptions}
           currentMonth={currentMonth}
           currentYear={currentYear}
           onPeriodChange={handlePeriodChange}

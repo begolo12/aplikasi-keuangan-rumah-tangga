@@ -113,9 +113,19 @@ export async function POST(req: NextRequest) {
         ]);
         if (ownedTarget.rows.length === 0) throw new BusinessError('Dompet tujuan transfer tidak ditemukan pada akun Anda.');
       }
+      // Tautan hutang opsional: pastikan milik user agar cicilan ikut update sisa hutang.
+      let debtId: string | null = null;
+      if (validated.debt_id) {
+        const ownedDebt = await client.query('SELECT 1 FROM debts WHERE id = $1 AND user_id = $2', [
+          validated.debt_id,
+          session.userId,
+        ]);
+        if (ownedDebt.rows.length === 0) throw new BusinessError('Hutang terkait tidak ditemukan pada akun Anda.');
+        debtId = validated.debt_id;
+      }
       const rows = await client.query<RecurringBill>(
-        `INSERT INTO recurring_bills (user_id, type, title, amount, due_day, category_id, wallet_id, to_wallet_id, auto_record, is_active)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+        `INSERT INTO recurring_bills (user_id, type, title, amount, due_day, category_id, wallet_id, to_wallet_id, debt_id, auto_record, is_active)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
          RETURNING *`,
         [
           session.userId,
@@ -126,6 +136,7 @@ export async function POST(req: NextRequest) {
           categoryId,
           validated.wallet_id || null,
           toWalletId,
+          debtId,
           validated.auto_record,
           validated.is_active,
         ]

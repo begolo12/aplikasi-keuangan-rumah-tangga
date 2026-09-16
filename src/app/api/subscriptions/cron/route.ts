@@ -1,14 +1,27 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { query } from '@/lib/db';
+import { query, withTransaction } from '@/lib/db';
 import { handleRouteError } from '@/lib/apiHelpers';
 import { sendPushToUser } from '@/lib/push';
-import { formatRupiah } from '@/lib/formatters';
+import { formatRupiah, getJakartaDateString } from '@/lib/formatters';
 
 /**
  * GET /api/subscriptions/cron
- * Cron job endpoint to process subscription reminders (H-7 and H-1)
- * Triggered by Vercel Cron or external service worker
+ * Cron harian langganan: (1) auto-debit langganan jatuh tempo yg opt-in
+ * (potong saldo + catat transaksi + majukan next_charge_date), (2) push
+ * pengingat H-7 s.d. H-0 untuk yg tidak auto-debit / belum jatuh tempo.
  */
+function advanceDate(dateStr: string, cycle: string): string {
+  const d = new Date(dateStr + 'T00:00:00');
+  if (cycle === 'daily') d.setDate(d.getDate() + 1);
+  else if (cycle === 'weekly') d.setDate(d.getDate() + 7);
+  else if (cycle === 'yearly') d.setFullYear(d.getFullYear() + 1);
+  else d.setMonth(d.getMonth() + 1);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
 export async function GET(req: NextRequest) {
   try {
     const secret = process.env.CRON_SECRET;
@@ -20,11 +33,9 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
     }
 
-    const now = new Date();
-    const todayStr = now.toISOString().slice(0, 10);
+    const todayStr = getJakartaDateString();
 
-    // Idempotensi harian: tandai pengiriman push per tanggal agar cron 2x tidak dobel kirim.
-    const logTable = await query(
+    await query(
       `CREATE TABLE IF NOT EXISTS push_send_log (
          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
          user_id UUID NOT NULL,
@@ -34,53 +45,88 @@ export async function GET(req: NextRequest) {
          UNIQUE (user_id, kind, sent_date)
        )`
     );
-    void logTable;
 
-    // Fetch all active subscriptions with reminders enabled
-    const subs = await query<any>(
-      `SELECT
-        s.id, s.user_id, s.provider_name, s.amount, s.cycle, s.next_charge_date,
-        s.reminder_enabled, c.name as category_name, w.name as wallet_name
-      FROM subscriptions s
-      LEFT JOIN categories c ON s.category_id = c.id AND c.user_id = s.user_id
-      LEFT JOIN wallets w ON s.wallet_id = w.id AND w.user_id = s.user_id
-      WHERE s.is_active = TRUE
-        AND s.reminder_enabled = TRUE
-      ORDER BY s.next_charge_date ASC`
+    const subs = await query<{
+      id: string; user_id: string; provider_name: string; amount: string;
+      cycle: string; next_charge_date: string; category_id: string | null;
+      wallet_id: string | null; auto_debit: boolean; reminder_enabled: boolean;
+    }>(
+      `SELECT s.id, s.user_id, s.provider_name, s.amount, s.cycle,
+        s.next_charge_date::text AS next_charge_date,
+        s.category_id, s.wallet_id,
+        COALESCE(s.auto_debit, FALSE) AS auto_debit, s.reminder_enabled
+       FROM subscriptions s
+       WHERE s.is_active = TRUE
+       ORDER BY s.next_charge_date ASC`
     );
 
     const remindersByUser = new Map<string, Array<{ title: string; daysUntilDue: number; amount: number }>>();
+    let debitedCount = 0;
     let processedCount = 0;
     let sentCount = 0;
 
-    // Group by user_id and calculate reminders
     for (const sub of subs) {
-      if (!sub.reminder_enabled || !sub.user_id) continue;
+      if (!sub.user_id) continue;
+      const chargeDate = new Date((sub.next_charge_date || '').slice(0, 10) + 'T00:00:00');
+      if (isNaN(chargeDate.getTime())) continue;
+      // Selisih hari dihitung dari tanggal kalender WIB (bukan selisih jam server UTC),
+      // supaya "jatuh tempo hari ini" tetap benar antara 00:00-06:59 WIB.
+      const diffDays = Math.round(
+        (Date.parse(`${sub.next_charge_date.slice(0, 10)}T00:00:00Z`) - Date.parse(`${todayStr}T00:00:00Z`)) /
+          (1000 * 60 * 60 * 24)
+      );
+      const amount = parseFloat(sub.amount);
 
-      const chargeDate = new Date(sub.next_charge_date);
-      const diffTime = chargeDate.getTime() - now.getTime();
-      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      // Auto-debit: jatuh tempo hari ini / sudah lewat, opt-in, dan ada dompet.
+      if (diffDays <= 0 && sub.auto_debit && sub.wallet_id) {
+        try {
+          await withTransaction(async (client) => {
+            const locked = await client.query(
+              `SELECT id, next_charge_date::text AS next_charge_date FROM subscriptions
+               WHERE id = $1 AND user_id = $2 AND is_active = TRUE FOR UPDATE`,
+              [sub.id, sub.user_id]
+            );
+            if (locked.rows.length === 0) return;
+            const current = String(locked.rows[0].next_charge_date).slice(0, 10);
+            if (current > todayStr) return; // sudah dimajukan sesi lain
+            const wallet = await client.query(
+              'SELECT id FROM wallets WHERE id = $1 AND user_id = $2 FOR UPDATE',
+              [sub.wallet_id, sub.user_id]
+            );
+            if (wallet.rows.length === 0) return;
+            await client.query(
+              'UPDATE wallets SET balance = balance - $1, updated_at = NOW() WHERE id = $2 AND user_id = $3',
+              [amount, sub.wallet_id, sub.user_id]
+            );
+            await client.query(
+              `INSERT INTO transactions (user_id, type, amount, category_id, wallet_id, description, date)
+               VALUES ($1, 'expense', $2, $3, $4, $5, $6)`,
+              [sub.user_id, amount, sub.category_id, sub.wallet_id, `Langganan otomatis: ${sub.provider_name || 'Langganan'}`, todayStr]
+            );
+            await client.query(
+              'UPDATE subscriptions SET next_charge_date = $1, updated_at = NOW() WHERE id = $2 AND user_id = $3',
+              [advanceDate(current, sub.cycle), sub.id, sub.user_id]
+            );
+          });
+          debitedCount++;
+          continue; // sudah dibayar otomatis, tidak perlu diingatkan
+        } catch {
+          // gagal debit satu langganan tidak menghentikan yg lain; masukkan ke pengingat
+        }
+      }
 
-      // Only send reminder if within H-7 or H-1 window
+      if (!sub.reminder_enabled) continue;
       if (diffDays > 7 || diffDays < 0) continue;
-
       const key = `${sub.user_id}`;
       let list = remindersByUser.get(key);
       if (!list) {
         list = [];
         remindersByUser.set(key, list);
       }
-
-      list.push({
-        title: sub.provider_name || 'Langganan',
-        daysUntilDue: diffDays,
-        amount: parseFloat(sub.amount),
-      });
-
+      list.push({ title: sub.provider_name || 'Langganan', daysUntilDue: diffDays, amount });
       processedCount++;
     }
 
-    // Kirim satu push gabungan per user per hari.
     for (const [userId, list] of remindersByUser) {
       try {
         const alreadySent = await query<{ id: string }>(
@@ -112,6 +158,7 @@ export async function GET(req: NextRequest) {
       success: true,
       data: {
         processed: processedCount,
+        debited: debitedCount,
         users_notified: sentCount,
         timestamp: new Date().toISOString(),
       },
@@ -119,4 +166,9 @@ export async function GET(req: NextRequest) {
   } catch (error) {
     return handleRouteError(error, 'subscriptions:cron');
   }
+}
+
+// Vercel Cron memanggil endpoint dengan GET; samakan POST ke GET.
+export async function POST(req: NextRequest) {
+  return GET(req);
 }

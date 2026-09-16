@@ -28,7 +28,15 @@ import {
   parseReceiptRequestSchema,
   parsedReceiptResultSchema,
 } from '../src/lib/validations';
-import { formatRupiah, formatCompactRupiah, formatDate, getReconcileAge } from '../src/lib/formatters';
+import {
+  formatRupiah,
+  formatCompactRupiah,
+  formatDate,
+  getReconcileAge,
+  getJakartaDateString,
+  getJakartaDateParts,
+  addDaysToDateString,
+} from '../src/lib/formatters';
 import { createSessionToken, verifySessionToken } from '../src/lib/auth';
 import { buildMonthlyDecision } from '../src/lib/decisionSummary';
 import { calculateAssetDepreciation } from '../src/app/api/assets/route';
@@ -841,6 +849,40 @@ const quota2 = calculateDailySafeQuota(1500000, 16, 30);
 assert('kuota pertengahan bulan (1.5jt / 15 hari) = 100.000', quota2.amountPerDay === 100000 && quota2.daysRemaining === 15);
 const quotaNegative = calculateDailySafeQuota(-500000, 20, 30);
 assert('kuota kas defisit menghasilkan 0', quotaNegative.amountPerDay === 0);
+
+// ── Validasi Kalender WIB (server produksi berjalan di UTC) ─────────────────
+// Regresi: `new Date().getDate()` di server masih menunjukkan tanggal kemarin
+// antara 00:00–06:59 WIB, sehingga jatuh tempo tagihan/langganan bisa meleset sehari.
+console.log('\n[15] Kalender WIB vs UTC (server produksi berjalan di UTC)');
+{
+  // 2026-09-16T00:30:00+07:00 == 2026-09-15T17:30:00Z → masih 15 September di UTC.
+  const earlyMorningWib = new Date('2026-09-15T17:30:00Z');
+  assert(
+    'pukul 00:30 WIB terbaca sebagai 2026-09-16, bukan 2026-09-15',
+    getJakartaDateString(earlyMorningWib) === '2026-09-16'
+  );
+  assert(
+    'komponen tanggal WIB konsisten (year/month/day)',
+    getJakartaDateParts(earlyMorningWib).year === 2026 &&
+      getJakartaDateParts(earlyMorningWib).month === 9 &&
+      getJakartaDateParts(earlyMorningWib).day === 16
+  );
+
+  // 2026-09-16T06:59:00+07:00 masih tanggal 16 WIB, tapi 2026-09-15T23:59Z di UTC.
+  const beforeSeven = new Date('2026-09-15T23:59:00Z');
+  assert('pukul 06:59 WIB tetap 2026-09-16', getJakartaDateString(beforeSeven) === '2026-09-16');
+
+  // Batas hari: 2026-09-17T00:00 WIB == 2026-09-16T17:00Z
+  assert(
+    'tepat tengah malam WIB sudah ganti hari',
+    getJakartaDateString(new Date('2026-09-16T17:00:00Z')) === '2026-09-17'
+  );
+
+  assert('penambahan 1 hari melintasi batas bulan', addDaysToDateString('2026-09-30', 1) === '2026-10-01');
+  assert('penambahan 1 hari melintasi batas tahun', addDaysToDateString('2026-12-31', 1) === '2027-01-01');
+  assert('penambahan 1 hari pada tahun kabisat', addDaysToDateString('2028-02-28', 1) === '2028-02-29');
+}
+
 testAuth().then(() => {
   // ── Summary ──────────────────────────────────────────────────────────────────
   console.log(`\n${'─'.repeat(50)}`);

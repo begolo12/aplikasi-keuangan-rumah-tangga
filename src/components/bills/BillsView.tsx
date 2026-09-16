@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { RecurringBill, Wallet, Category } from '@/lib/types';
+import { RecurringBill, Wallet, Category, Debt } from '@/lib/types';
 import { BillItem } from './BillItem';
 import { Button } from '../ui/Button';
 import { Modal } from '../ui/Modal';
@@ -20,6 +20,7 @@ interface BillsViewProps {
   bills: RecurringBill[];
   wallets: Wallet[];
   categories: Category[];
+  debts?: Debt[];
   currentMonth?: number;
   currentYear?: number;
   onRefresh: () => void;
@@ -29,6 +30,7 @@ export function BillsView({
   bills,
   wallets,
   categories,
+  debts = [],
   currentMonth = new Date().getMonth() + 1,
   currentYear = new Date().getFullYear(),
   onRefresh,
@@ -63,6 +65,8 @@ export function BillsView({
     setWalletId,
     toWalletId,
     setToWalletId,
+    debtId,
+    setDebtId,
     autoRecord,
     setAutoRecord,
     isLoading,
@@ -450,6 +454,27 @@ export function BillsView({
               <p className="text-[11px] text-text-muted">
                 Setiap bulan nominal dipindahkan otomatis dari dompet asal ke dompet ini (bukan pengeluaran).
               </p>
+            </div>
+          )}
+
+          {type === 'expense' && debts.filter((d) => d.status !== 'paid').length > 0 && (
+            <div className="space-y-1">
+              <label htmlFor="billDebt" className="block text-xs font-semibold text-text-muted">
+                Tautkan ke Hutang (opsional, cicilan ikut update sisa hutang)
+              </label>
+              <select
+                id="billDebt"
+                value={debtId}
+                onChange={(e) => setDebtId(e.target.value)}
+                className="w-full h-11 px-3 bg-background border border-border rounded-xl text-sm font-medium focus:ring-2 focus:ring-primary focus:outline-none"
+              >
+                <option value="">Tanpa tautan hutang</option>
+                {debts.filter((d) => d.status !== 'paid').map((d) => (
+                  <option key={d.id} value={d.id}>
+                    {d.person_name}
+                  </option>
+                ))}
+              </select>
             </div>
           )}
 

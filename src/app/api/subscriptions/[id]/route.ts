@@ -15,7 +15,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
         s.id, s.user_id, s.provider_name, s.amount, s.cycle, s.next_charge_date,
         s.category_id, c.name as category_name,
         s.wallet_id, w.name as wallet_name,
-        s.is_active, s.reminder_enabled, s.created_at, s.updated_at
+        s.is_active, s.reminder_enabled, COALESCE(s.auto_debit, FALSE) as auto_debit, s.created_at, s.updated_at
       FROM subscriptions s
       LEFT JOIN categories c ON s.category_id = c.id AND c.user_id = s.user_id
       LEFT JOIN wallets w ON s.wallet_id = w.id AND w.user_id = s.user_id
@@ -44,6 +44,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
         wallet_name: result.wallet_name ? String(result.wallet_name) : null,
         is_active: Boolean(result.is_active),
         reminder_enabled: Boolean(result.reminder_enabled),
+        auto_debit: Boolean(result.auto_debit),
         created_at: String(result.created_at),
         updated_at: String(result.updated_at),
       },
@@ -129,6 +130,10 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
         updates.push(`reminder_enabled = $${paramIdx++}`);
         values.push(Boolean(body.reminder_enabled));
       }
+      if (body.auto_debit !== undefined) {
+        updates.push(`auto_debit = $${paramIdx++}`);
+        values.push(Boolean(body.auto_debit));
+      }
 
       if (updates.length === 0) {
         throw new BusinessError('Tidak ada field yang diupdate', 400);
@@ -161,6 +166,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
         wallet_id: updated.wallet_id,
         is_active: updated.is_active,
         reminder_enabled: updated.reminder_enabled,
+        auto_debit: Boolean(updated.auto_debit),
         created_at: updated.created_at,
         updated_at: updated.updated_at,
       },

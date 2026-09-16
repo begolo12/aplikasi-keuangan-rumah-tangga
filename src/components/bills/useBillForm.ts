@@ -19,6 +19,7 @@ export function useBillForm({ wallets, categories, onSuccess }: UseBillFormOptio
   const [categoryId, setCategoryId] = useState('');
   const [walletId, setWalletId] = useState('');
   const [toWalletId, setToWalletId] = useState('');
+  const [debtId, setDebtId] = useState('');
   const [autoRecord, setAutoRecord] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -30,6 +31,7 @@ export function useBillForm({ wallets, categories, onSuccess }: UseBillFormOptio
     setDueDay(5);
     setAutoRecord(false);
     setToWalletId('');
+    setDebtId('');
     setError(null);
     if (initialType === 'transfer') {
       setCategoryId('');
@@ -78,6 +80,7 @@ export function useBillForm({ wallets, categories, onSuccess }: UseBillFormOptio
           category_id: type === 'transfer' ? null : categoryId || null,
           wallet_id: walletId || null,
           to_wallet_id: type === 'transfer' ? toWalletId || null : null,
+          debt_id: type === 'expense' ? debtId || null : null,
           auto_record: autoRecord,
         },
       });
@@ -106,6 +109,8 @@ export function useBillForm({ wallets, categories, onSuccess }: UseBillFormOptio
     setWalletId,
     toWalletId,
     setToWalletId,
+    debtId,
+    setDebtId,
     autoRecord,
     setAutoRecord,
     isLoading,

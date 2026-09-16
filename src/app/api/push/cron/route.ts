@@ -2,7 +2,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import { query } from '@/lib/db';
 import { handleRouteError } from '@/lib/apiHelpers';
 import { sendPushToUser } from '@/lib/push';
-import { formatRupiah } from '@/lib/formatters';
+import {
+  formatRupiah,
+  getJakartaDateParts,
+  getJakartaDateString,
+  addDaysToDateString,
+} from '@/lib/formatters';
 
 /**
  * Cron harian Web Push (dipanggil Vercel Cron dengan Authorization: Bearer ${CRON_SECRET}).
@@ -27,21 +32,25 @@ interface DueEvent {
   amount: number | null;
 }
 
-function daysInMonth(year: number, month1Based: number): number {
-  return new Date(year, month1Based, 0).getDate();
+/**
+ * Apakah `dueDay` jatuh pada `dateStr` (YYYY-MM-DD)?
+ * `dueDay` di atas jumlah hari bulan berjalan (mis. tgl 31 di Februari) di-clamp
+ * ke hari terakhir bulan itu. Perbandingan memakai string tanggal kalender WIB,
+ * bukan `Date` lokal server, agar tidak meleset saat server berjalan di UTC.
+ */
+function isDueOn(dueDay: number, dateStr: string): boolean {
+  const [year, month] = dateStr.split('-').map(Number);
+  const lastDayOfMonth = new Date(Date.UTC(year, month, 0)).getUTCDate();
+  return Math.min(dueDay, lastDayOfMonth) === Number(dateStr.slice(8, 10));
 }
 
-function effectiveDueDay(dueDay: number, date: Date): number {
-  // ponytail: due_day > jumlah hari bulan (mis. tgl 31 di Feb) di-clamp ke hari terakhir bulan.
-  return Math.min(dueDay, daysInMonth(date.getFullYear(), date.getMonth() + 1));
-}
-
-function isDueOn(dueDay: number, target: Date): boolean {
-  return effectiveDueDay(dueDay, target) === target.getDate();
-}
-
-function labelFor(target: Date, today: Date): string {
-  return target.toDateString() === today.toDateString() ? 'Hari ini' : 'Besok';
+/** Tanggal (YYYY-MM-DD) ditampilkan sebagai tanggal Indonesia, bukan tanggal server. */
+function formatDateId(dateStr: string): string {
+  return new Date(`${dateStr}T00:00:00Z`).toLocaleDateString('id-ID', {
+    day: 'numeric',
+    month: 'short',
+    timeZone: 'Asia/Jakarta',
+  });
 }
 
 export async function POST(req: NextRequest) {
@@ -55,9 +64,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
     }
 
-    const today = new Date();
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
+    // Kalender pengguna (WIB), bukan kalender server (UTC). Lihat getJakartaDateParts.
+    const todayStr = getJakartaDateString();
+    const tomorrowStr = addDaysToDateString(todayStr, 1);
+    const todayParts = getJakartaDateParts();
 
     const usersRes = await query<{ user_id: string }>('SELECT DISTINCT user_id FROM push_subscriptions');
     if (usersRes.length === 0) {
@@ -80,10 +90,10 @@ export async function POST(req: NextRequest) {
          )`,
       [
         userIds,
-        today.getMonth() + 1,
-        today.getFullYear(),
-        tomorrow.getMonth() + 1,
-        tomorrow.getFullYear(),
+        todayParts.month,
+        todayParts.year,
+        Number(tomorrowStr.slice(5, 7)),
+        Number(tomorrowStr.slice(0, 4)),
       ]
     );
 
@@ -92,16 +102,23 @@ export async function POST(req: NextRequest) {
       `SELECT e.user_id, e.id, e.title, e.type, e.amount::float8 AS amount, e.date
        FROM financial_events e
        WHERE e.user_id = ANY($1::uuid[]) AND e.is_active = TRUE
-         AND (e.date = $6::date OR e.date = $7::date)`,
-      [
-        userIds,
-        today.getMonth() + 1,
-        today.getFullYear(),
-        tomorrow.getMonth() + 1,
-        tomorrow.getFullYear(),
-        today.toISOString().split('T')[0],
-        tomorrow.toISOString().split('T')[0],
-      ]
+         AND (e.date = $2::date OR e.date = $3::date)`,
+      [userIds, todayStr, tomorrowStr]
+    );
+
+    // Hutang belum lunas yang jatuh tempo hari ini / besok / sudah lewat,
+    // kecuali yang sudah punya tagihan cicilan aktif (biar tidak dobel ingatkan).
+    const debtsRes = await query<{ user_id: string; id: string; person_name: string; remaining: number; due_date: string }>(
+      `SELECT d.user_id, d.id, d.person_name, (d.total_amount - d.paid_amount)::float8 AS remaining, d.due_date::text AS due_date
+       FROM debts d
+       WHERE d.user_id = ANY($1::uuid[]) AND d.status != 'paid' AND d.due_date IS NOT NULL
+         AND d.due_date <= $2::date
+         AND NOT EXISTS (
+           SELECT 1 FROM recurring_bills b
+           WHERE b.debt_id = d.id AND b.user_id = d.user_id AND b.is_active = TRUE
+         )
+       ORDER BY d.due_date ASC LIMIT 100`,
+      [userIds, tomorrowStr]
     );
 
     // Kirim push untuk tagihan & event
@@ -109,7 +126,7 @@ export async function POST(req: NextRequest) {
     for (const userId of userIds) {
       const dueBills = billsRes
         .filter((b) => b.user_id === userId)
-        .filter((b) => isDueOn(b.due_day, today) || isDueOn(b.due_day, tomorrow))
+        .filter((b) => isDueOn(b.due_day, todayStr) || isDueOn(b.due_day, tomorrowStr))
         .sort((a, b) => a.due_day - b.due_day)
         .slice(0, 3);
       
@@ -119,10 +136,10 @@ export async function POST(req: NextRequest) {
         .slice(0, 3);
 
       for (const b of dueBills) {
-        const target = isDueOn(b.due_day, today) ? today : tomorrow;
+        const dueToday = isDueOn(b.due_day, todayStr);
         const result = await sendPushToUser(userId, {
           title: `Pengingat Tagihan: ${b.title}`,
-          body: `${labelFor(target, today)} · ${formatRupiah(b.amount)}`,
+          body: `${dueToday ? 'Hari ini' : 'Besok'} · ${formatRupiah(b.amount)}`,
           url: '/?action=tab-bills',
           tag: `kas-bill-${b.id}`,
         });
@@ -130,12 +147,24 @@ export async function POST(req: NextRequest) {
       }
 
       for (const e of dueEvents) {
-        const eventDate = new Date(e.date);
         const result = await sendPushToUser(userId, {
           title: `Peringatan Acara Keuangan: ${e.title}`,
-          body: `${eventDate.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })} • ${e.type.replace(/_/g, ' ').toUpperCase()}`,
+          body: `${formatDateId(e.date)} • ${e.type.replace(/_/g, ' ').toUpperCase()}`,
           url: '/?action=tab-calendar',
           tag: `kas-event-${e.id}`,
+        });
+        sent += result.sent;
+      }
+
+      const dueDebts = debtsRes
+        .filter((d) => d.user_id === userId)
+        .slice(0, 3);
+      for (const d of dueDebts) {
+        const result = await sendPushToUser(userId, {
+          title: `Hutang jatuh tempo: ${d.person_name}`,
+          body: `Sisa ${formatRupiah(d.remaining)} · jatuh tempo ${formatDateId(d.due_date)}`,
+          url: '/?action=tab-debts',
+          tag: `kas-debt-${d.id}`,
         });
         sent += result.sent;
       }

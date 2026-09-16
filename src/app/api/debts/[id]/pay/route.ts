@@ -184,6 +184,13 @@ export async function POST(req: NextRequest, context: RouteContext) {
            )`,
           [user.userId, linkedBillId, validated.payment_date, validated.amount, payMonth, payYear],
         );
+        // Hutang lunas: nonaktifkan tagihan cicilan agar kas tidak terpotong bulan berikut.
+        if (newStatus === 'paid') {
+          await client.query(
+            'UPDATE recurring_bills SET is_active = FALSE WHERE id = $1 AND user_id = $2',
+            [linkedBillId, user.userId]
+          );
+        }
       }
 
       return {

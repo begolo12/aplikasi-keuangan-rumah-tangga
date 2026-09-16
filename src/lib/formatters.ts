@@ -108,6 +108,48 @@ export function getLocalDateString(date: Date = new Date()): string {
   return `${year}-${month}-${day}`;
 }
 
+/**
+ * Komponen tanggal kalender di zona waktu Indonesia (WIB, UTC+7).
+ *
+ * Penting untuk kode sisi server: proses produksi (Vercel) berjalan di UTC, sehingga
+ * `new Date().getDate()` di server masih menunjukkan tanggal kemarin antara pukul
+ * 00:00–06:59 WIB. Logika jatuh tempo tagihan/langganan/hutang harus mengikuti
+ * kalender pengguna, bukan kalender server.
+ */
+export function getJakartaDateParts(date: Date = new Date()): {
+  year: number;
+  month: number;
+  day: number;
+} {
+  const formatted = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Jakarta',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(date);
+  const [year, month, day] = formatted.split('-').map(Number);
+  return { year, month, day };
+}
+
+/**
+ * Tanggal hari ini (YYYY-MM-DD) menurut kalender WIB. Lihat `getJakartaDateParts`.
+ */
+export function getJakartaDateString(date: Date = new Date()): string {
+  const { year, month, day } = getJakartaDateParts(date);
+  return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+}
+
+/**
+ * Tambah `days` hari pada string tanggal YYYY-MM-DD tanpa terpengaruh zona waktu.
+ * Dipakai untuk rentang "hari ini s.d. besok" pada cron pengingat.
+ */
+export function addDaysToDateString(dateStr: string, days: number): string {
+  const [y, m, d] = dateStr.split('-').map(Number);
+  const base = new Date(Date.UTC(y, m - 1, d));
+  base.setUTCDate(base.getUTCDate() + days);
+  return base.toISOString().split('T')[0];
+}
+
 export function getReconcileAge(reconciledAt: string | null | undefined, now: Date = new Date()): ReconcileAge {
   if (!reconciledAt) return 'never';
   const then = new Date(reconciledAt);

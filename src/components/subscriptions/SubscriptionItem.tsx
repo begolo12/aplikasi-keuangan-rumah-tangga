@@ -72,6 +72,11 @@ export function SubscriptionItem({ subscription, onEdit, onDelete }: Subscriptio
                     {subscription.wallet_name}
                   </span>
                 )}
+                {subscription.auto_debit && (
+                  <span className="text-[11px] sm:text-xs font-semibold px-2 py-0.5 rounded-lg bg-income/10 text-income border border-income/20 whitespace-nowrap">
+                    Auto-debit
+                  </span>
+                )}
               </div>
             </div>
 

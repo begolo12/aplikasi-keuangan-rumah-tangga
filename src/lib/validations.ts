@@ -105,6 +105,7 @@ export const subscriptionSchema = z.object({
   wallet_id: z.string().uuid().optional().nullable(),
   is_active: z.boolean().default(true),
   reminder_enabled: z.boolean().default(true),
+  auto_debit: z.boolean().default(false),
 });
 export const recurringBillSchema = z.object({
   type: z.enum(['expense', 'income', 'transfer']).default('expense'),
@@ -115,6 +116,7 @@ export const recurringBillSchema = z.object({
   wallet_id: z.string().uuid().optional().nullable(),
   to_wallet_id: z.string().uuid().optional().nullable(), // Tujuan transfer (amplop), wajib untuk tipe transfer
   asset_id: z.string().uuid().optional().nullable(),
+  debt_id: z.string().uuid().optional().nullable(), // Tautan ke hutang (cicilan ikut update sisa hutang)
   auto_record: z.boolean().default(false),
   is_active: z.boolean().default(true),
 }).refine((data) => {

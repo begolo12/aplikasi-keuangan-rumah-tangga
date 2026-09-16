@@ -1,7 +1,7 @@
 // Service worker KasKeluarga: network-first untuk navigasi (data selalu segar),
 // cache-first hanya untuk aset statis immutable. API /api/ TIDAK pernah dicache.
 
-const CACHE_NAME = 'kaskeluarga-static-v4';
+const CACHE_NAME = 'kaskeluarga-static-v5';
 const PRECACHE_URLS = ['/manifest.json', '/icons/icon-192.png', '/icons/icon-512.png', '/offline.html'];
 
 self.addEventListener('install', (event) => {

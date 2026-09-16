@@ -452,6 +452,7 @@ async function initializeSchema(req: NextRequest): Promise<NextResponse> {
       ALTER TABLE subscriptions
       ADD COLUMN IF NOT EXISTS provider_name VARCHAR(150),
       ADD COLUMN IF NOT EXISTS reminder_enabled BOOLEAN NOT NULL DEFAULT TRUE,
+      ADD COLUMN IF NOT EXISTS auto_debit BOOLEAN NOT NULL DEFAULT FALSE,
       ALTER COLUMN provider DROP NOT NULL;
       UPDATE subscriptions SET provider_name = provider WHERE provider_name IS NULL AND provider IS NOT NULL;
     `);

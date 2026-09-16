@@ -41,6 +41,10 @@ export async function GET(req: NextRequest) {
       query('SELECT * FROM financial_events WHERE user_id = $1', [session.userId]),
     ]);
 
+    const [budgetTemplates] = await Promise.all([
+      query('SELECT * FROM budgets_templates WHERE user_id = $1', [session.userId]),
+    ]);
+
     const backupData = {
       version: '1.2',
       exported_at: new Date().toISOString(),
@@ -64,6 +68,7 @@ export async function GET(req: NextRequest) {
         goal_contributions: goalContributions,
         subscriptions,
         financial_events: financialEvents,
+        budget_templates: budgetTemplates,
       },
     };
 

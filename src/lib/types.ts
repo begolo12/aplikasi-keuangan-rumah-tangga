@@ -127,6 +127,7 @@ export interface Subscription {
   wallet_name?: string | null;
   is_active: boolean;
   reminder_enabled: boolean;
+  auto_debit: boolean;
   created_at: string;
   updated_at: string;
 }

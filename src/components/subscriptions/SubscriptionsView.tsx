@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import { Subscription, Wallet, Category } from '@/lib/types';
 import { SubscriptionItem } from './SubscriptionItem';
 import { Plus, CalendarCheck, CheckCircle, XCircle, CircleDashed } from '@phosphor-icons/react';
-import { formatRupiah } from '@/lib/formatters';
+import { formatRupiah, getLocalDateString } from '@/lib/formatters';
 import { Modal } from '../ui/Modal';
 import { AmountInput } from '../ui/AmountInput';
 import { EmptyState } from '../ui/EmptyState';
@@ -42,10 +42,11 @@ export function SubscriptionsView({
   const [providerName, setProviderName] = useState('');
   const [amount, setAmount] = useState<number>(0);
   const [cycle, setCycle] = useState<'daily' | 'weekly' | 'monthly' | 'yearly'>('monthly');
-  const [nextChargeDate, setNextChargeDate] = useState(() => new Date().toISOString().split('T')[0]);
+  const [nextChargeDate, setNextChargeDate] = useState(() => getLocalDateString());
   const [categoryId, setCategoryId] = useState<string | null>(null);
   const [walletId, setWalletId] = useState<string | null>(null);
   const [reminderEnabled, setReminderEnabled] = useState(true);
+  const [autoDebit, setAutoDebit] = useState(false);
 
   const activeSubs = subscriptions.filter((s) => s.is_active);
   const inactiveSubs = subscriptions.filter((s) => !s.is_active);
@@ -75,6 +76,7 @@ export function SubscriptionsView({
           category_id: categoryId || null,
           wallet_id: walletId || null,
           reminder_enabled: reminderEnabled,
+          auto_debit: autoDebit,
         },
       });
 
@@ -82,10 +84,11 @@ export function SubscriptionsView({
       setProviderName('');
       setAmount(0);
       setCycle('monthly');
-      setNextChargeDate(new Date().toISOString().split('T')[0]);
+      setNextChargeDate(getLocalDateString());
       setCategoryId(null);
       setWalletId(null);
       setReminderEnabled(true);
+      setAutoDebit(false);
       setLoading(false);
       onRefresh?.();
       notify('Langganan berhasil ditambahkan.', { tone: 'success' });
@@ -285,6 +288,19 @@ export function SubscriptionsView({
             />
             <label htmlFor="reminder" className="text-xs font-medium text-text">
               Aktifkan pengingat H-7/H-1
+            </label>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              id="autodebit"
+              checked={autoDebit}
+              onChange={(e) => setAutoDebit(e.target.checked)}
+              className="w-4 h-4 rounded border-border"
+            />
+            <label htmlFor="autodebit" className="text-xs font-medium text-text">
+              Potong saldo otomatis saat jatuh tempo (perlu dompet pembayaran)
             </label>
           </div>
 

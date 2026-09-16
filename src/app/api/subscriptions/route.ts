@@ -14,6 +14,7 @@ const subscriptionSchema = z.object({
   wallet_id: z.string().uuid().optional().nullable(),
   is_active: z.boolean().default(true),
   reminder_enabled: z.boolean().default(true),
+  auto_debit: z.boolean().default(false),
 });
 
 export async function GET(req: NextRequest) {
@@ -31,7 +32,7 @@ export async function GET(req: NextRequest) {
         s.id, s.user_id, s.provider_name, s.amount, s.cycle, s.next_charge_date,
         s.category_id, c.name as category_name,
         s.wallet_id, w.name as wallet_name,
-        s.is_active, s.reminder_enabled, s.created_at, s.updated_at
+        s.is_active, s.reminder_enabled, COALESCE(s.auto_debit, FALSE) as auto_debit, s.created_at, s.updated_at
       FROM subscriptions s
       LEFT JOIN categories c ON s.category_id = c.id AND c.user_id = s.user_id
       LEFT JOIN wallets w ON s.wallet_id = w.id AND w.user_id = s.user_id
@@ -53,6 +54,7 @@ export async function GET(req: NextRequest) {
       wallet_name: s.wallet_name ? String(s.wallet_name) : null,
       is_active: Boolean(s.is_active),
       reminder_enabled: Boolean(s.reminder_enabled),
+      auto_debit: Boolean(s.auto_debit),
       created_at: String(s.created_at),
       updated_at: String(s.updated_at),
     }));
@@ -90,9 +92,9 @@ export async function POST(req: NextRequest) {
       const res = await client.query(
         `INSERT INTO subscriptions (
           user_id, provider_name, amount, cycle, next_charge_date,
-          category_id, wallet_id, is_active, reminder_enabled, created_at, updated_at
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), NOW())
-        RETURNING *`,
+          category_id, wallet_id, is_active, reminder_enabled, auto_debit, created_at, updated_at
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW(), NOW())
+        RETURNING *, COALESCE(auto_debit, FALSE) as auto_debit`,
         [
           session.userId,
           validated.provider_name,
@@ -103,6 +105,7 @@ export async function POST(req: NextRequest) {
           validated.wallet_id,
           validated.is_active,
           validated.reminder_enabled,
+          validated.auto_debit ?? false,
         ]
       );
 
@@ -122,6 +125,7 @@ export async function POST(req: NextRequest) {
       wallet_name: null,
       is_active: result.is_active,
       reminder_enabled: result.reminder_enabled,
+      auto_debit: Boolean(result.auto_debit),
       created_at: result.created_at,
       updated_at: result.updated_at,
     };

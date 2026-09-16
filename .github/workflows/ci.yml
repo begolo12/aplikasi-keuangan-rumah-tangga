@@ -1,0 +1,49 @@
+name: CI
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+    branches: [main, master]
+
+# Batalkan run lama pada branch yang sama agar tidak menumpuk.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: Typecheck, Lint, Build, Self-test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck
+        run: npx tsc --noEmit
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Build
+        run: npm run build
+        env:
+          # Nilai dummy: build tidak menyentuh database, tetapi modul yang membaca
+          # env saat modul dimuat perlu nilai ada agar tidak melempar error.
+          DATABASE_URL: 'postgresql://ci:ci@localhost:5432/kaskeluarga_test'
+          JWT_SECRET: 'ci-only-dummy-secret-value-not-used-in-production'
+
+      # Self-test murni statis (tidak menyentuh DB) dan aman dijalankan di CI.
+      # Suite E2E destruktif TIDAK dijalankan di sini.
+      - name: Self-test
+        run: npm run test:audit

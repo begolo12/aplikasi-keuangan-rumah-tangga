@@ -41,6 +41,63 @@ if (fs.existsSync(envPath)) {
   }
 }
 
+/**
+ * GERBANG KESELAMATAN: suite ini DESTRUKTIF (membuat lalu menghapus user uji).
+ * `npm test` pernah menembak DATABASE_URL produksi karena membaca `.env.local`.
+ * Sekarang suite menolak berjalan kecuali diarahkan ke database uji secara eksplisit.
+ *
+ * Cara menjalankan: set E2E_ALLOW_DESTRUCTIVE=1 dan DATABASE_URL yang menunjuk DB uji
+ * (wajib memuat penanda 'test'/'e2e'/'staging'/'dev' pada nama database).
+ */
+function assertSafeTarget(): void {
+  const url = process.env.DATABASE_URL;
+  if (!url) {
+    console.error('❌ DATABASE_URL tidak diset. Suite E2E butuh database uji.');
+    process.exit(1);
+  }
+
+  if (process.env.E2E_ALLOW_DESTRUCTIVE !== '1') {
+    console.error(
+      [
+        '❌ Suite E2E dihentikan sebelum menyentuh database.',
+        '',
+        'Suite ini membuat dan MENGHAPUS user uji. Menjalankannya terhadap database',
+        'produksi akan memutasi data nyata.',
+        '',
+        'Untuk menjalankan, arahkan ke database uji lalu izinkan eksplisit:',
+        '  E2E_ALLOW_DESTRUCTIVE=1 DATABASE_URL="postgresql://.../kaskeluarga_test" npx tsx scripts/e2e-full-suite.ts',
+      ].join('\n')
+    );
+    process.exit(1);
+  }
+
+  // Lapisan kedua: nama database harus jelas menandakan lingkungan uji.
+  let dbName = '';
+  try {
+    dbName = new URL(url).pathname.replace(/^\//, '');
+  } catch {
+    console.error('❌ DATABASE_URL tidak dapat di-parse.');
+    process.exit(1);
+  }
+
+  const SAFE_MARKERS = ['test', 'e2e', 'staging', 'dev', 'local'];
+  const looksLikeTest = SAFE_MARKERS.some((m) => dbName.toLowerCase().includes(m));
+  if (!looksLikeTest) {
+    console.error(
+      [
+        `❌ Database "${dbName}" tidak terlihat seperti database uji.`,
+        `   Nama database harus memuat salah satu dari: ${SAFE_MARKERS.join(', ')}.`,
+        '   Ini mencegah suite destruktif tidak sengaja menembak produksi.',
+      ].join('\n')
+    );
+    process.exit(1);
+  }
+
+  console.log(`🔒 Target database uji terverifikasi: "${dbName}"\n`);
+}
+
+assertSafeTarget();
+
 import { query, withTransaction } from '../src/lib/db';
 import { seedUserData } from '../src/lib/seed';
 import { createSessionToken, verifySessionToken } from '../src/lib/auth';
