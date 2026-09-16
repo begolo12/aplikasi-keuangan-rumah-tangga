@@ -883,6 +883,21 @@ console.log('\n[15] Kalender WIB vs UTC (server produksi berjalan di UTC)');
   assert('penambahan 1 hari pada tahun kabisat', addDaysToDateString('2028-02-28', 1) === '2028-02-29');
 }
 
+// Nama berkas ekspor kalender (.ics) harus memakai tanggal WIB, bukan UTC —
+// kalau tidak, berkas yang diunduh pengguna bisa berlabel tanggal kemarin.
+const eventsExportSrc = readFileSync(
+  join(process.cwd(), 'src', 'app', 'api', 'events', 'export', 'route.ts'),
+  'utf8'
+);
+assert(
+  'nama berkas ekspor kalender memakai tanggal WIB',
+  eventsExportSrc.includes('getJakartaDateString()')
+);
+assert(
+  'nama berkas ekspor kalender tidak lagi memakai toISOString UTC',
+  !eventsExportSrc.includes("toISOString().split('T')[0]}")
+);
+
 testAuth().then(() => {
   // ── Summary ──────────────────────────────────────────────────────────────────
   console.log(`\n${'─'.repeat(50)}`);

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAuthSession } from '@/lib/auth';
 import { query } from '@/lib/db';
 import { handleRouteError, BusinessError } from '@/lib/apiHelpers';
+import { getJakartaDateString } from '@/lib/formatters';
 
 /**
  * GET /api/events/export
@@ -44,7 +45,7 @@ export async function GET(req: NextRequest) {
     return new NextResponse(icsContent, {
       headers: {
         'Content-Type': 'text/calendar; charset=utf-8',
-        'Content-Disposition': `attachment; filename="events-${new Date().toISOString().split('T')[0]}.ics"`,
+        'Content-Disposition': `attachment; filename="events-${getJakartaDateString()}.ics"`,
       },
     });
   } catch (error) {

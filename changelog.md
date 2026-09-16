@@ -3,6 +3,53 @@
 Log eksekusi plan. Entri baru ditambahkan di bagian paling atas.
 Format entri lihat `AGENTS.md` bagian "Langkah 3 — Catat ke Changelog".
 
+## [2026-09-16] Verifikasi Kesiapan Produksi — Bukti End-to-End dan Penutupan Gap
+
+**Plan**: `docs/plans/2026-09-16-hardening-produksi.md`
+
+### Berubah
+
+**Verifikasi ulang terhadap kondisi nyata (bukan asumsi)**
+- Seluruh gerbang mutu dijalankan ulang: `tsc --noEmit` lulus, `npm run lint` 0 error 0 warning,
+  `npm run build` lulus, `npm run test:audit` **168/168** lulus.
+- DB produksi diperiksa langsung lewat `information_schema`: 16 kolom + 21 tabel siap,
+  `subscriptions.provider` sudah nullable, `push_send_log` ada.
+- 19 query yang dipakai modul Langganan (list, filter cycle, insert, detail, update, kalender,
+  cron, delete, push_send_log anti-duplikat, isolasi antar-user) dijalankan terhadap DB produksi
+  di dalam satu transaksi yang **selalu di-`ROLLBACK`** — 19/19 lulus, tidak ada data tersimpan.
+- Smoke test produksi end-to-end: **27/27 lulus** (register → sesi → seeding 4 dompet + 15 kategori
+  → transaksi → CRUD Langganan → dashboard/bootstrap → 8 modul lain → isolasi data → logout).
+  User uji sementara `smoke-*@smoke-test.invalid` dibuat lewat API publik lalu dihapus; diverifikasi
+  jumlah user kembali 5 dan 0 transaksi orphan.
+- Ketiga cron produksi (`/api/subscriptions/cron`, `/api/bills/cron`, `/api/push/cron`) dengan
+  `Authorization: Bearer $CRON_SECRET` mengembalikan **HTTP 200**; `vercel crons ls` menunjukkan
+  3 cron terdaftar.
+- CI hijau pada `main`; default branch GitHub terverifikasi `main`.
+- Produksi terverifikasi memuat commit terbaru (`CACHE_NAME v5` dari `ac2106c`,
+  deploy `dpl_8icYtX4UxxQ8Ucvd221w4BuJxUfe`).
+
+**Perbaikan yang ditemukan saat verifikasi**
+- `src/app/api/events/export/route.ts`: nama berkas `.ics` memakai `toISOString()` (UTC) sehingga
+  berkas yang diunduh pengguna bisa berlabel tanggal kemarin antara 00:00–06:59 WIB. Diganti
+  `getJakartaDateString()`. Dua regression test ditambahkan (`scripts/audit-self-test.ts`).
+- `deploy.sh` ditulis ulang menjadi gerbang rilis sungguhan. Versi lama punya tiga cacat:
+  (1) exit code test diabaikan karena `if [ $? -eq 0 ]` mengevaluasi status `tail`, bukan `npm`,
+  sehingga "test gagal" tetap lanjut deploy; (2) memeriksa string error lama yang sudah tidak
+  relevan (`SettingsView`, `SidebarNav`, `GoalsView`); (3) menunjuk `URGENT-FIXES.md` yang
+  sudah ditandai usang. Sekarang: `set -euo pipefail`, 7 langkah (working tree bersih → typecheck →
+  lint → build → self-test → health sebelum deploy → deploy → health sesudah deploy), plus mode
+  `--check` untuk menjalankan gerbang tanpa deploy.
+
+### Dampak
+- Kesiapan produksi kini punya bukti yang bisa direproduksi, bukan klaim dokumen.
+- Satu item tetap terbuka: pemantauan error otomatis (Sentry/sejenis) — butuh akun pihak ketiga
+  dan keputusan pemilik. Tanpa itu, error produksi hanya terlihat di log Vercel.
+- Suite E2E destruktif tidak dijalankan pada sesi ini karena butuh database uji terpisah; guard-nya
+  sudah diverifikasi menolak berjalan. Cakupan alur utamanya sudah diuji non-destruktif terhadap
+  DB produksi.
+- `deploy.sh` kini **menghentikan rilis** bila ada gerbang yang gagal. Sebelumnya kegagalan test
+  tidak menghentikan deploy.
+
 ## [2026-09-16] Hardening Produksi — Gap Deploy, Database, dan Repo
 
 **Plan**: `docs/plans/2026-09-16-hardening-produksi.md`

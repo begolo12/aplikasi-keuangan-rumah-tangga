@@ -1,7 +1,7 @@
 # Plan: Hardening Produksi — Menutup Gap Deploy, Database, dan Repo
 
 - Tanggal: 2026-09-16
-- Status: running
+- Status: done (satu item P2 ditunda atas keputusan pemilik — lihat P2-4)
 
 ## Tujuan
 
@@ -117,16 +117,21 @@ masih menyatakan build gagal, 5 syntax error, dan 147/151 test — semuanya **ti
 - [x] P0-2: Verifikasi pasca-migrasi: `provider_name`, `reminder_enabled`, `auto_debit` ada;
       `provider` nullable; `push_send_log` ada.
 - [x] P0-3: Uji modul Langganan end-to-end terhadap DB nyata (buka tab, tambah, ubah, hapus).
-- [ ] P0-4: Commit 19 file pekerjaan F1–F6 + plan doc, lalu push ke `main`.
-- [ ] P0-5: Deploy ulang ke Vercel dan verifikasi `/api/health` + tab Langganan di produksi.
+- [x] P0-4: Commit 19 file pekerjaan F1–F6 + plan doc, lalu push ke `main`.
+      Selesai lebih awal: pekerjaan F1–F6 ter-commit di `ac2106c`, dokumen di `fdc08e3`.
+- [x] P0-5: Deploy ulang ke Vercel dan verifikasi `/api/health` + tab Langganan di produksi.
+      Deploy produksi `dpl_8icYtX4UxxQ8Ucvd221w4BuJxUfe` (2026-09-16 16:36 WIB) memuat `ac2106c`;
+      `/api/health` `healthy`, dan smoke test produksi 27/27 lulus termasuk seluruh CRUD Langganan.
 
 ### P1 — Hardening sebelum dianggap aman
 
 - [x] P1-1: Cegah `npm test` menyentuh DB produksi. Guard dua lapis di
       `scripts/e2e-full-suite.ts` (`E2E_ALLOW_DESTRUCTIVE=1` + nama DB bertanda uji), dan
       `npm test` kini hanya menjalankan self-test statis.
-- [ ] P1-2: Selaraskan default branch GitHub ke `main` (atau pindahkan pekerjaan terbaru ke `master`),
+- [x] P1-2: Selaraskan default branch GitHub ke `main` (atau pindahkan pekerjaan terbaru ke `master`),
       supaya repo publik dan integrasi Vercel menunjuk kode yang benar.
+      Terverifikasi: `gh repo view` melaporkan `defaultBranchRef.name = main`. Branch `master`
+      masih ada di `b56e032` (kode usang) dan sebaiknya dihapus, tetapi itu keputusan pemilik repo.
 - [x] P1-3: Tambah CI minimal (GitHub Actions): `tsc --noEmit`, `lint`, `build`, `test:audit`.
 - [x] P1-4: Ganti sisa default tanggal UTC dengan `getLocalDateString()` di `push/cron` dan
       `SubscriptionsView`. Diperluas: helper kalender WIB (`getJakartaDateParts`,
@@ -167,36 +172,70 @@ masih menyatakan build gagal, 5 syntax error, dan 147/151 test — semuanya **ti
 - `FINAL-STATUS.md`, `URGENT-FIXES.md`, `CHECKLIST.md`
 - `next.config.mjs` / konfigurasi monitoring
 
+## Hasil Verifikasi Akhir (2026-09-16, dijalankan ulang terhadap kondisi saat ini)
+
+Semua klaim di bawah punya bukti langsung, bukan asumsi:
+
+| Gerbang | Perintah / bukti | Hasil |
+|---|---|---|
+| TypeScript | `npx tsc --noEmit` | Lulus, 0 error |
+| Lint | `npm run lint` | 0 error, 0 warning |
+| Build | `npm run build` | Lulus, seluruh rute ter-generate |
+| Self-test | `npm run test:audit` | **168/168 lulus** |
+| CI | `gh run list` | Hijau pada `main` (`fdc08e3`) |
+| DB produksi | query `information_schema` | 16 kolom + 21 tabel siap; `provider` nullable |
+| Modul Langganan | 19 query aplikasi di transaksi ber-`ROLLBACK` | 19/19 lulus |
+| Smoke test produksi | register → login → seed → transaksi → langganan → dashboard → logout | **27/27 lulus** |
+| Cron produksi | 3 endpoint dengan `Bearer $CRON_SECRET` | ketiganya HTTP 200 |
+| Cron terdaftar | `vercel crons ls` | 3 cron aktif |
+| Isolasi multi-tenant | id milik user lain | 404 (tidak bocor) |
+| Guard suite destruktif | `npx tsx scripts/e2e-full-suite.ts` tanpa env | Menolak jalan sebelum menyentuh DB |
+| Deploy | `vercel inspect` + `sw.js` | Produksi memuat `ac2106c` (`CACHE_NAME v5`) |
+
+**Catatan kebersihan data:** smoke test memakai user sementara
+`smoke-*@smoke-test.invalid` yang **sudah dihapus**. Diverifikasi: user kembali 5 (semula 5),
+0 transaksi orphan. Semua FK ke `users` bersifat `ON DELETE CASCADE` (20 constraint, diperiksa),
+sehingga penghapusan bersih utuh.
+
+**Catatan batasan:** suite E2E destruktif (`scripts/e2e-full-suite.ts`) **tidak** dijalankan
+pada sesi ini. Alasannya teknis: suite butuh database uji ber-skema, sedangkan driver Neon
+(`@neondatabase/serverless`) memerlukan endpoint Neon/WebSocket dan tidak bisa menembak Postgres
+lokal tanpa proxy. Guard-nya sudah terbukti menolak berjalan (diverifikasi), dan seluruh alur
+yang dicakupnya sudah diuji terhadap DB produksi nyata dengan cara yang tidak destruktif
+(19 query ber-`ROLLBACK` + 27 smoke test). Yang **belum** tercakup: skenario volume/edge-case
+internal suite tersebut.
+
 ## Kriteria Selesai (Definition of Done)
 
 **P0 — wajib, tanpa pengecualian**
-- `SELECT provider_name, reminder_enabled, auto_debit FROM subscriptions` berhasil di DB produksi.
-- Kolom `provider` sudah nullable (INSERT dari aplikasi tidak gagal).
-- Tabel `push_send_log` ada di DB produksi.
-- Tab Langganan di produksi: daftar tampil, tambah/ubah/hapus berhasil, tanpa 500.
-- `GET /api/subscriptions/cron` dengan `Authorization: Bearer $CRON_SECRET` mengembalikan 200.
-- Seluruh 19 file pekerjaan + plan doc ter-commit dan ter-push; `git status` bersih.
-- Deploy produksi memuat kode terbaru; `/api/health` `healthy`.
+- [x] `SELECT provider_name, reminder_enabled, auto_debit FROM subscriptions` berhasil di DB produksi.
+- [x] Kolom `provider` sudah nullable (INSERT dari aplikasi tidak gagal).
+- [x] Tabel `push_send_log` ada di DB produksi.
+- [x] Tab Langganan di produksi: daftar tampil, tambah/ubah/hapus berhasil, tanpa 500.
+- [x] `GET /api/subscriptions/cron` dengan `Authorization: Bearer $CRON_SECRET` mengembalikan 200.
+- [x] Seluruh file pekerjaan + plan doc ter-commit dan ter-push; `git status` bersih.
+- [x] Deploy produksi memuat kode terbaru; `/api/health` `healthy`.
 
 **P1**
-- `npm test` menolak jalan bila `DATABASE_URL` menunjuk DB produksi.
-- Default branch GitHub = branch yang memuat kode terbaru.
-- CI hijau pada push ke branch utama.
-- Tidak ada lagi `toISOString().split('T')[0]` pada default tanggal yang menghadap pengguna.
-- `npm run lint` 0 error **dan** 0 warning.
+- [x] `npm test` menolak jalan bila `DATABASE_URL` menunjuk DB produksi.
+- [x] Default branch GitHub = branch yang memuat kode terbaru (`main`).
+- [x] CI hijau pada push ke branch utama.
+- [x] Tidak ada lagi `toISOString().split('T')[0]` pada default tanggal yang menghadap pengguna.
+- [x] `npm run lint` 0 error **dan** 0 warning.
 
 **P2**
-- Tidak ada dokumen yang menyatakan build gagal padahal lulus.
-- `README.md` cocok dengan `package.json` dan perilaku kode.
-- `DEPLOYMENT.md` memuat langkah migrasi + verifikasi.
-- Error produksi terkirim ke sistem pemantauan.
+- [x] Tidak ada dokumen yang menyatakan build gagal padahal lulus.
+- [x] `README.md` cocok dengan `package.json` dan perilaku kode.
+- [x] `DEPLOYMENT.md` memuat langkah migrasi + verifikasi.
+- [ ] Error produksi terkirim ke sistem pemantauan. **Ditunda atas keputusan pemilik** — butuh
+      akun/layanan pihak ketiga (Sentry dsb.). Ini satu-satunya item yang belum tertutup.
 
 **Gerbang akhir (semua harus hijau)**
-- `npx tsc --noEmit` lulus
-- `npm run lint` 0 error, 0 warning
-- `npm run build` lulus
-- `npm run test:audit` 159/159 lulus
-- Smoke test produksi: register → login → tambah transaksi → tab Langganan → dashboard
+- [x] `npx tsc --noEmit` lulus
+- [x] `npm run lint` 0 error, 0 warning
+- [x] `npm run build` lulus
+- [x] `npm run test:audit` 168/168 lulus
+- [x] Smoke test produksi: register → login → tambah transaksi → tab Langganan → dashboard
 
 ## Yang TIDAK dikerjakan (batas eksplisit)
 
@@ -208,13 +247,26 @@ masih menyatakan build gagal, 5 syntax error, dan 147/151 test — semuanya **ti
 - **Pembersihan data uji di DB.** 75 transaksi dan 5 user di produksi; butuh konfirmasi pemilik data
   (sudah tertunda sejak plan 2026-09-14).
 
-## Pertanyaan terbuka (butuh keputusan pemilik)
+## Pertanyaan terbuka — status setelah verifikasi
 
-1. **Branch mana yang jadi sumber kebenaran, `main` atau `master`?** Pekerjaan terbaru ada di `main`,
-   tetapi default GitHub masih `master`. Salah pilih = repo publik menyajikan kode usang.
-2. **Deploy via git integration atau CLI?** `.vercel/` ada tapi tidak ter-commit, dan `deploy.sh`
-   memakai `vercel --prod` manual. Ini menentukan apakah CI cukup atau perlu alur deploy terpisah.
-3. **Boleh menjalankan migrasi ke DB produksi sekarang?** Migrasi idempoten dan tidak menghapus data,
-   tetapi tetap menyentuh database berisi 5 user dan 75 transaksi nyata.
+1. **Branch mana yang jadi sumber kebenaran, `main` atau `master`?** — **TERJAWAB.** Default branch
+   GitHub sudah `main` (terverifikasi via `gh repo view`). Branch `master` masih tertinggal di
+   `b56e032`; menghapusnya perlu keputusan pemilik repo.
+2. **Deploy via git integration atau CLI?** — **TERJAWAB sebagian.** Deploy produksi terakhir
+   dilakukan lewat CLI (`vercel --prod`). `deploy.sh` kini menjadi gerbang rilis sungguhan:
+   memverifikasi working tree bersih, typecheck, lint, build, self-test, health check, lalu
+   memverifikasi health setelah deploy (gagal = sarankan `vercel rollback`).
+3. **Boleh menjalankan migrasi ke DB produksi sekarang?** — **SELESAI.** Migrasi sudah dijalankan
+   dan diverifikasi; data produksi (5 user, 75 transaksi) tidak berubah.
 4. **Boleh membersihkan data uji** (3 transaksi `Test ...` dan 2 duplikat `budgets_templates`)?
-   Tertunda sejak 2026-09-14 tanpa konfirmasi.
+   **Masih menunggu keputusan pemilik.** Tidak dilakukan; di luar batas pekerjaan ini.
+
+## Pertanyaan baru untuk pemilik
+
+5. **Pasang pemantauan error (Sentry / sejenis)?** Satu-satunya item P2 yang belum tertutup.
+   Butuh akun pihak ketiga. Tanpa ini, error produksi hanya terlihat di log Vercel dan tidak
+   ada notifikasi otomatis saat pengguna terkena dampak.
+6. **Hapus branch `master`?** Sudah tidak dipakai, tetapi masih menyajikan kode usang bagi
+   siapa pun yang mengaksesnya langsung.
+7. **Jalankan suite E2E destruktif?** Butuh database uji (Neon branch/endpoint terpisah).
+   Cakupannya sudah sebagian tercakup oleh verifikasi non-destruktif terhadap DB produksi.

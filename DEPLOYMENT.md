@@ -4,16 +4,21 @@
 > `SettingsView`, `GoalsView`, ikon Phosphor, "147/151 test") sudah **tidak berlaku** —
 > semuanya sudah diperbaiki dan diverifikasi. Status mutu terkini:
 > `tsc --noEmit` lulus · `npm run lint` 0 error 0 warning · `npm run build` lulus ·
-> `npm run test:audit` 159/159 lulus.
+> `npm run test:audit` 168/168 lulus.
 
 ## ✅ Status Kesiapan Produksi (terverifikasi 2026-09-16)
 
 - [x] Landing page publik
 - [x] Aplikasi inti (dashboard, transaksi, anggaran, tagihan, hutang, target, aset, laporan)
-- [x] Modul Langganan (setelah migrasi database dijalankan — lihat Step 3)
+- [x] Modul Langganan (migrasi database sudah dijalankan — lihat Step 3)
 - [x] PWA + service worker + Web Push
-- [x] Self-test 159/159
+- [x] Self-test 168/168
 - [x] CI otomatis (typecheck, lint, build, self-test)
+- [x] Smoke test produksi 27/27 (register → transaksi → CRUD Langganan → dashboard → logout)
+- [x] Ketiga cron produksi terdaftar dan mengembalikan 200 dengan `CRON_SECRET` benar
+- [ ] **Pemantauan error otomatis — BELUM ADA.** Hanya `console.error` + log Vercel; tidak ada
+      Sentry/sejenisnya. Error produksi tidak akan terdeteksi sampai ada pengguna yang mengeluh.
+      Butuh akun pihak ketiga dan keputusan pemilik (lihat Step 6).
 
 ## 📦 Deployment Steps
 
@@ -33,6 +38,23 @@ Tambahkan di Vercel Dashboard > Project Settings > Environment Variables:
 | `CRON_SECRET` | (Optional) Cron auth token | Wajib agar cron berjalan; cron menolak request tanpa ini |
 
 ### Step 2: Deploy to Vercel
+
+**Disarankan: pakai gerbang rilis `deploy.sh`.** Skrip ini menjalankan seluruh gerbang mutu
+dan **berhenti bila ada yang gagal** — tidak ada lagi "test gagal tapi tetap deploy".
+
+```bash
+# Hanya menjalankan gerbang (tanpa deploy) — berguna sebagai pre-flight check
+./deploy.sh --check
+
+# Gerbang + deploy produksi + verifikasi health setelah deploy
+./deploy.sh
+```
+
+Gerbang yang dijalankan: working tree bersih → `tsc --noEmit` → `lint` → `build` →
+`test:audit` → health sebelum deploy → deploy → health sesudah deploy (gagal = disarankan
+`vercel rollback`).
+
+**Alternatif manual:**
 
 ```bash
 # Install Vercel CLI if not already
